@@ -1,0 +1,130 @@
+name: Nuevo runtime (New runtime / harness)
+description: Propón un arnés o runtime que el Architect debería poder recomendar e instalar. (Propose a harness the Architect should be able to recommend and install.)
+title: "[runtime] "
+labels: ["runtime", "knowledge", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un runtime nuevo es algo que el Architect va a **instalar en la compu de otra persona**, muchas
+        veces alguien no técnico. Por eso la barra es alta: instalación segura con versión fijada,
+        credencial permitida por los términos del proveedor, y controles de seguridad mapeados a
+        `SEC-NN`. *(A new runtime is something the Architect installs on someone else's machine, so the
+        bar is high.)*
+
+        Hoy existen: `claude-code-local`, `claude-code-server`, `claude-p-cron`, `claude-agent-sdk`,
+        `hermes`, `openclaw`, `codex-openai`, `ollama-local`, `cowork`. Si lo que propones es una
+        **versión nueva** de uno de estos, usa el formulario *Conocimiento viejo* en su lugar.
+
+        **¿Encontraste una vulnerabilidad en un runtime?** No la publiques aquí: ver
+        [SECURITY.md](https://github.com/Hainrixz/jarvis-architect/blob/main/SECURITY.md).
+
+  - type: input
+    id: name
+    attributes:
+      label: Nombre y repo oficial (Name and official repo)
+      placeholder: "NombreDelArnés — https://github.com/org/repo"
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: ¿A quién le conviene y por qué ninguno de los actuales sirve? (Who is it for, and why none of the current ones fit?)
+      description: Un perfil concreto (profesión, país, nivel técnico, presupuesto) para el que este runtime gana. (A concrete profile it wins for.)
+      placeholder: |
+        Una contadora en Colombia, sin plan de IA, que necesita X. Hermes no sirve porque…, OpenClaw no porque…
+    validations:
+      required: true
+
+  - type: textarea
+    id: auth
+    attributes:
+      label: Credencial y términos (Credential and terms)
+      description: |
+        ¿Qué credencial usa (API key, login de suscripción, modelo local)? Cita el texto de los términos del
+        proveedor con su URL. Recuerda: una suscripción Claude Pro/Max solo se usa dentro del binario
+        `claude` sin modificar; un arnés de terceros usa API keys. (Which credential, with the provider's
+        terms quoted and linked.)
+    validations:
+      required: true
+
+  - type: textarea
+    id: install
+    attributes:
+      label: Instalación por sistema operativo (Install per OS)
+      description: |
+        El comando oficial con versión fijada (Homebrew, npm, uv/pipx, winget, imagen Docker con tag).
+        Sin `curl | sh` ni `sudo`. Si el único camino es un script del vendor, dilo. (Package-manager
+        install with a pinned version; no curl|sh, no sudo.)
+      placeholder: |
+        macOS: brew install <formula>
+        Linux/WSL: npm install -g <pkg>@<versión>
+        Windows: ¿nativo o solo WSL2?
+        Fuente: https://…
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Versión estable actual y fuente (Current stable version and source)
+      description: Del registro o la página de releases oficial, con la fecha en que lo revisaste. (From the registry or official releases, dated.)
+      placeholder: "1.2.3 — https://github.com/org/repo/releases — revisado 2026-10-06"
+    validations:
+      required: true
+
+  - type: textarea
+    id: security
+    attributes:
+      label: Seguridad (Security)
+      description: |
+        CVEs conocidos y versión mínima segura; ¿expone un panel o puerto?; ¿tiene allowlist de dueño,
+        sandbox, aprobación humana? ¿Tiene un registro comunitario de skills/plugins? (Known CVEs, security
+        floor, exposed ports, owner allowlist, sandbox, approvals, community registries.)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hosts
+    attributes:
+      label: ¿Dónde corre? (Where does it run?)
+      multiple: true
+      options:
+        - "Local macOS"
+        - "Local Linux"
+        - "Local Windows / WSL2"
+        - "Railway"
+        - "Otro servidor (Other server)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: channels
+    attributes:
+      label: Canales nativos (Native channels)
+      multiple: true
+      options:
+        - "Telegram"
+        - "WhatsApp Cloud API (oficial)"
+        - "WhatsApp no oficial / Baileys (unofficial)"
+        - "Discord"
+        - "Slack"
+        - "Email"
+        - "Voz (Voice)"
+        - "Solo terminal / app (Terminal or app only)"
+        - "No sé (Not sure)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: commitment
+    attributes:
+      label: Antes de enviar (Before you submit)
+      options:
+        - label: Cada dato tiene fuente oficial; lo que no pude confirmar lo marqué UNVERIFIED. (Every fact is sourced or marked UNVERIFIED.)
+          required: true
+        - label: No es solo una versión nueva de un runtime existente. (Not just a new version of an existing runtime.)
+          required: true
+        - label: Puedo escribir `knowledge/runtimes/<id>.md` con la plantilla de `knowledge/README.md` y probar una instalación real. (I can write the runtime file and test a real install.)
+          required: false

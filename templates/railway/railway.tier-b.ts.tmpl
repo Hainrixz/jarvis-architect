@@ -1,0 +1,163 @@
+// .railway/railway.ts — Jarvis on Railway, Tier B ("pro Jarvis"):
+//   jarvis-core  worker + volume, holds the model/channel keys, NO public domain
+//   jarvis-web   optional (@if:web); the ONLY public service (webhooks / dashboard), holds no model keys
+//   pgvector     optional (@if:pgvector); semantic memory — deployed from Railway's pgvector template, NOT declared here
+//   backup-cron  optional (@if:backups, needs pgvector): Railway cron service, pg_dump → bucket, then exits
+//   backups      optional (@if:backups): object storage bucket for the dumps
+// A web UI alone (no vector memory) is "Tier B-lite": flags web on, pgvector and backups off.
+// All traffic between services goes over the private network (*.railway.internal).
+//
+// Rendered by Jarvis Architect from templates/railway/railway.tier-b.ts.tmpl (see templates/railway/README.md).
+// After rendering, no placeholder or conditional marker may remain (the leftover check is in that README).
+//
+// API verified 2026-10-06 against https://docs.railway.com/infrastructure-as-code and
+// https://docs.railway.com/infrastructure-as-code/reference (package `railway`, import path "railway/iac").
+// Not expressible in IaC (set via dashboard or Railway MCP `update-service`, record in RUNBOOK.md):
+//   - cron schedule of backup-cron   → `update-service` cronSchedule (5-field, UTC, ≥ 5 min apart)
+//   - restart policy "Always" (core, web), serverless off, memory limits
+//   - volume backups, sealing variables, removing the pgvector template's TCP proxy
+// UNVERIFIED: whether a later SDK release adds cron/restart fields — /jarvis-refresh re-checks.
+
+import { bucket, defineRailway, github, group, image, preserve, project, service, volume } from "railway/iac";
+
+// Named partial: REQUIRED in Tier B. pgvector comes from a template and is not declared in this
+// file; without a partial, a whole-project apply deletes every resource missing from the file.
+// With it, this file only manages (and can only delete) what it declares.
+// Source: https://docs.railway.com/infrastructure-as-code#multi-repo-projects
+export const partial = "jarvis";
+
+export default defineRailway(() => {
+  // ---------------------------------------------------------------- core (private worker)
+  const coreData = volume("{{volume_name}}", {
+    sizeMB: {{volume_size_mb}},
+  });
+
+  const core = service("jarvis-core", {
+    // image("<registry>/<image>:<tag>@sha256:<digest>", { autoUpdates: { type: "disabled" } })
+    // or github("<owner>/<private-jarvis-repo>", { branch: "main", rootDirectory: "core" })
+    // Tag + digest ONLY from knowledge/runtimes/<runtime_id>.md § Pinned versions.
+    source: {{core_source}},
+
+    // @if:start
+    start: "{{start_cmd}}",
+    // @end:start
+
+    // @if:core_http
+    // Core listens on the private network only (bind to "::" — environments created before
+    // 2025-10-16 are IPv6-only on the private network). Checked at deploy time only.
+    healthcheck: "{{healthcheck_path}}",
+    healthcheckTimeout: {{healthcheck_timeout}},
+    // @end:core_http
+
+    volumeMounts: {
+      "{{data_mount}}": coreData,
+    },
+
+    // No `domains`. The core is never public.
+
+    env: {
+      TZ: "{{timezone}}",
+      JARVIS_HOME: "{{data_mount}}",
+      // @if:web
+      CORE_PORT: "{{core_port}}",
+      // @end:web
+      {{plain_env}}
+
+      // @if:pgvector
+      // Semantic memory: set ONCE in the dashboard (or MCP `set-variables`) as a reference to the
+      // pgvector template's PRIVATE url — Variables → New → Reference → pgvector → DATABASE_URL_PRIVATE.
+      // NOTE: in that template DATABASE_URL is the PUBLIC TCP-proxy url; never use it.
+      // preserve() keeps the reference without writing a connection string into git.
+      DATABASE_URL: preserve(),
+      // @end:pgvector
+
+      // Sealed secrets (model key, channel tokens, allowlist) — created by the person in the dashboard.
+      {{secret_env}}
+    },
+  });
+
+  // @if:web
+  // ---------------------------------------------------------------- web (only public service)
+  const web = service("jarvis-web", {
+    // github("<owner>/<private-jarvis-repo>", { branch: "main", rootDirectory: "web" }) or a pinned image.
+    source: {{web_source}},
+
+    // @if:web_start
+    start: "{{web_start_cmd}}",
+    // @end:web_start
+
+    healthcheck: "{{web_healthcheck_path}}",
+    healthcheckTimeout: {{healthcheck_timeout}},
+
+    // @if:custom_domain
+    // Custom domain only. A generated *.up.railway.app domain is created with
+    // `railway domain` / MCP `generate-domain` and is not part of this file.
+    domains: ["{{web_domain}}"],
+    // @end:custom_domain
+
+    env: {
+      TZ: "{{timezone}}",
+      // Private-network address of the core (verified IaC pattern: <svc>.env.RAILWAY_PRIVATE_DOMAIN).
+      CORE_HOST: core.env.RAILWAY_PRIVATE_DOMAIN,
+      CORE_PORT: "{{core_port}}",
+      {{web_plain_env}}
+
+      // Sealed: webhook secret(s) checked on every request (e.g. X-Telegram-Bot-Api-Secret-Token)
+      // and the dashboard auth token. NO model API keys on the public service.
+      {{web_secret_env}}
+    },
+  });
+  // @end:web
+
+  // @if:backups
+  // ---------------------------------------------------------------- backups
+  // Bucket region is immutable after creation.
+  const backups = bucket("jarvis-backups", {
+    region: "{{bucket_region}}",
+  });
+
+  const backupCron = service("backup-cron", {
+    // Small image with pg_dump + aws CLI, built from the Jarvis repo (backup/Dockerfile, rendered from
+    // templates/railway/backup/).
+    // pg_dump's major version must be >= the pgvector server's major version; the base image tag
+    // is pinned by stack-researcher at build time, never :latest.
+    // Pattern: https://docs.railway.com/guides/postgres-backups-restores (offsite dumps with a cron service)
+    source: github("{{github_repo}}", { branch: "main", rootDirectory: "backup" }),
+    start: "/backup.sh",
+    // The process must exit when done; overlapping runs are skipped. Schedule set outside IaC (see header).
+    env: {
+      // Same reference as the core: pgvector → DATABASE_URL_PRIVATE (dump travels over the private network).
+      DATABASE_URL: preserve(),
+      // Bucket credentials: add them from the bucket's Credentials tab as variable-reference presets.
+      // UNVERIFIED: an IaC accessor for bucket credentials (none in the reference), hence preserve().
+      AWS_ACCESS_KEY_ID: preserve(),
+      AWS_SECRET_ACCESS_KEY: preserve(),
+      AWS_DEFAULT_REGION: preserve(),
+      ENDPOINT: preserve(),
+      BUCKET: preserve(),
+      // Keep this many days of dumps; older objects are deleted by backup.sh.
+      BACKUP_RETENTION_DAYS: "{{backup_retention_days}}",
+    },
+  });
+  // @end:backups
+
+  const jarvisGroup = group("Jarvis", [
+    core,
+    coreData,
+    // @if:web
+    web,
+    // @end:web
+  ]);
+  // @if:backups
+  const backupGroup = group("Backups", [backupCron, backups]);
+  // @end:backups
+
+  return project("{{railway_project}}", {
+    resources: [
+      jarvisGroup,
+      // @if:backups
+      backupGroup,
+      // @end:backups
+    ],
+  });
+});

@@ -1,0 +1,10 @@
+# backup/Dockerfile — Railway cron service for Tier B with flag `backups` (pg_dump → bucket, then exit).
+# Rendered by Jarvis Architect from templates/railway/backup/Dockerfile.tmpl.
+# {{pg_dump_image}}: postgres:<major>-alpine@sha256:<digest>, major >= the pgvector server's major,
+# pinned by stack-researcher on the day (never :latest). aws-cli comes from the Alpine repo.
+FROM {{pg_dump_image}}
+RUN apk add --no-cache aws-cli
+COPY backup.sh /backup.sh
+RUN chmod 755 /backup.sh
+USER postgres
+CMD ["/backup.sh"]

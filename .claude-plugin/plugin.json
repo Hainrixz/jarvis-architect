@@ -1,0 +1,16 @@
+{
+  "name": "jarvis-architect",
+  "version": "1.0.0",
+  "description": "EN: An AI architect that interviews you about your work, decides the right runtime, model, host, channels and tools, then builds your own personal Jarvis with you — locally or on Railway — with security on by default. ES: Un arquitecto de IA que te entrevista sobre tu trabajo, decide el runtime, modelo, hosting, canales y herramientas correctos, y construye contigo tu propio Jarvis — en tu compu o en Railway — con seguridad desde el inicio.",
+  "author": { "name": "Enrique Rocha", "url": "https://github.com/Hainrixz" },
+  "homepage": "https://github.com/Hainrixz/jarvis-architect",
+  "repository": "https://github.com/Hainrixz/jarvis-architect",
+  "license": "MIT",
+  "keywords": ["jarvis", "personal-assistant", "ai-agent", "claude-code", "hermes-agent", "openclaw", "ollama", "codex", "railway", "telegram", "whatsapp", "mcp", "asistente-personal", "español"],
+  "skills": ["./.claude/skills/"],
+  "agents": [
+    "./.claude/agents/stack-researcher.md",
+    "./.claude/agents/jarvis-validator.md",
+    "./.claude/agents/workspace-writer.md"
+  ]
+}

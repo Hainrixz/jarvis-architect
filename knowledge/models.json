@@ -1,0 +1,337 @@
+{
+  "verified_at": "2026-10-06",
+  "units": "USD per million tokens (MTok), standard tier, before tax",
+  "notes": [
+    "Slots: cheap = heartbeats, triage, summaries, scheduled check-ins; main = the chat the person talks to; max = hard reasoning, long research, coding. Use one provider per conversation thread: caches and Claude thinking blocks are tied to the model that produced them.",
+    "Never quote these from memory. Before writing any ID or price into a spec, stack-researcher re-checks https://platform.claude.com/docs/en/about-claude/models/overview, https://platform.claude.com/docs/en/about-claude/model-deprecations and https://developers.openai.com/api/docs/models. The live answer wins.",
+    "Tokenizer uplift: Claude 4.7 and later models (Opus 5.5, Sonnet 5.5, Fable 5.1) use a newer tokenizer that produces about 30% more tokens for the same text; Haiku 4.5 uses the previous one. 1M tokens is about 555k words on the new tokenizer versus about 750k before. Multiply token estimates by 1.3 for those models and tell the person before they commit. Use count_tokens, not word counts. Source: https://platform.claude.com/docs/en/about-claude/pricing",
+    "Haiku 4.5 retirement caveat: claude-haiku-4-5-20251001 is Active with retirement 'Not sooner than October 15, 2026'. No deprecation notice and no successor have been published as of 2026-10-06. Anthropic gives at least 60 days' notice, so it cannot retire before about 2026-12-05 even if notice went out today. Re-check the deprecations page on every /jarvis-refresh; on a notice, switch the Anthropic cheap slot to the first entry in fallbacks.",
+    "Claude request rules for generated code: forced tool_choice (any/tool) returns 400 on Opus 5.5, Sonnet 5.5 and Fable 5.1; thinking {type:'disabled'} returns 400 on Opus 5.5 and Fable 5.1 (Sonnet 5.5: use 'between_tools' to run without thinking); non-default temperature/top_p/top_k returns 400 on Claude 4.7+ models; Haiku 4.5 uses budget_tokens and has no effort control. See compatibility.md CMP-26.",
+    "Claude defaults: Opus 5.5 default effort is medium, Sonnet 5.5 default effort is high. Set effort explicitly (low for chat, medium for multi-step tool use).",
+    "Caching: put system prompt, tools and memory in a byte-stable prefix with the 1-hour cache (the 5-minute cache expires between scheduled check-ins). Uncached Anthropic input that is written to cache bills at the 5-minute write rate (1.25x input).",
+    "Discounts and add-ons: Batch API is 50% off on both vendors. Anthropic inference_geo 'us' costs 1.1x. Anthropic web search is $10 per 1,000 searches. Claude Managed Agents adds $0.08 per running session-hour (not on Bedrock/Vertex).",
+    "OpenAI tool calling only through the Responses API (/v1/responses), never Chat Completions. Run GET /v1/models on the person's own key before writing a config (staged access). See compatibility.md CMP-16.",
+    "Subscriptions are not API slots: Claude Pro/Max is valid only inside the unmodified claude binary for its owner (auth-matrix.md). Every third-party harness uses an API key and these per-token prices.",
+    "Monthly cost tiers and the reconciled quote table live in capabilities/costs.md, computed from these prices."
+  ],
+  "providers": {
+    "anthropic": {
+      "credential": "ANTHROPIC_API_KEY (Console). Subscription login only in the unmodified claude binary, owner only.",
+      "sources": [
+        "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "https://platform.claude.com/docs/en/about-claude/pricing",
+        "https://platform.claude.com/docs/en/about-claude/model-deprecations"
+      ],
+      "cheap": {
+        "id": "claude-haiku-4-5-20251001",
+        "alias": "claude-haiku-4-5",
+        "price_in": 1.0,
+        "price_out": 5.0,
+        "cache_read": 0.1,
+        "cache_write_5m": 1.25,
+        "cache_write_1h": 2.0,
+        "context": 200000,
+        "max_output": 64000,
+        "tokenizer": "old (no 1.3x uplift)",
+        "retirement": "Not sooner than 2026-10-15; no deprecation notice as of 2026-10-06",
+        "notes": "Fast and cheap for triage, summaries, heartbeats. Extended thinking with budget_tokens; no effort parameter. Vertex ID is claude-haiku-4-5@20251001, Bedrock ID anthropic.claude-haiku-4-5. Watch the retirement caveat in notes[]."
+      },
+      "main": {
+        "id": "claude-sonnet-5-5",
+        "price_in": 2.0,
+        "price_out": 10.0,
+        "cache_read": 0.2,
+        "cache_write_5m": 2.5,
+        "cache_write_1h": 4.0,
+        "context": 1000000,
+        "max_output": 128000,
+        "tokenizer": "new (~1.3x tokens)",
+        "retirement": "Not sooner than 2027-09-28",
+        "notes": "Default chat model. Adaptive thinking; default effort high, set low for chat and medium for tool loops. Forced tool_choice returns 400. No long-context surcharge."
+      },
+      "max": {
+        "id": "claude-opus-5-5",
+        "price_in": 4.0,
+        "price_out": 20.0,
+        "cache_read": 0.2,
+        "cache_write_5m": 5.0,
+        "cache_write_1h": 8.0,
+        "context": 1000000,
+        "max_output": 128000,
+        "tokenizer": "new (~1.3x tokens)",
+        "retirement": "Not sooner than 2027-09-22",
+        "notes": "Hard reasoning, long research, coding. Thinking always on (disabled returns 400); default effort medium. Cache reads cost the same as Sonnet 5.5, so a long cached Opus prefix is unusually cheap. Fast mode ($8/$40, Claude API only) is never a default."
+      },
+      "fallbacks": [
+        {
+          "id": "claude-sonnet-5-5",
+          "replaces": "cheap (if Haiku 4.5 gets a deprecation notice)",
+          "price_in": 2.0,
+          "price_out": 10.0,
+          "cache_read": 0.2,
+          "context": 1000000,
+          "tokenizer": "new (~1.3x tokens)",
+          "retirement": "Not sooner than 2027-09-28",
+          "notes": "Same model as main, run at effort low for cheap-slot jobs. Not claude-sonnet-5: it is Legacy on the models overview (CMP-27) and costs exactly the same ($2/$10, cache read $0.20), so the Active Sonnet 5.5 is strictly better. Costs 2x Haiku on input and the tokenizer adds ~30%: tell the person the cheap slot gets about 2.6x more expensive. Cross-vendor alternative: openai.cheap (gpt-6-luna)."
+        },
+        {
+          "id": "claude-fable-5-1",
+          "replaces": "max (only on explicit request)",
+          "price_in": 10.0,
+          "price_out": 50.0,
+          "cache_read": 0.25,
+          "context": 1000000,
+          "max_output": 128000,
+          "retirement": "Not sooner than 2027-09-01",
+          "notes": "Most capable, slower and 2.5x Opus price; default effort high, thinking always on, forced tool_choice returns 400. A 30-day data-retention requirement is reported in research but is not stated on its model page (UNVERIFIED); until confirmed, never use it for private or regulated data.",
+          "cache_write_5m": 12.5,
+          "cache_write_1h": 20.0,
+          "tokenizer": "new (~1.3x tokens)"
+        }
+      ],
+      "banned": [
+        {
+          "id": "claude-sonnet-4-5-20250929",
+          "reason": "Deprecated 2026-09-30, retires 2026-11-30. Replacement: claude-sonnet-5-5."
+        },
+        {
+          "id": "claude-mythos-preview",
+          "reason": "Deprecated 2026-06-09, retirement to be announced."
+        },
+        {
+          "id": "any model marked Retired or Deprecated on the deprecations page",
+          "reason": "Requests fail after retirement; re-check on every refresh."
+        }
+      ]
+    },
+    "openai": {
+      "credential": "OPENAI_API_KEY. ChatGPT/Codex plan login only in Codex CLI (or SIWC where documented); see auth-matrix.md.",
+      "endpoint": "Responses API (/v1/responses) for anything with tools",
+      "sources": [
+        "https://developers.openai.com/api/docs/models",
+        "https://developers.openai.com/api/docs/pricing",
+        "https://learn.chatgpt.com/docs/models"
+      ],
+      "cheap": {
+        "id": "gpt-6-luna",
+        "price_in": 0.1,
+        "price_out": 0.5,
+        "cache_read": 0.01,
+        "context": 1050000,
+        "max_output": 128000,
+        "notes": "Cheapest viable tier; good for high-volume triage and the cheapest 24/7 lean worker. Also the cross-vendor cheap fallback if Haiku 4.5 retires.",
+        "long_context_over_272k": {
+          "price_in": 0.2,
+          "cache_read": 0.02,
+          "price_out": 0.75,
+          "notes": "Input above 272K tokens bills at these rates (pricing page fetched 2026-10-06 through a summarizer; re-check before quoting)."
+        }
+      },
+      "main": {
+        "id": "gpt-6.1-sol",
+        "price_in": 2.0,
+        "price_out": 10.0,
+        "cache_read": 0.1,
+        "context": 1050000,
+        "max_output": 128000,
+        "notes": "Released 2026-09-29. Codex default. Tool calling only through the Responses API.",
+        "long_context_over_272k": {
+          "price_in": 4.0,
+          "cache_read": 0.2,
+          "price_out": 15.0,
+          "notes": "Input above 272K tokens bills at these rates (pricing page fetched 2026-10-06 through a summarizer; re-check before quoting)."
+        }
+      },
+      "max": {
+        "id": "gpt-6-astra",
+        "price_in": 10.0,
+        "price_out": 50.0,
+        "cache_read": 1.0,
+        "context": 1050000,
+        "max_output": 128000,
+        "notes": "Flagship, released 2026-09-03. Expensive; use for hard tasks only.",
+        "long_context_over_272k": {
+          "price_in": 20.0,
+          "cache_read": 2.0,
+          "price_out": 75.0,
+          "notes": "Input above 272K tokens bills at these rates (pricing page fetched 2026-10-06 through a summarizer; re-check before quoting)."
+        }
+      },
+      "fallbacks": [
+        {
+          "id": "gpt-6-sol",
+          "replaces": "main",
+          "price_in": 2.0,
+          "price_out": 10.0,
+          "cache_read": 0.2,
+          "notes": "Superseded by gpt-6.1-sol; use only if 6.1 is not yet enabled on the person's key."
+        }
+      ],
+      "banned": [
+        {
+          "id": "gpt-5.5",
+          "reason": "Previous flagship; leaves ChatGPT and Codex on 2026-10-14. API retirement date UNVERIFIED. Costs more ($5/$30)."
+        },
+        {
+          "id": "gpt-5.6-sol",
+          "reason": "Previous generation; costs more than or the same as GPT-6.x ($4/$20)."
+        },
+        {
+          "id": "gpt-5.6-terra",
+          "reason": "Previous generation ($2/$12)."
+        },
+        {
+          "id": "gpt-5.6-luna",
+          "reason": "Previous generation ($0.20/$1.20), 2x gpt-6-luna."
+        }
+      ],
+      "subscriptions_note": "ChatGPT Go $8, Plus $20, Pro $100 or $200 per month (secondary source TechCrunch 2026-04-09; UNVERIFIED on openai.com).",
+      "pricing_note": "OpenAI prices are short-context (<=272K input tokens). Above 272K input, the long_context_over_272k rates apply. Keep memory/context lean so a Jarvis stays under 272K."
+    },
+    "openrouter": {
+      "role": "Optional aggregator for Hermes/OpenClaw and open-weight models. Model IDs there are prefixed by vendor; verify on openrouter.ai before writing them.",
+      "fee_notes": [
+        "5.5% fee on credit purchases by card (minimum $0.80); 5% by crypto; 8% on the Business plan.",
+        "BYOK (bring your own provider key) is free up to $25,000 of list-price inference per month, then 5%.",
+        "No per-request fee. Model token prices are passed through at provider list price.",
+        "Add 5.5% to any token quote paid through OpenRouter credits and say so before the person commits."
+      ],
+      "sources": [
+        "https://openrouter.ai/pricing",
+        "https://openrouter.ai/docs/faq"
+      ],
+      "notes": "Open-weight API models (GLM-5.x, DeepSeek V4 Flash, Kimi) can be very cheap; their OpenRouter prices are UNVERIFIED as of 2026-10-06. Never send private data to a provider without checking its retention policy."
+    },
+    "local": {
+      "runtime": "Ollama (see runtimes/ollama-local.md for the pinned version) or MLX on Apple Silicon",
+      "price": "No per-token cost; electricity and hardware not counted.",
+      "rules": [
+        "Local models run only on the person's own hardware, never on Railway (compatibility.md CMP-01).",
+        "Set OLLAMA_CONTEXT_LENGTH (or num_ctx) to 64K for agents. 32K is the hard minimum only for harnesses that accept it; Hermes refuses to start below 64K, so under Hermes 64K is the minimum. The memory figures below are at the model's default/short context; a long context needs more (compatibility.md CMP-24).",
+        "Memory figures are Q4_K_M weights unless noted. Ollama library tags are not pinned here: stack-researcher looks up the exact tag on https://ollama.com/library at install time.",
+        "Small models (8-12B): at most about 5 tools and one-step jobs (compatibility.md CMP-25)."
+      ],
+      "hardware_classes": [
+        {
+          "class": "HW-strong",
+          "rule": "NVIDIA >= 24 GB VRAM, or Apple Silicon >= 32 GB unified memory",
+          "tier": "medium",
+          "meaning": "Fully local Jarvis is workable."
+        },
+        {
+          "class": "HW-small",
+          "rule": "NVIDIA 12-23 GB VRAM, or Apple Silicon 16-31 GB unified memory",
+          "tier": "small",
+          "meaning": "Small model at 64K context: slower, shakier tool use, <= 5 tools. Say so and offer a hybrid."
+        },
+        {
+          "class": "HW-weak",
+          "rule": "NVIDIA < 12 GB VRAM or no NVIDIA GPU, or Apple Silicon < 16 GB",
+          "tier": null,
+          "meaning": "Local-only will be weak: offer a hybrid or a cloud runtime. If refused, build with the smallest small-tier model and list the limits as Non-Goals."
+        }
+      ],
+      "hardware_classes_note": "Single source for questions/0-preflight.md, decision-tree.md section 1 and runtimes/ollama-local.md. System RAM on a PC does not raise the class (CPU offload is too slow for an agent). The small tier's 8 GB VRAM minimum is for a bare model; with a 64K agent context the practical floor is 12 GB.",
+      "tiers": [
+        {
+          "tier": "small",
+          "min_memory": "16 GB unified memory (Mac) or 8 GB VRAM GPU",
+          "recommended": [
+            {
+              "model": "Qwen3.5 9B",
+              "approx_memory_gb": 5.5,
+              "notes": "Default small pick; 25-35 tok/s with MLX on Mac (secondary source)."
+            },
+            {
+              "model": "Qwen3 8B",
+              "approx_memory_gb": 5,
+              "notes": "Native Ollama tool calling."
+            },
+            {
+              "model": "Gemma 4 12B",
+              "approx_memory_gb": 6.6,
+              "notes": "Good general chat. 6.6 GB is the Q4_K_M weights; Ollama's default tag downloads about 7.7 GB (runtimes/ollama-local.md)."
+            },
+            {
+              "model": "gpt-oss-20b",
+              "approx_memory_gb": 13,
+              "notes": "MXFP4 weights; tight on a 16 GB Mac, leave nothing else running."
+            }
+          ],
+          "use_for": "cheap slot: triage, summaries, private notes"
+        },
+        {
+          "tier": "medium",
+          "min_memory": "32-36 GB unified memory (Mac) or 24 GB VRAM GPU",
+          "recommended": [
+            {
+              "model": "Qwen3.5 35B-A3B (MoE)",
+              "approx_memory_gb": 21.4,
+              "notes": "Default local main slot; fast MoE. MLX 4-bit about 19.5 GB."
+            },
+            {
+              "model": "Qwen3.5 27B",
+              "approx_memory_gb": 16.5,
+              "notes": "Dense alternative."
+            },
+            {
+              "model": "Gemma 4 31B",
+              "approx_memory_gb": 22,
+              "notes": "At 32K context; about 31 GB at 256K."
+            },
+            {
+              "model": "Hermes 4.3 36B",
+              "approx_memory_gb": 22,
+              "notes": "Memory is an estimate (UNVERIFIED)."
+            }
+          ],
+          "use_for": "main slot for a privacy-first Jarvis"
+        },
+        {
+          "tier": "large",
+          "min_memory": "64-128 GB unified memory (M-series Max/Ultra)",
+          "recommended": [
+            {
+              "model": "gpt-oss-120b",
+              "approx_memory_gb": 66,
+              "notes": "About 6 tok/s on a 128 GB Mac (secondary source)."
+            },
+            {
+              "model": "Qwen3.5 122B-A10B",
+              "approx_memory_gb": 74.4,
+              "notes": "Needs 96-128 GB."
+            },
+            {
+              "model": "Hermes 4 70B",
+              "approx_memory_gb": 43,
+              "notes": "Memory is an estimate (UNVERIFIED)."
+            }
+          ],
+          "use_for": "max slot for local-only setups"
+        },
+        {
+          "tier": "embeddings",
+          "min_memory": "any of the above",
+          "recommended": [
+            {
+              "model": "nomic-embed-text or bge-m3 via Ollama",
+              "approx_memory_gb": 1,
+              "notes": "Local memory search; size approximate (UNVERIFIED)."
+            }
+          ],
+          "use_for": "memory / vector search"
+        }
+      ],
+      "sources": [
+        "https://docs.ollama.com/context-length",
+        "https://willitrunai.com/blog/qwen-35-vram-requirements-complete-guide",
+        "https://willitrunai.com/blog/qwen-3-5-mlx-apple-silicon-guide",
+        "https://intuitionlabs.ai/articles/hardware-requirements-gpt-oss-20b",
+        "https://jacar.es/en/gemma-4-locally-with-ollama/",
+        "https://localaimaster.com/blog/best-ollama-models-for-agents",
+        "https://huggingface.co/NousResearch/Hermes-4.3-36B"
+      ],
+      "notes": "Tool-calling quality tiers are qualitative (UNVERIFIED, no head-to-head benchmark found). Local memory sizes come from secondary sources."
+    }
+  }
+}

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ~/Library/LaunchAgents/{{launchd_label}}.plist: keeps a Jarvis running on macOS.
+  Rendered by Jarvis Architect from templates/local/com.jarvis.agent.plist.tmpl (see templates/local/README.md).
+
+  NO SECRETS IN THIS FILE. LaunchAgent plists are readable by other local users.
+  The process reads secrets from {{jarvis_dir}}/.env (chmod 600), which bin/run.sh loads at start.
+
+  Not for Hermes or OpenClaw native installs: their own installers write
+  ai.hermes.gateway.plist / ai.openclaw.gateway.plist. Never run both (CMP-11).
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>{{launchd_label}}</string>
+
+  <!-- Absolute paths only: launchd does not read the shell profile.
+       {{program_args}}: one <string> per argument. Default: /bin/bash + {{jarvis_dir}}/bin/run.sh.
+       claude-code-local watchdog: /bin/bash + {{jarvis_dir}}/bin/jarvis-up.sh.
+       Jarvis Panel: the absolute node path + src/server.js (working dir {{jarvis_dir}}/panel). -->
+  <key>ProgramArguments</key>
+  <array>
+    {{program_args}}
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>{{working_dir}}</string>
+
+  <!-- Non-secret settings only. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{{path}}</string>
+    <key>TZ</key>
+    <string>{{timezone}}</string>
+    <key>JARVIS_HOME</key>
+    <string>{{jarvis_dir}}</string>
+  </dict>
+
+  <!-- Start at login and restart if it crashes. A clean exit (status 0, e.g. the person stopped it
+       on purpose) stays stopped. Use <true/> instead of the dict only when the runtime exits 0 on
+       network loss and must come back anyway. -->
+  <key>RunAtLoad</key>
+  <true/>
+  <!-- @if:service -->
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <!-- @end:service -->
+  <!-- @if:watchdog -->
+  <!-- claude-code-local: jarvis-up.sh starts tmux and exits; run it every 5 min and keep tmux alive. -->
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>AbandonProcessGroup</key>
+  <true/>
+  <!-- @end:watchdog -->
+
+  <!-- Wait at least 30 s between restarts so a crash loop does not burn CPU. -->
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+
+  <!-- Files created by the job: owner-only (octal 077 = decimal 63). -->
+  <key>Umask</key>
+  <integer>63</integer>
+
+  <!-- launchd does not rotate these files; bin/run.sh truncates them when they pass ~20 MB. -->
+  <key>StandardOutPath</key>
+  <string>{{jarvis_dir}}/logs/out.log</string>
+  <key>StandardErrorPath</key>
+  <string>{{jarvis_dir}}/logs/err.log</string>
+</dict>
+</plist>

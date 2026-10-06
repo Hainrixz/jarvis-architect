@@ -1,0 +1,249 @@
+# Guardrails for Jarvis Architect. Plain bash + grep + python3 (preinstalled on ubuntu-latest).
+# No third-party actions besides actions/checkout and actions/setup-node; nothing else to keep
+# up to date. Every check mirrors a rule in knowledge/README.md ("Conventions (CI checks these)").
+name: validate
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions: { contents: read }
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  manifest:
+    name: Plugin manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Manifests are valid JSON with required fields
+        run: |
+          python3 - <<'PY'
+          import json, re, sys
+          fail = False
+          def need(path, obj, keys):
+              global fail
+              for k in keys:
+                  if not obj.get(k):
+                      print(f"::error file={path}::missing required field '{k}'"); fail = True
+          try:
+              p = json.load(open(".claude-plugin/plugin.json"))
+          except Exception as e:
+              print(f"::error file=.claude-plugin/plugin.json::invalid JSON: {e}"); sys.exit(1)
+          need(".claude-plugin/plugin.json", p, ["name", "version", "description", "author", "license", "repository"])
+          if p.get("name") and not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", p["name"]):
+              print("::error file=.claude-plugin/plugin.json::name must be kebab-case"); fail = True
+          try:
+              m = json.load(open(".claude-plugin/marketplace.json"))
+          except FileNotFoundError:
+              m = None
+          except Exception as e:
+              print(f"::error file=.claude-plugin/marketplace.json::invalid JSON: {e}"); sys.exit(1)
+          if m is not None:
+              need(".claude-plugin/marketplace.json", m, ["name", "owner", "plugins"])
+              for i, pl in enumerate(m.get("plugins") or []):
+                  need(f".claude-plugin/marketplace.json plugins[{i}]", pl, ["name", "source"])
+                  if pl.get("name") == p.get("name") and pl.get("version") and pl["version"] != p.get("version"):
+                      print(f"::error file=.claude-plugin/marketplace.json::plugin version {pl['version']} != plugin.json {p.get('version')}"); fail = True
+          sys.exit(1 if fail else 0)
+          PY
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: claude plugin validate (non-strict)
+        run: |
+          # Install the Claude Code version pinned in knowledge/runtimes/ (the one place pins live),
+          # so CI also proves that pin exists on npm. Falls back to the `stable` dist-tag only if no
+          # runtime file pins it yet.
+          PIN=$(grep -hE '^\|[[:space:]]*Claude Code CLI[[:space:]]*\|' \
+                  knowledge/runtimes/claude-code-local.md knowledge/runtimes/claude-code-server.md 2>/dev/null \
+                | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+          if [ -n "$PIN" ]; then SPEC="@anthropic-ai/claude-code@$PIN"
+          else SPEC="@anthropic-ai/claude-code@stable"
+               echo "::notice::No Claude Code pin found in knowledge/runtimes/ — using the stable dist-tag."; fi
+          if ! npm install -g --no-fund --no-audit "$SPEC"; then
+            echo "::notice::Could not install $SPEC — CLI manifest validation skipped (JSON checks above still ran)."
+            exit 0
+          fi
+          claude --version
+          # Non-strict on purpose: the root CLAUDE.md is for clone mode (people who run `claude`
+          # inside the repo), and the validator warns that plugins don't load it. That warning is
+          # expected. Any OTHER warning is surfaced as an annotation; errors fail the job.
+          set +e
+          OUT=$(claude plugin validate . 2>&1); RC=$?
+          set -e
+          echo "$OUT"
+          echo "$OUT" | grep -E '^[[:space:]]*❯' | grep -v 'CLAUDE.md' \
+            | sed 's/^[[:space:]]*❯[[:space:]]*/::warning::plugin validate: /' || true
+          exit $RC
+
+  content:
+    name: Knowledge base contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version pins live only in knowledge/runtimes/*.md and knowledge/models.json
+        run: |
+          # Semver-like x.y.z (with optional v) and CalVer 2026.x.y are both caught by one pattern.
+          # Dates (YYYY-MM-DD) use hyphens and never match. Four-part dotted numbers (IP addresses
+          # like 127.0.0.1) are excluded by the leading/trailing guards. README, CHANGELOG and
+          # VERSIONING files are exempt: they document releases and the contract itself.
+          # Money in es-CO/es-AR/es-ES format ($1.234.567 COP, 1.500.000 ARS, €1.234.567) uses dots
+          # as thousands separators, so amounts with a currency sign or ISO code are blanked first.
+          PIN='(^|[^0-9A-Za-z.])[vV]?[0-9]+\.[0-9]+\.[0-9]+([^0-9.]|\.[^0-9]|\.?$)'
+          MONEY='(\$|€|£)[0-9][0-9.,]*|[0-9][0-9.,]*[[:space:]]?(COP|ARS|MXN|EUR|CLP|PEN|UYU|USD|BOB|PYG|GTQ|DOP|CRC|VES)'
+          HITS=$(find knowledge questions .claude -type f 2>/dev/null \
+                   ! -path 'knowledge/runtimes/*' ! -path 'knowledge/models.json' \
+                   ! -name 'README*' ! -name 'CHANGELOG*' ! -name 'VERSIONING*' -print0 \
+                 | while IFS= read -r -d '' f; do
+                     sed -E "s/$MONEY//g" "$f" | grep -nIE "$PIN" | sed "s#^#$f:#" || true
+                   done)
+          if [ -n "$HITS" ]; then
+            echo "$HITS"
+            echo "::error::Version numbers appear outside knowledge/runtimes/*.md and knowledge/models.json." \
+                 "Replace each with a pointer such as 'see knowledge/runtimes/hermes.md (Pinned versions)'."
+            exit 1
+          fi
+
+      - name: 'Every knowledge/*.md carries "Last verified: YYYY-MM-DD"'
+        run: |
+          # Contract: "# Title", a one-line "> summary", then "Last verified:" — so it must sit in
+          # the first 10 lines, not buried in a footer.
+          FAIL=0
+          while IFS= read -r -d '' f; do
+            head -n 10 "$f" | grep -qE '^Last verified: [0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])([^0-9]|$)' \
+              || { echo "  $f"; FAIL=1; }
+          done < <(find knowledge -type f -name '*.md' -print0 | sort -z)
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::The files above lack 'Last verified: YYYY-MM-DD' in their first 10 lines."
+            exit 1
+          fi
+
+      - name: Every cross-reference resolves
+        run: |
+          # Backticked paths under knowledge/, questions/ or templates/ — bare, ROOT/-prefixed,
+          # ${CLAUDE_PLUGIN_ROOT}/-prefixed or ./-prefixed — must exist. Placeholders and globs
+          # (<id>, *, {a,b}, …, ...) are skipped. Paths ending in / must be directories. Inside
+          # knowledge/, the short form `runtimes/x.md` (relative to knowledge/) is checked too.
+          SRC=$( { find .claude questions knowledge -type f -name '*.md' 2>/dev/null
+                   find . -maxdepth 1 -type f \( -name 'README*.md' -o -name 'CLAUDE.md' \); } | sort -u)
+          TOKEN='[^`[:space:]"(),;:#]*'
+          check() {  # $1 = path
+            case "$1" in *'<'*|*'>'*|*'*'*|*'{'*|*'}'*|*'…'*|*'...'*|*'$'*) return 0;; esac
+            p="${1%.}"
+            if [ "${p%/}" != "$p" ]; then [ -d "$p" ] || echo "  $p (directory)"
+            else [ -e "$p" ] || echo "  $p"; fi
+          }
+          MISSING=$(
+            for f in $SRC; do
+              grep -oE '`[^`]+`' "$f" \
+                | grep -oE "(^|[\`[:space:]\"(=/])(knowledge|questions|templates)/$TOKEN" \
+                | sed -E 's#^[^kqt]*##'
+              if [ "${f#knowledge/}" != "$f" ]; then
+                grep -oE '`[^`]+`' "$f" \
+                  | grep -oE "(^|[\`[:space:]\"(=])(runtimes|capabilities|professions|countries)/$TOKEN" \
+                  | sed -E 's#^[^rcp]*##; s#^#knowledge/#'
+              fi
+            done | sort -u | while IFS= read -r p; do check "$p"; done) || true
+          if [ -n "$MISSING" ]; then
+            echo "$MISSING"
+            echo "::error::These paths are referenced but do not exist. The Architect reads these files" \
+                 "instead of recalling from memory, so a dead link means it designs blind. Fix the" \
+                 "path or add the file (IDs are fixed in knowledge/README.md)."
+            exit 1
+          fi
+
+      - name: knowledge/models.json is valid JSON with verified_at
+        run: |
+          python3 - <<'PY'
+          import json, re, sys
+          try:
+              d = json.load(open("knowledge/models.json"))
+          except FileNotFoundError:
+              print("::error::knowledge/models.json is missing"); sys.exit(1)
+          except Exception as e:
+              print(f"::error file=knowledge/models.json::invalid JSON: {e}"); sys.exit(1)
+          v = d.get("verified_at") if isinstance(d, dict) else None
+          if not (isinstance(v, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", v)):
+              print("::error file=knowledge/models.json::top-level 'verified_at' must be YYYY-MM-DD"); sys.exit(1)
+          print(f"models.json OK, verified_at={v}")
+          PY
+
+      - name: The ID lists in knowledge/README.md match the files on disk
+        run: |
+          FAIL=0
+          for d in runtimes capabilities professions countries; do
+            WANT=$(grep -E "^\|[[:space:]]*\`$d/" knowledge/README.md \
+                   | awk -F'|' '{print $(NF-1)}' | grep -oE '`[a-z0-9-]+`' | tr -d '`' | sort -u)
+            HAVE=$(find "knowledge/$d" -maxdepth 1 -type f -name '*.md' 2>/dev/null \
+                   | sed -E 's#.*/##; s#\.md$##' | sort -u)
+            [ -n "$WANT" ] || { echo "  knowledge/README.md has no ID row for $d/"; FAIL=1; continue; }
+            MISS=$(comm -23 <(echo "$WANT") <(echo "$HAVE"))
+            EXTRA=$(comm -13 <(echo "$WANT") <(echo "$HAVE" | grep -v '^$' || true))
+            [ -z "$MISS" ]  || { echo "$MISS"  | sed "s#^#  listed but missing: knowledge/$d/#; s#\$#.md#"; FAIL=1; }
+            [ -z "$EXTRA" ] || { echo "$EXTRA" | sed "s#^#  present but not listed: knowledge/$d/#; s#\$#.md#"; FAIL=1; }
+          done
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::knowledge/README.md is the ID contract. Add the missing file, or add the new" \
+                 "ID to the README table (and to every place that enumerates it)."
+            exit 1
+          fi
+
+  hygiene:
+    name: Secrets and README images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: No secret-shaped strings anywhere
+        run: |
+          # Truncated placeholders such as sk-ant-... or 123456789 (a fake Telegram user ID) pass;
+          # anything with the real length and alphabet of a credential fails.
+          S='(^|[^A-Za-z0-9])sk-ant-[A-Za-z0-9_-]{20,}'                       # Anthropic
+          S="$S"'|(^|[^A-Za-z0-9])sk-(proj-)?[A-Za-z0-9_-]{32,}'              # OpenAI-style
+          S="$S"'|gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{40,}'    # GitHub
+          S="$S"'|xox[abposr]-[A-Za-z0-9-]{10,}'                              # Slack
+          S="$S"'|AIza[0-9A-Za-z_-]{35}'                                      # Google API key
+          S="$S"'|(^|[^0-9])[0-9]{8,10}:[A-Za-z0-9_-]{35}([^A-Za-z0-9_-]|$)'  # Telegram bot token
+          S="$S"'|-----BEGIN ([A-Z]+ )?PRIVATE KEY-----'                      # private keys
+          HITS=$(grep -rnIE --exclude-dir=.git --exclude-dir=node_modules "$S" . || true)
+          if [ -n "$HITS" ]; then
+            # Print file:line only — never echo the matched value into public CI logs.
+            echo "$HITS" | cut -d: -f1,2 | sed 's/^/  /'
+            echo "::error::Secret-shaped strings found at the locations above. Rotate the credential" \
+                 "if it was real, then replace it with an obviously fake, truncated value (sk-ant-...)."
+            exit 1
+          fi
+
+      - name: README images exist and have alt text
+        run: |
+          FAIL=0
+          READMES=$(find . -maxdepth 1 -type f -name 'README*.md' | sort)
+          if [ -z "$READMES" ]; then echo "::notice::No README*.md at the repo root yet."; exit 0; fi
+          for r in $READMES; do
+            # Markdown images: ![alt](path "title")
+            while IFS= read -r m; do
+              alt=$(echo "$m" | sed -E 's/^!\[([^]]*)\].*/\1/')
+              src=$(echo "$m" | sed -E 's/^!\[[^]]*\]\(<?([^)> ]+).*/\1/')
+              [ -n "$(echo "$alt" | tr -d '[:space:]')" ] || { echo "  $r: no alt text for $src"; FAIL=1; }
+              case "$src" in http://*|https://*|data:*) ;; *)
+                [ -e "${src%%#*}" ] || { echo "  $r: missing image $src"; FAIL=1; };; esac
+            done < <(grep -oE '!\[[^]]*\]\([^)]+\)' "$r" || true)
+            # HTML images: <img src="…" alt="…">
+            while IFS= read -r t; do
+              src=$(echo "$t" | sed -nE 's/.*src="([^"]+)".*/\1/p')
+              echo "$t" | grep -qE 'alt="[^"]*[^"[:space:]][^"]*"' || { echo "  $r: <img> without alt: ${src:-?}"; FAIL=1; }
+              case "$src" in ""|http://*|https://*|data:*) ;; *)
+                [ -e "$src" ] || { echo "  $r: missing image $src"; FAIL=1; };; esac
+            done < <(grep -oE '<img[^>]*>' "$r" || true)
+          done
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::A README image is missing or has no alt text. Our audience includes people" \
+                 "using screen readers; every image needs a description."
+            exit 1
+          fi

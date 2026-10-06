@@ -1,0 +1,50 @@
+// {{jarvis_dir}}/ecosystem.config.cjs: pm2 process file for a Jarvis on macOS or Linux.
+// Rendered by Jarvis Architect from templates/local/ecosystem.config.cjs.tmpl (see templates/local/README.md).
+//
+// .cjs so it loads even when the Jarvis repo's package.json has "type": "module".
+// NO SECRETS IN THIS FILE: bin/run.sh loads .env (chmod 600) at start.
+// Boot persistence: `pm2 save` then `pm2 startup`. pm2 startup PRINTS a sudo command, which the
+// person runs themselves (user_action). The agent never runs sudo.
+// Reference: https://pm2.keymetrics.io/docs/usage/application-declaration/
+
+module.exports = {
+  apps: [
+    {
+      name: "{{pm2_name}}",
+      script: "bin/run.sh",
+      interpreter: "bash",
+      cwd: __dirname,
+
+      // One instance only. Two copies on one data directory corrupt state (CMP-11).
+      instances: 1,
+      exec_mode: "fork",
+
+      // Restart on crash, with a pause so a crash loop does not spin.
+      autorestart: true,
+      max_restarts: 20,
+      min_uptime: 60000, // ms; a run shorter than this counts as an unstable restart
+      restart_delay: 10000,
+
+      // CMP-22: restart when memory passes the cap, plus a daily fresh start (local time).
+      max_memory_restart: "{{max_memory_restart}}",
+      // @if:cron_restart
+      cron_restart: "{{cron_restart}}",
+      // @end:cron_restart
+
+      // Give the runtime time to flush memory/state on stop.
+      kill_timeout: 30000,
+
+      // Logs inside the Jarvis folder. Rotate them with the pm2-logrotate module.
+      out_file: "logs/out.log",
+      error_file: "logs/err.log",
+      merge_logs: true,
+      time: true,
+
+      // Non-secret settings only.
+      env: {
+        TZ: "{{timezone}}",
+        JARVIS_HOME: __dirname,
+      },
+    },
+  ],
+};

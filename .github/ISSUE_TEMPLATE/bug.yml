@@ -1,0 +1,136 @@
+name: Algo salió mal (Bug)
+description: El Architect decidió mal, un paso falló, o el Jarvis no quedó como prometía. (A wrong decision, a failed step, or a Jarvis that doesn't work as promised.)
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. Para que podamos reproducirlo:
+
+        - **Nunca pegues keys, tokens, tu `.env`, números de teléfono ni datos de clientes.** Si se te
+          escapó uno, rótalo ya. *(Never paste keys, tokens, `.env`, phone numbers or client data.)*
+        - **No adjuntes tu `.jarvis/` completo.** Copia solo el paso que falló. *(Don't attach your whole
+          `.jarvis/`; copy only the failing step.)*
+        - Si es una versión o precio viejo, usa *Conocimiento viejo*. Si es un problema de seguridad, ve a
+          [SECURITY.md](https://github.com/Hainrixz/jarvis-architect/blob/main/SECURITY.md).
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: ¿En qué parte pasó? (Where did it happen?)
+      options:
+        - "Preflight — revisión de mi compu (machine check)"
+        - "Entrevista (Interview — DISCOVERY / DEEP DIVE)"
+        - "Decisión / gate de arquitectura (ARCHITECTURE gate)"
+        - "Construcción — un paso de tasks.json (BUILD)"
+        - "Verificación / jarvis-validator (VERIFY)"
+        - "Deploy en Railway (DEPLOY)"
+        - "Entrega — RUNBOOK / SECURITY (HANDOFF)"
+        - "Después — mi Jarvis ya corriendo (After — running Jarvis)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: command
+    attributes:
+      label: Comando (Command)
+      options:
+        - "/jarvis-start"
+        - "/jarvis-quick"
+        - "/jarvis-next"
+        - "/jarvis-doctor"
+        - "/jarvis-add"
+        - "/jarvis-refresh"
+        - "Modo clon, sin comando (Clone mode, no command)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: ¿Qué salió mal? (What went wrong?)
+      multiple: true
+      options:
+        - "Eligió un runtime, host o modelo que no me convenía (Wrong runtime/host/model for my case)"
+        - "Recomendó una credencial que no está permitida (Recommended a disallowed credential)"
+        - "Un comando de instalación falló o pidió sudo / curl | sh (Install failed or used sudo / curl|sh)"
+        - "Un paso se marcó listo pero no funcionaba (Step marked done but broken)"
+        - "Un verify mostró o pidió un secreto (A verify step exposed or asked for a secret)"
+        - "La cotización de costo estaba muy lejos de la realidad (Cost quote far off)"
+        - "Instaló o gastó algo sin pedirme el sí (Installed or spent without my yes)"
+        - "Hizo más de 3 preguntas por mensaje o me dio muchas opciones sin recomendar (Too many questions / no recommendation)"
+        - "Un control de seguridad faltó en mi Jarvis (A security control was missing)"
+        - "No pudo continuar después de cerrar la terminal (Could not resume)"
+        - "Otro (Other)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: Qué pasó y qué esperabas (What happened vs. what you expected)
+      description: Cita el mensaje del Architect o el paso (`id`, `title`, `verify`) de tasks.json. (Quote the message or the task.)
+      render: markdown
+      placeholder: |
+        T07 "Conecta Telegram" quedó en done, pero el bot no contesta.
+        verify: ["test -f config.yaml"]  ← solo revisa que exista el archivo
+    validations:
+      required: true
+
+  - type: textarea
+    id: profile
+    attributes:
+      label: Tu perfil, sin datos personales (Your profile, no personal data)
+      description: Profesión, país, plan de IA que ya pagas, nivel técnico, dónde querías que viviera. Es lo que hace reproducible una mala decisión. (Profession, country, existing plan, technical level, host.)
+      placeholder: "Restaurante · México · sin plan de IA · no técnica · clientes por WhatsApp · Railway"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime elegido (Chosen runtime)
+      options:
+        - "claude-code-local"
+        - "claude-code-server"
+        - "claude-p-cron"
+        - "claude-agent-sdk"
+        - "hermes"
+        - "openclaw"
+        - "codex-openai"
+        - "ollama-local"
+        - "cowork"
+        - "No llegó a elegir (Didn't get that far)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Sistema (OS)
+      options:
+        - "macOS (Apple Silicon)"
+        - "macOS (Intel)"
+        - "Windows + WSL2"
+        - "Windows nativo (native)"
+        - "Linux"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Versión de Jarvis Architect y de Claude Code (Versions)
+      description: "`version` en `.claude-plugin/plugin.json` (o `/plugin list`), y `claude --version`."
+      placeholder: "jarvis-architect 1.0.0 · claude <versión>"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Antes de enviar (Before you submit)
+      options:
+        - label: No hay keys, tokens, `.env`, teléfonos ni datos de clientes en este issue. (No secrets or personal data.)
+          required: true

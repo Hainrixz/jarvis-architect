@@ -1,0 +1,84 @@
+// .railway/railway.ts — Jarvis on Railway, Tier A: one always-on service + one volume, no public domain.
+//
+// Rendered by Jarvis Architect from templates/railway/railway.tier-a.ts.tmpl (see templates/railway/README.md).
+// After rendering, no placeholder or conditional marker may remain (the leftover check is in that README).
+//
+// API verified 2026-10-06 against https://docs.railway.com/infrastructure-as-code and
+// https://docs.railway.com/infrastructure-as-code/reference (package `railway`, import path "railway/iac").
+// Fields NOT in the IaC reference, set elsewhere and recorded in RUNBOOK.md:
+//   - restart policy "Always"        → dashboard or Railway MCP `update-service` (restartPolicyType: "ALWAYS")
+//   - serverless / app sleeping off  → dashboard or MCP `update-service` (sleepApplication: false)
+//   - memory limit (Replica Limits)  → dashboard or MCP `update-service` (limits.memoryGB)
+//   - volume backups (daily/weekly)  → dashboard, service → Backups tab
+//   - sealing a variable             → dashboard only (UNVERIFIED whether CLI/IaC can seal)
+//
+// Workflow: railway link → railway config plan --out <plan.json> → (person says yes) →
+// railway config apply --plan <plan.json> --yes.
+// Railway does not read .railway/ during deploys: every change here needs a new plan → apply.
+
+import { defineRailway, github, image, preserve, project, service, volume } from "railway/iac";
+
+// Named partial: this file only manages (and can only ever delete) the resources it declares.
+// Anything created outside it (a dashboard tweak, a template) is left alone instead of being
+// deleted on apply. Source: https://docs.railway.com/infrastructure-as-code#multi-repo-projects
+export const partial = "jarvis";
+
+export default defineRailway(() => {
+  // Persistent memory: workspace files, MEMORY.md, SQLite, logs. Mounted at runtime only —
+  // nothing written to the mount path during the build survives.
+  // sizeMB can grow later (non-destructive); shrinking or detaching is destructive.
+  const data = volume("{{volume_name}}", {
+    sizeMB: {{volume_size_mb}},
+  });
+
+  const jarvis = service("{{service_name}}", {
+    // One of (see README → "source"):
+    //   image("<registry>/<image>:<tag>@sha256:<digest>", { autoUpdates: { type: "disabled" } })
+    //   github("<owner>/<private-jarvis-repo>", { branch: "main" })
+    // The tag + digest come ONLY from knowledge/runtimes/<runtime_id>.md § Pinned versions. Never :latest.
+    source: {{source}},
+
+    // @if:start
+    // Start command from knowledge/runtimes/<runtime_id>.md (omit to use the image's own CMD/ENTRYPOINT).
+    start: "{{start_cmd}}",
+    // @end:start
+
+    // @if:http
+    // Only when the runtime serves HTTP inside the container. Railway checks it at deploy time only;
+    // the ongoing liveness signal is the heartbeat message to the owner.
+    healthcheck: "{{healthcheck_path}}",
+    healthcheckTimeout: {{healthcheck_timeout}},
+    // @end:http
+
+    // Exactly one volume per service; a service with a volume runs 1 replica (no `replicas` field here).
+    volumeMounts: {
+      "{{data_mount}}": data,
+    },
+
+    // No `domains`: Tier A is a worker. Channels use long polling (outbound only), so nothing is
+    // exposed. Generated *.up.railway.app domains are not part of this file — verify none exists
+    // with the Railway MCP `list-domains` tool after apply.
+    // @if:webhook
+    // Exception: a webhook channel (WhatsApp Cloud API → Hermes on port {{webhook_port}}, e.g. 8090).
+    // After apply, create ONE generated domain targeting that port (MCP `generate-domain` or
+    // `railway domain --port {{webhook_port}}`, with a yes). Only the webhook path answers; every
+    // request is signature-checked (SEC-03, SEC-06). No healthcheck on this port.
+    // @end:webhook
+
+    env: {
+      // --- Plain, non-secret settings (literal values are fine here) ---
+      TZ: "{{timezone}}",
+      JARVIS_HOME: "{{data_mount}}",
+      {{plain_env}}
+
+      // --- Secrets: preserve() = "keep the value already set in Railway". ---
+      // The person creates each one as a SEALED variable in the dashboard before the first apply.
+      // Values never appear in this file, in git, in the plan output or in the chat.
+      {{secret_env}}
+    },
+  });
+
+  return project("{{railway_project}}", {
+    resources: [jarvis, data],
+  });
+});

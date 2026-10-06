@@ -1,0 +1,142 @@
+name: Nueva profesión (New profession pack)
+description: Propón un pack para una profesión que hoy no está bien cubierta. (Propose a pack for a profession that is not well covered today.)
+title: "[profesión] "
+labels: ["profession", "knowledge", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Un **pack de profesión** le dice al Architect qué necesita, en su primera semana, alguien que
+        se dedica a eso: qué tareas automatizar, por qué canal, con qué herramientas y qué nunca debe
+        hacer solo. *(A profession pack tells the Architect what someone in that line of work needs in
+        week one.)*
+
+        Antes de proponer uno nuevo, revisa los que ya existen en
+        [`knowledge/professions/`](https://github.com/Hainrixz/jarvis-architect/tree/main/knowledge/professions).
+        Muchas propuestas son en realidad una mejora a un pack existente (un nutriólogo suele ser
+        `health`; un community manager, `agency`) — eso también vale y es más fácil de aceptar.
+
+        **No pegues datos reales de clientes, pacientes ni tu Jarvis generado.** *(No real client data
+        and no generated Jarvis.)*
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: ¿Pack nuevo o mejora? (New pack or improvement?)
+      options:
+        - "Pack nuevo (New pack)"
+        - "Mejora a un pack existente (Improve an existing pack)"
+    validations:
+      required: true
+
+  - type: input
+    id: name
+    attributes:
+      label: Profesión y nombre de archivo propuesto (Profession and proposed filename)
+      description: "Nombre humano y el ID en kebab-case, en inglés. (Human name and kebab-case ID.)"
+      placeholder: "Fotógrafo de bodas — knowledge/professions/photographer.md"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: closest
+    attributes:
+      label: Pack existente más cercano (Closest existing pack)
+      description: El que el Architect elegiría hoy, o el que quieres mejorar. (The one it would pick today, or the one to improve.)
+      options:
+        - "creator"
+        - "developer"
+        - "founder"
+        - "sales"
+        - "student"
+        - "lawyer-accountant"
+        - "health"
+        - "real-estate"
+        - "smb-restaurant"
+        - "ecommerce"
+        - "coach"
+        - "agency"
+        - "teacher"
+        - "Ninguno se parece (None is close)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: signals
+    attributes:
+      label: Señales — cómo lo dice la gente (Signals — how people say it)
+      description: Frases reales que alguien diría en la entrevista y que deberían llevar a este pack. (Real phrases that should route to this pack.)
+      placeholder: |
+        - "tomo fotos en bodas y xv años"
+        - "entrego galerías a mis clientes"
+        - "cotizo por WhatsApp y me piden apartar fecha"
+    validations:
+      required: true
+
+  - type: textarea
+    id: jobs
+    attributes:
+      label: Tareas de la primera semana (Week-one jobs)
+      description: 3 a 5 tareas concretas que su Jarvis haría. "Ayudar con productividad" no cuenta. (3–5 concrete jobs.)
+      placeholder: |
+        1. Cada lunes 8:00 me manda las sesiones de la semana y quién no ha pagado el anticipo.
+        2. Cuando alguien pide cotización por WhatsApp, prepara un borrador con mis paquetes para que yo lo apruebe.
+        3. Un día antes de cada sesión, recuerda al cliente la hora y el lugar (con mi aprobación).
+    validations:
+      required: true
+
+  - type: textarea
+    id: tools
+    attributes:
+      label: Herramientas y apps que usa (Tools and apps they use)
+      description: Con enlace oficial. Si sabes de un MCP o API oficial, pon su doc. Nada inventado. (With official links. No invented tools.)
+      placeholder: |
+        - Google Calendar — https://calendar.google.com
+        - Pixieset (galerías) — https://pixieset.com — ¿tiene API? no sé
+    validations:
+      required: true
+
+  - type: textarea
+    id: guardrails
+    attributes:
+      label: Riesgos y cosas que nunca debe hacer solo (Guardrails)
+      description: Acciones irreversibles (cobrar, enviar, borrar, publicar) y datos sensibles (de clientes, pacientes, menores). (Irreversible actions and sensitive data.)
+      placeholder: |
+        - Nunca enviar una cotización ni cobrar sin mi aprobación.
+        - Las fotos de menores no se suben a ningún servicio sin permiso de los padres.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: countries
+    attributes:
+      label: Países donde lo ves (Countries)
+      multiple: true
+      options:
+        - "México (mx)"
+        - "Colombia (co)"
+        - "Argentina (ar)"
+        - "España (es)"
+        - "Otro (other)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: sources
+    attributes:
+      label: Fuentes (Sources)
+      description: Enlaces que respalden lo que dices de herramientas, normas o reglas del gremio. Lo que no puedas confirmar, márcalo UNVERIFIED. (Sources; mark anything unconfirmed as UNVERIFIED.)
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: commitment
+    attributes:
+      label: Antes de enviar (Before you submit)
+      options:
+        - label: Revisé los packs existentes y esto no es solo una variante de uno. (I checked existing packs.)
+          required: true
+        - label: No incluí datos reales de clientes, pacientes ni mi Jarvis generado. (No real personal data or generated Jarvis.)
+          required: true
+        - label: Puedo escribir el archivo del pack yo mismo/a si se aprueba. (I can write the pack file myself.)
+          required: false

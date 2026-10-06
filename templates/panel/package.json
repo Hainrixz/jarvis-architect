@@ -1,0 +1,19 @@
+{
+  "name": "jarvis-panel",
+  "version": "1.0.0",
+  "description": "Jarvis Panel: a small local web UI to see and talk to your own Jarvis.",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.3",
+    "hono": "4.13.13"
+  }
+}

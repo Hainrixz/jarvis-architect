@@ -1,0 +1,17 @@
+# Jarvis Architect state (per person, never committed)
+.jarvis/
+.claude/settings.local.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+auth.json
+
+# Never commit a generated Jarvis into this repo
+/jarvis-*/
+
+# OS / editors
+.DS_Store
+node_modules/

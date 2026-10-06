@@ -1,0 +1,56 @@
+# Auto-generated release notes for Jarvis Architect.
+# GitHub places each merged PR in the FIRST category whose labels match, so order matters.
+# The catch-all "*" must stay last.
+
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+      - duplicate
+      - invalid
+      - question
+      - needs-triage
+
+  categories:
+    - title: Cambios incompatibles (Breaking Changes)
+      labels:
+        - breaking-change
+        - breaking
+
+    - title: Seguridad (Security)
+      labels:
+        - security
+
+    - title: Nuevos runtimes, profesiones y países (New Runtimes, Professions and Countries)
+      labels:
+        - runtime
+        - profession
+        - country
+        - capability
+
+    - title: Conocimiento actualizado (Knowledge Refresh)
+      labels:
+        - stale-knowledge
+        - knowledge
+        - pins
+
+    - title: Mejoras (Improvements)
+      labels:
+        - enhancement
+        - improvement
+        - interview
+
+    - title: Arreglos (Fixes)
+      labels:
+        - bug
+        - fix
+
+    - title: Documentación (Docs)
+      labels:
+        - documentation
+        - docs
+
+    # Catch-all. Keep last.
+    - title: Otros cambios (Other Changes)
+      labels:
+        - "*"

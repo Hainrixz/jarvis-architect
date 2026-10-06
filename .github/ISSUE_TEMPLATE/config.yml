@@ -1,0 +1,25 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Preguntas y ayuda (Questions and help)
+    url: https://github.com/Hainrixz/jarvis-architect/discussions
+    about: >-
+      ¿Cómo instalo esto?, ¿qué runtime me conviene?, ¿por qué mi bot no contesta? Pregunta en
+      Discussions: ahí se responde más rápido. (Ask in Discussions — faster than the issue tracker.)
+
+  - name: Muestra tu Jarvis (Show your Jarvis)
+    url: https://github.com/Hainrixz/jarvis-architect/discussions
+    about: >-
+      Cuéntalo en Discussions, sin tokens ni datos de clientes. Los Jarvis generados nunca se suben a
+      este repo. (Share it in Discussions; generated Jarvis setups are never merged here.)
+
+  - name: Ideas (Feature ideas)
+    url: https://github.com/Hainrixz/jarvis-architect/discussions
+    about: >-
+      Nuevos comandos, canales o flujos: empieza como discusión. Profesiones y runtimes tienen su
+      propio formulario arriba. (Start ideas as a discussion; professions and runtimes have forms above.)
+
+  - name: Reportar un problema de seguridad (Report a security issue)
+    url: https://github.com/Hainrixz/jarvis-architect/security/advisories/new
+    about: >-
+      Reporte privado. Nunca abras un issue público para algo de seguridad. (Private disclosure — never
+      a public issue.)

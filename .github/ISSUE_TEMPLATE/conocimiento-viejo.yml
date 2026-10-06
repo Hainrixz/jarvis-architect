@@ -1,0 +1,84 @@
+name: Conocimiento viejo (Stale knowledge)
+description: Una versión, precio, ID de modelo, tarifa o política cambió. Toma un minuto. (A version, price, model ID, rate or policy moved. Takes a minute.)
+title: "[viejo] "
+labels: ["stale-knowledge", "knowledge"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias: este es el issue más útil que puedes abrir. El Architect vale lo que valen sus datos, y
+        los datos se pudren en silencio. **No necesitas saber el arreglo**: con el archivo y una fuente
+        oficial basta. *(The most useful issue you can file. You don't need to know the fix.)*
+
+        Las versiones viven solo en `knowledge/runtimes/*.md` y `knowledge/models.json`.
+
+        **¿La versión fijada tiene un CVE conocido?** No lo abras aquí: repórtalo en privado según
+        [SECURITY.md](https://github.com/Hainrixz/jarvis-architect/blob/main/SECURITY.md).
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: ¿Qué cambió? (What moved?)
+      options:
+        - "Versión de un runtime (Runtime version)"
+        - "ID o precio de un modelo (Model ID or price)"
+        - "Costo de Railway u hosting (Railway / hosting cost)"
+        - "Tarifa o política de WhatsApp (WhatsApp rate or policy)"
+        - "Términos de uso / qué credencial se permite (Terms / allowed credential)"
+        - "Herramienta fiscal, CRM o ley de datos de un país (Country tool or data law)"
+        - "Un MCP o skill recomendado cambió o desapareció (Recommended MCP/skill changed or gone)"
+        - "Otro (Other)"
+    validations:
+      required: true
+
+  - type: input
+    id: file
+    attributes:
+      label: Archivo (File)
+      placeholder: knowledge/runtimes/hermes.md
+    validations:
+      required: true
+
+  - type: input
+    id: current
+    attributes:
+      label: Lo que dice ahora (What it says now)
+    validations:
+      required: true
+
+  - type: input
+    id: expected
+    attributes:
+      label: Lo que debería decir (What it should say)
+      description: Déjalo vacío si solo sabes que está mal. (Leave blank if you only know it's wrong.)
+    validations:
+      required: false
+
+  - type: input
+    id: source
+    attributes:
+      label: Fuente oficial (Authoritative source URL)
+      description: Registro del paquete, página de releases, precios o términos del proveedor, diario oficial. Un blog no cuenta. (Registry, release page, vendor pricing/terms, official gazette.)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: ¿Rompe algo? (Does it break something?)
+      options:
+        - "Sí — la instalación o el Jarvis fallan (Yes — install or Jarvis fails)"
+        - "Sí — la cotización de costo queda mal (Yes — cost quote is wrong)"
+        - "Sí — la credencial recomendada ya no está permitida (Yes — recommended credential no longer allowed)"
+        - "No — solo está atrasado (No — just behind)"
+        - "No sé (Not sure)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Algo más (Anything else)
+      description: Cambios incompatibles, renombres, el error que viste. Sin keys ni datos personales. (Breaking changes, renames, the error. No keys or personal data.)
+    validations:
+      required: false

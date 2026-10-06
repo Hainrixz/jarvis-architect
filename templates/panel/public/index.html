@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0B0F14" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F4F7FA" media="(prefers-color-scheme: light)">
+  <meta name="referrer" content="no-referrer">
+  <title>Jarvis · Panel</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <!-- Icon sprite (inline SVG is markup, not script/style: CSP-safe) -->
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.2 3.6A.5.5 0 0 1 5 19.2V16a1 1 0 0 1-1-1z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-memory" viewBox="0 0 24 24"><path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v4h4 M8.5 12h7 M8.5 15.5h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></symbol>
+    <symbol id="i-jobs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-approvals" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.4-3.1 8.2-7.5 9.5-4.4-1.3-7.5-5.1-7.5-9.5V6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.8 12.2l2.2 2.2 4.3-4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-status" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5 M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5v2 M12 19.5v2 M2.5 12h2 M19.5 12h2 M5.3 5.3l1.4 1.4 M17.3 17.3l1.4 1.4 M5.3 18.7l1.4-1.4 M17.3 6.7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3 M19.5 4.5v4h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-mark" viewBox="0 0 32 32"><circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="58 8 6 8"/><circle cx="16" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/></symbol>
+  </svg>
+
+  <a class="skip-link" href="#main" data-i18n="skip">Saltar al contenido</a>
+
+  <!-- Boot: shown until /api/session answers -->
+  <div class="boot" id="boot" aria-hidden="true">
+    <svg class="boot-mark"><use href="#i-mark"/></svg>
+  </div>
+
+  <!-- Login -->
+  <section class="login" id="login" hidden aria-labelledby="login-title">
+    <form class="login-card" id="login-form" novalidate>
+      <div class="login-mark"><svg><use href="#i-lock"/></svg></div>
+      <h1 id="login-title" data-i18n="login.title">Entra a tu panel</h1>
+      <p class="muted" data-i18n="login.body">Este panel está protegido con contraseña.</p>
+      <label class="field-label" for="login-password" data-i18n="login.password">Contraseña</label>
+      <input class="input" id="login-password" name="password" type="password" autocomplete="current-password" required>
+      <p class="form-error" id="login-error" role="alert" hidden></p>
+      <button class="btn btn-primary btn-block" type="submit" id="login-submit" data-i18n="login.submit">Entrar</button>
+    </form>
+  </section>
+
+  <!-- App shell -->
+  <div class="shell" id="app" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" aria-hidden="true"><use href="#i-mark"/></svg>
+        <div class="brand-text">
+          <span class="brand-name" id="jarvis-name">Jarvis</span>
+          <span class="brand-sub" data-i18n="brand.sub">Panel</span>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <div class="health" id="health" data-state="checking" role="status">
+          <span class="health-dot" aria-hidden="true"></span>
+          <span class="health-text" id="health-text" data-i18n="health.checking">Revisando…</span>
+        </div>
+        <button class="icon-btn" id="theme-toggle" type="button">
+          <svg class="icon-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+          <svg class="icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+        </button>
+        <button class="icon-btn lang-btn" id="lang-toggle" type="button">EN</button>
+        <button class="icon-btn" id="logout-btn" type="button" data-i18n-aria="logout" aria-label="Cerrar sesión" hidden>
+          <svg aria-hidden="true"><use href="#i-lock"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="sidebar" id="nav" data-i18n-aria="nav.label" aria-label="Secciones">
+      <ul class="nav-list">
+        <li><a class="nav-item" href="#/chat" data-nav="chat"><svg aria-hidden="true"><use href="#i-chat"/></svg><span data-i18n="nav.chat">Chat</span></a></li>
+        <li><a class="nav-item" href="#/memory" data-nav="memory"><svg aria-hidden="true"><use href="#i-memory"/></svg><span data-i18n="nav.memory">Memoria</span></a></li>
+        <li><a class="nav-item" href="#/jobs" data-nav="jobs"><svg aria-hidden="true"><use href="#i-jobs"/></svg><span data-i18n="nav.jobs">Trabajos</span></a></li>
+        <li><a class="nav-item" href="#/approvals" data-nav="approvals"><span class="nav-icon-wrap"><svg aria-hidden="true"><use href="#i-approvals"/></svg><span class="badge" id="approvals-badge" hidden>0</span></span><span data-i18n="nav.approvals">Aprobaciones</span></a></li>
+        <li><a class="nav-item" href="#/status" data-nav="status"><svg aria-hidden="true"><use href="#i-status"/></svg><span data-i18n="nav.status">Estado</span></a></li>
+      </ul>
+    </nav>
+
+    <main class="main" id="main" tabindex="-1">
+      <!-- CHAT -->
+      <section class="view view-chat" data-view="chat" aria-labelledby="chat-title" hidden>
+        <div class="view-head view-head-chat">
+          <h1 class="view-title" id="chat-title" data-i18n="chat.title">Chat</h1>
+          <button class="btn btn-ghost btn-sm" type="button" id="chat-new">
+            <svg aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="chat.new">Nueva conversación</span>
+          </button>
+        </div>
+        <div class="chat-scroll" id="chat-scroll">
+          <div class="chat-empty" id="chat-empty">
+            <svg class="chat-empty-mark" aria-hidden="true"><use href="#i-mark"/></svg>
+            <h2 data-i18n="chat.emptyTitle">¿En qué te ayudo hoy?</h2>
+            <p class="muted" data-i18n="chat.emptyBody">Escribe abajo, o empieza con una de estas ideas.</p>
+            <div class="chips" id="chat-chips"></div>
+          </div>
+          <ol class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions text" data-i18n-aria="chat.log" aria-label="Conversación"></ol>
+        </div>
+        <form class="composer" id="composer" novalidate>
+          <label class="sr-only" for="chat-input" data-i18n="chat.inputLabel">Tu mensaje</label>
+          <div class="composer-box">
+            <textarea class="composer-input" id="chat-input" rows="1" enterkeyhint="send" aria-describedby="chat-hint"></textarea>
+            <button class="send-btn" type="submit" id="chat-send">
+              <svg class="icon-send" aria-hidden="true"><use href="#i-send"/></svg>
+              <svg class="icon-stop" aria-hidden="true"><use href="#i-stop"/></svg>
+              <span class="sr-only" id="chat-send-label" data-i18n="chat.send">Enviar</span>
+            </button>
+          </div>
+          <p class="composer-hint" id="chat-hint" data-i18n="chat.hint">Enter para enviar · Shift+Enter para salto de línea</p>
+        </form>
+      </section>
+
+      <!-- MEMORY -->
+      <section class="view view-memory" data-view="memory" aria-labelledby="memory-title" hidden>
+        <div class="view-head">
+          <h1 class="view-title" id="memory-title" data-i18n="memory.title">Memoria</h1>
+          <p class="view-intro" data-i18n="memory.intro">Los archivos que tu Jarvis lee para saber quién eres y cómo trabajar contigo.</p>
+        </div>
+        <div class="memory-grid" id="memory-grid" data-pane="list">
+          <div class="memory-list-wrap">
+            <h2 class="eyebrow" data-i18n="memory.files">Archivos</h2>
+            <ul class="memory-list" id="memory-list"></ul>
+          </div>
+          <div class="memory-pane" id="memory-pane">
+            <p class="pane-empty muted" id="memory-placeholder" data-i18n="memory.pick">Elige un archivo para verlo.</p>
+            <div class="memory-editor" id="memory-editor" hidden>
+              <div class="memory-editor-head">
+                <button class="btn btn-ghost btn-sm memory-back" type="button" id="memory-back">
+                  <svg aria-hidden="true"><use href="#i-back"/></svg><span data-i18n="memory.back">Archivos</span>
+                </button>
+                <div class="memory-file-meta">
+                  <h2 class="memory-file-name" id="memory-file-name"></h2>
+                  <span class="tag" id="memory-file-tag"></span>
+                  <span class="dirty-flag" id="memory-dirty" hidden data-i18n="memory.unsaved">Cambios sin guardar</span>
+                </div>
+                <p class="muted small" id="memory-file-desc"></p>
+                <p class="readonly-note" id="memory-readonly-note" hidden>
+                  <svg aria-hidden="true"><use href="#i-lock"/></svg><span data-i18n="memory.readonlyNote">Reglas de seguridad: solo se cambian con /jarvis-add</span>
+                </p>
+              </div>
+              <textarea class="memory-textarea" id="memory-textarea" spellcheck="false" hidden></textarea>
+              <pre class="memory-pre" id="memory-pre" tabindex="0" hidden></pre>
+              <div class="memory-actions" id="memory-actions" hidden>
+                <button class="btn btn-ghost" type="button" id="memory-revert" data-i18n="memory.revert">Deshacer cambios</button>
+                <button class="btn btn-primary" type="button" id="memory-save" data-i18n="memory.save">Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- JOBS -->
+      <section class="view view-jobs" data-view="jobs" aria-labelledby="jobs-title" hidden>
+        <div class="view-head">
+          <h1 class="view-title" id="jobs-title" data-i18n="jobs.title">Trabajos</h1>
+          <p class="view-intro" data-i18n="jobs.intro">Tareas que tu Jarvis hace solo, con horario.</p>
+        </div>
+        <ul class="card-list" id="jobs-list"></ul>
+      </section>
+
+      <!-- APPROVALS -->
+      <section class="view view-approvals" data-view="approvals" aria-labelledby="approvals-title" hidden>
+        <div class="view-head">
+          <h1 class="view-title" id="approvals-title" data-i18n="approvals.title">Aprobaciones</h1>
+          <p class="view-intro" data-i18n="approvals.intro">Cosas que tu Jarvis quiere hacer y necesitan tu visto bueno.</p>
+        </div>
+        <ul class="card-list" id="approvals-list"></ul>
+      </section>
+
+      <!-- STATUS -->
+      <section class="view view-status" data-view="status" aria-labelledby="status-title" hidden>
+        <div class="view-head view-head-row">
+          <div>
+            <h1 class="view-title" id="status-title" data-i18n="status.title">Estado</h1>
+            <p class="view-intro" data-i18n="status.intro">Cómo está tu Jarvis ahora mismo.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" type="button" id="status-refresh">
+            <svg aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="status.refresh">Actualizar</span>
+          </button>
+        </div>
+        <dl class="stats" id="stats">
+          <div class="stat"><dt data-i18n="status.health">Salud</dt><dd id="st-health">—</dd></div>
+          <div class="stat"><dt data-i18n="status.runtime">Motor</dt><dd id="st-runtime" class="mono">—</dd></div>
+          <div class="stat"><dt data-i18n="status.adapter">Conexión del panel</dt><dd id="st-adapter" class="mono">—</dd></div>
+          <div class="stat"><dt data-i18n="status.version">Versión</dt><dd id="st-version" class="mono">—</dd></div>
+          <div class="stat"><dt data-i18n="status.uptime">Encendido hace</dt><dd id="st-uptime" class="mono">—</dd></div>
+        </dl>
+        <div class="note">
+          <p class="note-title" data-i18n="status.spendNote">El gasto se ve en el panel de tu proveedor.</p>
+          <p class="muted small" data-i18n="status.spendSub">Este panel no calcula costos para no mostrarte números inventados.</p>
+        </div>
+        <div class="log-head">
+          <h2 class="section-title" data-i18n="log.title">Bitácora</h2>
+          <p class="muted small" data-i18n="log.sub">Últimos 100 eventos, el más reciente arriba.</p>
+        </div>
+        <div class="table-wrap">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th scope="col" data-i18n="log.time">Hora</th>
+                <th scope="col" data-i18n="log.action">Acción</th>
+                <th scope="col" data-i18n="log.detail">Detalle</th>
+                <th scope="col" data-i18n="log.result">Resultado</th>
+              </tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+          </table>
+          <p class="pane-empty muted" id="log-empty" hidden data-i18n="log.empty">Sin eventos todavía.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Confirm dialog (native <dialog>: focus trap + Esc for free) -->
+  <dialog class="dialog" id="confirm-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-body">
+    <form method="dialog" class="dialog-inner">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-body" class="muted"></p>
+      <div class="dialog-actions">
+        <button class="btn btn-ghost" value="cancel" id="confirm-cancel"></button>
+        <button class="btn btn-primary" value="ok" id="confirm-ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+</body>
+</html>

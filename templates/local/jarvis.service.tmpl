@@ -1,0 +1,49 @@
+# ~/.config/systemd/user/{{unit_name}}.service: keeps a Jarvis running on Linux or WSL2 (systemd=true).
+# Rendered by Jarvis Architect from templates/local/jarvis.service.tmpl (see templates/local/README.md).
+#
+# A user unit: runs as the person, installed without root. To start at boot and survive logout,
+# the person runs `loginctl enable-linger "$USER"` once (a user_action; it may ask for a password).
+# NO SECRETS IN THIS FILE: they live in {{jarvis_dir}}/.env (chmod 600), read by EnvironmentFile=.
+# Not for Hermes or OpenClaw native installs: their installers write their own unit. Never run both (CMP-11).
+
+[Unit]
+Description=Jarvis ({{jarvis_name}}), personal AI assistant
+After=network-online.target
+Wants=network-online.target
+# Crash-loop guard: at most 10 starts in 5 minutes, then systemd stops trying and /jarvis-doctor reports it.
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory={{jarvis_dir}}
+# The leading "-" would make a missing file non-fatal. It is left out on purpose: no .env, no start.
+EnvironmentFile={{jarvis_dir}}/.env
+Environment=TZ={{timezone}}
+Environment=JARVIS_HOME={{jarvis_dir}}
+# Absolute PATH: systemd does not read the shell profile.
+Environment=PATH={{path}}
+ExecStart=/bin/bash {{jarvis_dir}}/bin/run.sh
+Restart=on-failure
+RestartSec=10
+# Give the runtime time to flush memory/state on stop.
+TimeoutStopSec=30
+
+# CMP-22: hard memory cap (the kernel kills and systemd restarts) and no runaway CPU.
+MemoryMax={{memory_max}}
+CPUQuota={{cpu_quota}}
+TasksMax=256
+
+# Light hardening that works in user units.
+NoNewPrivileges=yes
+UMask=0077
+# UNVERIFIED per distro: PrivateTmp in a *user* unit needs unprivileged user namespaces.
+# If `systemctl --user start` fails with status 226/NAMESPACE, remove this line and note it in SECURITY.md.
+PrivateTmp=yes
+
+# Logs go to the journal (rotated by journald): journalctl --user -u {{unit_name}} -f
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,17 @@
+{
+  "name": "jarvis-architect",
+  "owner": { "name": "Enrique Rocha", "url": "https://github.com/Hainrixz" },
+  "metadata": {
+    "description": "EN: Jarvis Architect by @soyenriquerocha — tododeia.com. ES: Jarvis Architect por @soyenriquerocha — tododeia.com."
+  },
+  "plugins": [
+    {
+      "name": "jarvis-architect",
+      "source": "./",
+      "version": "1.0.0",
+      "description": "Interviews you, decides your runtime/model/host/channels, and builds your own personal Jarvis with you — locally or on Railway. / Te entrevista, decide y construye contigo tu propio Jarvis.",
+      "category": "productivity",
+      "author": { "name": "Enrique Rocha", "url": "https://github.com/Hainrixz" }
+    }
+  ]
+}

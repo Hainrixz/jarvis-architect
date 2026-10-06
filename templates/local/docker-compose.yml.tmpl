@@ -1,0 +1,79 @@
+# {{jarvis_dir}}/compose.yaml: runs a Jarvis in a hardened container on the person's own machine.
+# Rendered by Jarvis Architect from templates/local/docker-compose.yml.tmpl (see templates/local/README.md).
+#
+# - Image pinned to tag + digest from knowledge/runtimes/<runtime_id>.md § Pinned versions. Never :latest.
+# - Every published port is bound to 127.0.0.1. Nothing is reachable from the LAN or the internet;
+#   remote access goes through Tailscale (knowledge/capabilities/deploy-local.md).
+# - NO SECRETS IN THIS FILE: they come from .env (chmod 600, gitignored) via env_file.
+# - Never mount /var/run/docker.sock. That would give the agent root on the host.
+# - The same image can move to Railway later with image() in .railway/railway.ts.
+
+name: {{compose_project}}
+
+services:
+  {{service_name}}:
+    image: {{image}}
+    container_name: {{service_name}}
+    # @if:command
+    command: {{command}}
+    # @end:command
+    restart: unless-stopped
+    # @if:init
+    # Tiny init as PID 1 (reaps zombies, forwards signals). Off for images that bring their own
+    # init as PID 1 (e.g. s6-overlay in the Hermes image).
+    init: true
+    # @end:init
+    env_file:
+      - .env
+    environment:
+      TZ: "{{timezone}}"
+
+    # @if:ports
+    # Only when the runtime serves a local API or dashboard. A worker that only makes outbound calls
+    # (e.g. Telegram long polling) needs no ports. Leave this block out entirely: that is the safest form.
+    ports:
+      - "127.0.0.1:{{host_port}}:{{container_port}}"
+    # @end:ports
+
+    volumes:
+      - ./data:{{data_mount}}
+
+    # --- Hardening (SEC checklist: non-root, no capabilities, no privilege escalation, limits) ---
+    # @if:user
+    # Run as a non-root UID:GID. Turn this off only for images that start as root solely to fix
+    # ownership and then drop to their own user (e.g. Hermes → UID 10000). Write that down in SECURITY.md.
+    user: "{{uid}}:{{gid}}"
+    # @end:user
+    cap_drop:
+      - ALL
+    # @if:cap_add
+    # Minimum capabilities an image needs to drop privileges itself (e.g. CHOWN, SETUID, SETGID).
+    # UNVERIFIED per image. Find the smallest set that works, test it, and record it in SECURITY.md.
+    cap_add: [{{cap_add}}]
+    # @end:cap_add
+    security_opt:
+      - "no-new-privileges:true"
+    # @if:read_only
+    read_only: true
+    tmpfs:
+      - /tmp
+    # @end:read_only
+    mem_limit: {{mem_limit}}
+    cpus: {{cpus}}
+    pids_limit: 256
+
+    # Bounded logs: the "local" driver rotates on its own.
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # @if:healthcheck
+    healthcheck:
+      test: ["CMD-SHELL", "{{health_cmd}}"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # @end:healthcheck
