@@ -53,7 +53,7 @@ Treat every student as a minor unless the teacher only teaches adults (universit
    consent alone only from age 14 (LOPDGDD Art. 7); customer-facing AI must disclose itself (AI Act
    Art. 50). **Colombia** — Ley 1581 Art. 7 bars processing children's data except public data,
    with narrow exceptions. **Mexico** — LFPDPPP 2025; minors' data needs parent/guardian consent
-   (exact article UNVERIFIED); public-school data may also fall under public-sector rules.
+   (cite the article only after reading it in the LFPDPPP text on https://www.diputados.gob.mx/LeyesBiblio); public-school data may also fall under public-sector rules.
    **Argentina** — Ley 25.326. Details in `knowledge/countries/<cc>.md`.
 
 Sensitivity default: **very-sensitive** (as in `knowledge/decision-tree.md` § Quick defaults), memory
@@ -86,7 +86,7 @@ local-only, "third-party personal data" a v1 Non-Goal.
 |---|---|---|---|---|
 | Docs, Drive, Sheets, Slides | Google Workspace MCP, developer preview, **personal account** | T1 | `drive.readonly`, `drive.file` for docs Jarvis creates | Creating new docs is fine; sharing with students/families IRR-01 |
 | Calendar | Google Workspace MCP (Calendar) | T1 | Read | Invites IRR-06 |
-| Google Classroom | **No official MCP found** (community servers only, UNVERIFIED quality) | — | **Not connected in v1.** The teacher exports or copies anonymized work | Posting assignments/grades: never automatic |
+| Google Classroom | **No official MCP found** (community servers only; not connected in v1) | — | **Not connected in v1.** The teacher exports or copies anonymized work | Posting assignments/grades: never automatic |
 | Design | Canva official remote MCP (OAuth; URL `https://mcp.canva.com/mcp` from secondary listings, confirm on canva.dev at install) | T1 | Search/export designs | Creating designs from templates after yes (no student photos) |
 | Web search | Runtime built-in | — | — | — |
 | Office files | Built-in file tools / PDF-docx skills | — | Read | — |
@@ -159,6 +159,6 @@ Pack skills (max 3 in week one):
 - Google Workspace MCP servers: see `knowledge/capabilities/tools-mcp.md` § Sources
 - Railway cron (UTC): https://docs.railway.com/reference/cron-jobs
 
-UNVERIFIED in this file: no official Google Classroom MCP (none found, community only); Canva MCP URL (secondary listings); Mexico
+`stack-researcher` re-checks these live at install time: whether Google Classroom now has an official MCP (community servers only so far); Canva MCP URL (secondary listings); Mexico
 LFPDPPP 2025 article on minors' consent and any domestic-use exclusion; whether Workspace for
 Education admins block the Workspace MCP preview by default.

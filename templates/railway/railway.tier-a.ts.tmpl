@@ -10,7 +10,7 @@
 //   - serverless / app sleeping off  → dashboard or MCP `update-service` (sleepApplication: false)
 //   - memory limit (Replica Limits)  → dashboard or MCP `update-service` (limits.memoryGB)
 //   - volume backups (daily/weekly)  → dashboard, service → Backups tab
-//   - sealing a variable             → dashboard only (UNVERIFIED whether CLI/IaC can seal)
+//   - sealing a variable             → dashboard (LIVE CHECK: `railway variables --help`; use the CLI if it offers sealing)
 //
 // Workflow: railway link → railway config plan --out <plan.json> → (person says yes) →
 // railway config apply --plan <plan.json> --yes.

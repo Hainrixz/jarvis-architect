@@ -8,12 +8,13 @@
 //   events: thread.started {thread_id}, turn.started, turn.completed, turn.failed, error,
 //           item.completed {item:{type:"agent_message", text}}
 // New runs send the prompt through stdin (`-`), so it never shows in `ps` and can't be read as
-// a flag. UNVERIFIED (codex was not installed where this was written):
-//   * whether `codex exec resume <id>` also accepts `-` for stdin — so resumed turns pass the
-//     message as an argument after `--` (still safe: spawn() with an args array, no shell);
-//   * that exec-level flags (--json, --sandbox, --skip-git-repo-check) are accepted when placed
-//     BEFORE the `resume` subcommand, as done here. If `codex exec resume --help` disagrees,
-//     adjust buildCodexArgs().
+// a flag. Resumed turns pass the message as an argument after `--` (still safe: spawn() with an
+// args array, no shell), and exec-level flags (--json, --sandbox, --skip-git-repo-check) go BEFORE
+// the `resume` subcommand.
+// LIVE CHECK when wiring this adapter: run `codex exec resume --help` with the installed codex.
+//   * If it accepts `-` for stdin, switch resumed turns to stdin too.
+//   * If it wants exec-level flags after `resume`, move them in buildCodexArgs().
+//   Then send one new turn and one resumed turn from the panel and confirm both stream text.
 // The panel never passes the full-access sandbox or the flag that skips approvals and sandbox
 // (SEC-07/SEC-10); see SAFE_SANDBOXES.
 import { spawnLines } from './claude-cli.js';

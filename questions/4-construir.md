@@ -21,7 +21,9 @@ Write `.jarvis/tasks.json`:
   `railway login`, scan a QR, pay for a plan) are `"kind": "user_action"` with exact
   click-by-click instructions and a machine-checkable `postcondition`.
 - Mandatory tasks, whatever the runtime:
-  1. Create the Jarvis folder + `git init` + `.gitignore` (secrets, `.env*`, state, logs).
+  1. Create the Jarvis folder + `git init` + `.gitignore`: `.env`, `.env.*`, `*.env`, `auth.json`,
+     `credentials*`, `.jarvis/`, `logs/`, `outbox/`, `node_modules/`, then `!.env.example` and
+     `!panel/.env.example` so the examples stay tracked.
   2. Workspace files via `workspace-writer` (SOUL, USER, MEMORY, HEARTBEAT, AGENTS, TOOLS.md).
   3. `.env.example` listing every variable with a one-line comment; the person fills `.env`
      themselves (`chmod 600 .env`; native Windows: the `icacls` line and PowerShell verify forms in

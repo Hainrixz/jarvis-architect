@@ -37,6 +37,15 @@ export function createClaudeEventMapper() {
   let sessionId;
   let sawDelta = false;
   let done = false;
+  // Text from separate assistant turns (e.g. before and after a tool call) would otherwise run
+  // together ("Voy a leer.Listo"): a blank line goes before the first text of each later turn.
+  let wroteText = false;
+  let turnHasText = false;
+  const text = (t) => {
+    const sep = wroteText && !turnHasText ? '\n\n' : '';
+    wroteText = turnHasText = true;
+    return { type: 'delta', text: sep + t };
+  };
   return {
     get sessionId() {
       return sessionId;
@@ -54,17 +63,17 @@ export function createClaudeEventMapper() {
         const ev = msg.event;
         if (ev?.type === 'content_block_delta' && ev.delta?.type === 'text_delta' && ev.delta.text) {
           sawDelta = true;
-          out.push({ type: 'delta', text: ev.delta.text });
+          out.push(text(ev.delta.text));
         }
-        if (ev?.type === 'message_start') sawDelta = false;
+        if (ev?.type === 'message_start') sawDelta = turnHasText = false;
       } else if (msg.type === 'assistant' && isMain) {
         // Without partial messages we only get whole assistant messages: emit their text.
         if (!sawDelta) {
           for (const b of msg.message?.content || []) {
-            if (b?.type === 'text' && b.text) out.push({ type: 'delta', text: b.text });
+            if (b?.type === 'text' && b.text) out.push(text(b.text));
           }
         }
-        sawDelta = false;
+        sawDelta = turnHasText = false;
       } else if (msg.type === 'result') {
         done = true;
         if (msg.is_error || (msg.subtype && msg.subtype !== 'success')) {

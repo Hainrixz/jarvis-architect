@@ -75,7 +75,7 @@ showed 0.34.4 while the live API showed 0.40.0. Run `brew update` first.
 | Issue | Impact | Fixed in | Source |
 |---|---|---|---|
 | CVE-2026-7482 "Bleeding Llama" | Unauthenticated heap read via a crafted GGUF on `/api/create`, exfiltrated via `/api/push`: leaks prompts, env vars, API keys. ~300k exposed servers | 0.17.1 (2026-02-25) | https://blog.gridinsoft.com/ollama-cve-2026-7482-memory-leak/ · https://labs.cloudsecurityalliance.org/wp-content/uploads/2026/05/CSA_research_note_ollama-bleeding-llama-cve-2026-7482-ai-inference-exposure_20260511-csa-styled.pdf |
-| CVE-2026-5757 (same quantization path) | Unauthenticated heap read; CERT/CC reported **no vendor fix** as of mid-2026 | **UNVERIFIED** whether 0.40.0 fixes it (Debian tracker shows no fixed version) | https://security-tracker.debian.org/tracker/CVE-2026-5757 · https://cipherssecurity.com/cve-2026-5757-ollama-bleeding-llama-heap/ |
+| CVE-2026-5757 (same quantization path) | Unauthenticated heap read; CERT/CC reported **no vendor fix** as of mid-2026 | Debian's tracker shows no fixed version; `stack-researcher` re-checks it before install. Until a fix is listed, keep Ollama bound to `127.0.0.1` and never pull untrusted GGUF files | https://security-tracker.debian.org/tracker/CVE-2026-5757 · https://cipherssecurity.com/cve-2026-5757-ollama-bleeding-llama-heap/ |
 
 Both need network reach to the API, so the mitigation is the same and non-negotiable: loopback
 bind, no `ollama create` from untrusted GGUF files, no public port (SEC-05, SEC-24, SEC-25).
@@ -100,14 +100,14 @@ The model families per tier (`small` / `medium` / `large` / `embeddings`) live i
 table maps those tiers to the exact library tags that existed on 2026-10-06, and stack-researcher
 re-checks them on https://ollama.com/library at install time. Sizes are the download size of the
 default quantization. Context adds several GB more. Confirm on the person's machine with
-`ollama show <tag>` and `ollama ps` (the fixed "8/16/32 GB" README rule no longer exists, so any
-GB-per-tier heuristic is **UNVERIFIED**).
+`ollama show <tag>` and `ollama ps` (the fixed "8/16/32 GB" README rule no longer exists, so trust these two commands over
+any GB-per-tier rule of thumb).
 
 `models.json` names Qwen3.5 35B-A3B as the medium-tier default. On a **24 GB GPU** that model
 (22–23 GB) leaves no room for the 64K context, so this file picks the 27B dense tag there. On a
 32–36 GB Mac, `qwen3.6:35b-a3b` is fine and faster. `qwen3.8:27b` (18 GB) appeared with Ollama
-v0.40.0. It is the same size as `qwen3.6:27b`, but its tool-calling quality under Hermes/OpenClaw
-is **UNVERIFIED**, and Ollama's Hermes page still names `qwen3.6`.
+v0.40.0. It is the same size as `qwen3.6:27b`, but Ollama's Hermes page still names `qwen3.6`, so default
+to `qwen3.6:27b` and offer `qwen3.8:27b` only if the tool-use smoke test passes with it.
 
 | Hardware | Recommended `main` tag | Size | Notes |
 |---|---|---|---|
@@ -115,7 +115,7 @@ is **UNVERIFIED**, and Ollama's Hermes page still names `qwen3.6`.
 | `HW-small`: 16–31 GB Mac / 12–23 GB VRAM | `gemma4:12b` (or `qwen3.5:9b`) | 7.7 GB download (≈6.6 GB weights, the `models.json` figure) · 6.6 GB | 64K context is tight. Expect slower, shakier tool use. Say so before the gate. On **12 GB VRAM** if Verify #5 shows CPU spill: (1) switch to `qwen3.5:9b`, (2) keep 64K with `OLLAMA_KV_CACHE_TYPE=q8_0`, (3) close other GPU apps (games, browsers with GPU tabs). Never drop below 64K under Hermes: it refuses to start |
 | `HW-strong`: 24 GB VRAM / 32–36 GB Mac (**default tier**) | `qwen3.6:27b` · alt `gemma4:26b` (MoE, faster) | 18 GB · 16 GB | Ollama docs list `qwen3.6` (~24 GB VRAM) and `gemma4` (~16 GB) as the local picks for Hermes ([ollama-hermes]) |
 | 48 GB VRAM / 64 GB Mac | `qwen3.6:35b-a3b` | 23 GB | Room for 64K+ context without CPU offload |
-| 96–128 GB Mac (Max/Ultra) | `gpt-oss:120b` | 65 GB | Slow (single-digit tok/s reported, UNVERIFIED) |
+| 96–128 GB Mac (Max/Ultra) | `gpt-oss:120b` | 65 GB | Slow (single-digit tok/s reported; measure it with `ollama run --verbose` before committing) |
 | Embeddings (memory search) | `nomic-embed-text` (or `embeddinggemma-2`) | 274 MB (1.3 GB) | Only when sqlite-vec memory is in the spec |
 
 Classes (`HW-strong` / `HW-small` / `HW-weak`) are the ones in `models.json` →
@@ -204,10 +204,10 @@ jarvis-ollama` (#8).
 
 `brew install --cask lm-studio` / `winget install --id ElementLabs.LMStudio --version 0.4.25+1 --exact`.
 Its headless `llmster` daemon installer is `curl|bash` / `irm|iex` only, so use the app's bundled
-`lms` CLI instead. The exact path that `lms` is bootstrapped to is **UNVERIFIED**. Pick LM Studio only
+`lms` CLI instead. Find the `lms` path with `which lms` after the app's first launch (or run `lms bootstrap` from the app's install folder). Pick LM Studio only
 when the person already uses it or wants its model browser. Ollama stays the default because
-Hermes, OpenClaw and Claude Code all have documented Ollama paths. LM Studio's license terms are
-**UNVERIFIED** (proprietary app).
+Hermes, OpenClaw and Claude Code all have documented Ollama paths. LM Studio is a proprietary app:
+`stack-researcher` reads its current terms on its website before recommending it.
 
 ### Pull the model
 
@@ -285,7 +285,7 @@ Equivalent interactive path: `hermes model` → custom endpoint ([hermes-provide
 `ollama launch hermes` to *install* Hermes: it can run Hermes's vendor installer for you, which
 breaks the download→hash→person-runs rule. Install Hermes per `knowledge/runtimes/hermes.md`, then
 configure the provider as above. Using `ollama launch hermes` only to configure an already
-installed Hermes is acceptable, but whether it skips installation is **UNVERIFIED**.
+installed Hermes is acceptable only if it doesn't offer to run an installer; if it does, stop and use `hermes model` instead.
 
 ### OpenClaw → Ollama (`~/.openclaw/openclaw.json`, JSON5)
 
@@ -309,8 +309,8 @@ installed Hermes is acceptable, but whether it skips installation is **UNVERIFIE
 CLI equivalent: `openclaw onboard` → Ollama → **Local only**, then `openclaw models set
 ollama/qwen3.6:27b` and `openclaw models list --provider ollama` ([openclaw-ollama-setup],
 [openclaw-ollama-config]). Never choose "Cloud + Local" for a private Jarvis. The exact nesting of
-`models: [...]` with `contextWindow` comes from a summarized docs page (**UNVERIFIED** shape).
-Confirm with `openclaw doctor` after writing.
+`models: [...]` with `contextWindow` comes from a summarized docs page, so confirm the shape with `openclaw doctor` after writing;
+if it complains, use the CLI path above instead.
 
 ### Claude Code → Ollama (UNOFFICIAL; developer profiles only)
 
@@ -393,8 +393,8 @@ summarization calls also hit Ollama.
 supports tool calling natively for capable models (Ollama "built-in" per [hermes-providers]).
 Local-specific rules:
 - Fewer tools = better (SEC-23). Small models (8–12B): **≤5 tools and one-step jobs**
-  (`knowledge/compatibility.md` CMP-25). 27B+ tier: ≤8–10 tools per agent profile (**UNVERIFIED**
-  threshold, field heuristic). Small models pick the wrong tool as the list grows.
+  (`knowledge/compatibility.md` CMP-25). 27B+ tier: ≤8–10 tools per agent profile (a field
+  heuristic, not a hard limit). Small models pick the wrong tool as the list grows.
 - Remote MCP servers (Gmail, Calendar) **send data to those services**. That is acceptable only if
   the person agreed in the data-flow disclosure (SEC-32). Fully private profiles use local MCP
   only (filesystem scoped to the Jarvis folder, local sqlite, local whisper.cpp for voice notes,
@@ -442,8 +442,8 @@ launchctl kickstart -k gui/$(id -u)/com.jarvis.ollama      # restart after confi
 
 Use this **instead of** `brew services start ollama`, never both. A LaunchAgent starts only after
 login: an always-on Mac mini needs auto-login, and FileVault blocks auto-login after a power cut
-(see the FileVault caveat in `knowledge/capabilities/deploy-local.md`; current macOS 27 behavior
-**UNVERIFIED**).
+(see the FileVault caveat in `knowledge/capabilities/deploy-local.md`; to check it on this Mac, reboot
+once and confirm Jarvis answers without anyone logging in).
 
 ### Linux: systemd user unit (tarball install)
 
@@ -488,7 +488,7 @@ with the same `Environment=` lines instead ([ollama-faq]), and the person runs t
 
 ### Windows
 
-The installer runs Ollama as a tray app at login (startup behavior **UNVERIFIED** in the docs).
+The installer runs Ollama as a tray app at login. After a reboot, check `curl -s http://127.0.0.1:11434/api/version` answers; if not, add Ollama to the Startup folder (`Win+R` → `shell:startup`).
 Settings come from the user env vars above. For 24/7 use, keep the PC awake on AC power. If the
 harness lives in WSL2, supervise the harness with WSL2 systemd (`knowledge/capabilities/deploy-local.md`).
 
@@ -523,7 +523,7 @@ exactly as the checklist states them for the harness on top (see `knowledge/runt
 | SEC-22 Read-only integrations · SEC-23 Minimal tools | Integrations start read-only. A remote MCP also means data leaves the machine, so add it only when the disclosure says so. Small models: ≤5 tools (CMP-25) |
 | SEC-24 No auto-install · SEC-25 Floor + digest · SEC-26 Safe install | Ollama pinned (0.40.0, sha256 from `sha256sum.txt` or the image digest), `brew pin ollama`, floor ≥0.17.1. Models only from the official library namespace, pinned by tag; record the `ollama show --modelfile` output digest in RUNBOOK. No `ollama create` from untrusted GGUF (the CVE vector). No `ollama launch` as an installer. No `curl \| sh`; `install.sh` only download → hash → person runs it |
 | SEC-27 Spend cap · SEC-28 App-side limits | $0/token, but cap abuse: harness max turns / max tool calls per task, loop breaker after N identical calls, inbound rate limit. If hybrid, the cloud provider gets a hard spend cap before the first call |
-| SEC-29 Audit log · SEC-20 Log redaction | Harness audit log of tool calls. Ollama server log (`~/Library/Logs/jarvis-ollama.log` / `journalctl --user -u jarvis-ollama`) is rotated and never shipped anywhere. Don't enable `OLLAMA_DEBUG` in production (prompts in logs, **UNVERIFIED** extent) |
+| SEC-29 Audit log · SEC-20 Log redaction | Harness audit log of tool calls. Ollama server log (`~/Library/Logs/jarvis-ollama.log` / `journalctl --user -u jarvis-ollama`) is rotated and never shipped anywhere. Don't enable `OLLAMA_DEBUG` in production (it can write prompts to the logs) |
 | SEC-30 Auth matrix · SEC-31 WhatsApp | No model credential (`knowledge/auth-matrix.md`). Claude Code path: unofficial, uses no subscription, and runs in a separate launcher, never mixed with the claude.ai login. Unofficial WhatsApp only with logged consent + secondary number |
 | SEC-32 Disclosure | Disclosure screen states truthfully: model + memory local; channel provider (Telegram/WhatsApp) sees messages; each remote MCP sees its data; `OLLAMA_NO_CLOUD=1` blocks `:cloud` |
 | SEC-33 Updates & incident | Floor ≥0.17.1, pinned 0.40.0. Weekly `jarvis-doctor` check compares with the latest release and the advisory list (GitHub releases, NVD for "ollama"). Upgrade = new pin + checksum + `brew unpin/upgrade/pin`. SECURITY.md panic button: stop the LaunchAgent/unit/container, stop the harness, revoke the bot token, check `lsof`/`ss` for any non-loopback listener |
@@ -572,8 +572,8 @@ systemctl --user is-active --quiet jarvis-ollama && echo ok                  # L
 ```
 
 On Apple Silicon, the 90% `size_vram` check reads unified memory and should pass. If it doesn't,
-`ollama ps` shows the CPU/GPU split. The verify that `OLLAMA_NO_CLOUD` actually rejects a `:cloud`
-pull is **UNVERIFIED**. Don't test it by pulling.
+`ollama ps` shows the CPU/GPU split. The verify checks that `OLLAMA_NO_CLOUD` is set, not that it rejects a `:cloud`
+pull. Don't test it by pulling.
 
 **Smoke test (with the harness):** 1) owner sends "hola" on Telegram → answer in < 60 s on first load,
 < 15 s warm; 2) a second account gets rejected (SEC-01); 3) "recuerda que mi contador se llama
@@ -597,13 +597,13 @@ Railway for Ollama is not an option (~$120/month for a CPU-only 7B and still too
 | OpenClaw pointed at `/v1` | Tool calls come back as text | `baseUrl` without `/v1`, `api: "ollama"` |
 | Model too big for memory | Very slow replies, `ollama ps` shows CPU % | Drop one tier (e.g. `gemma4:26b` → `gemma4:12b`), lower context to the 64K floor, close other apps |
 | Two models loaded (chat + embeddings + heartbeat) | Swapping, timeouts | One chat model for all slots. Use the small `nomic-embed-text` (274 MB) for embeddings, and only when sqlite-vec memory is in the spec |
-| v0.40.0 runs MLX by default on Apple Silicon | Regression on a specific model | Fall back to the previous release `0.35.1` (the one before 0.40.0 per the release compare link). Homebrew can't install old versions easily, so use that release's `ollama-darwin.tgz` and check it against its own `sha256sum.txt`. Or switch to another model that is not on MLX. A switch to turn MLX off is **UNVERIFIED** |
+| v0.40.0 runs MLX by default on Apple Silicon | Regression on a specific model | Fall back to the previous release `0.35.1` (the one before 0.40.0 per the release compare link). Homebrew can't install old versions easily, so use that release's `ollama-darwin.tgz` and check it against its own `sha256sum.txt`. Or switch to another model that is not on MLX. If a later release notes a switch to turn MLX off, prefer it over the downgrade |
 | WSL2 harness can't reach Windows Ollama | `connection refused` | Mirrored networking in `.wslconfig`, or run Ollama inside WSL2. Never `0.0.0.0` |
 | Mac sleeps / lid closed | Bot silent at night | The person disables sleep on AC power, or moves to a Mac mini. A laptop-only person goes to `hermes` on Railway + API key instead |
 | Weak tool chains on ≤16 GB | Wrong tools, loops | Fewer tools, shorter SOUL, loop breaker (SEC-28). Offer hybrid with consent |
-| Claude Code + Ollama: no Channels | Anthropic's Channels docs say the plugins need claude.ai or Console API auth (https://code.claude.com/docs/en/channels). Ollama's Claude Code page shows `ollama launch claude -- --channels plugin:telegram@…` anyway. Whether that works is **UNVERIFIED**, and it is unsupported by Anthropic | Use Hermes/OpenClaw for chat channels. Claude Code + Ollama stays a terminal tool. Anthropic doesn't support non-Claude backends, and features can break on any Claude Code update |
+| Claude Code + Ollama: no Channels | Anthropic's Channels docs say the plugins need claude.ai or Console API auth (https://code.claude.com/docs/en/channels). Ollama's Claude Code page shows `ollama launch claude -- --channels plugin:telegram@…` anyway. It is unsupported by Anthropic | Use Hermes/OpenClaw for chat channels. Claude Code + Ollama stays a terminal tool. Anthropic doesn't support non-Claude backends, and features can break on any Claude Code update |
 | Claude Code + Ollama: no prompt caching / `tool_choice` / `count_tokens` endpoint | Slower, some flows fail | Expected per [ollama-anthropic]. Not a bug to fix |
-| CVE-2026-5757 fix status unknown | — | Keep the API loopback-only and never import untrusted GGUF. Re-check at each `jarvis-refresh` |
+| CVE-2026-5757 has no listed fix | — | Keep the API loopback-only and never import untrusted GGUF. Re-check at each `jarvis-refresh` |
 | `ollama launch <harness>` installs things | Vendor installer run without hash review | Install the harness per its runtime file. Use `launch` only for configuration, if at all |
 
 ## Sources

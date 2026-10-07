@@ -149,7 +149,7 @@ outside Claude.
 | `openclaw` | `<workspace>/skills/` (highest precedence), then `<workspace>/.agents/skills/`, `~/.agents/skills/`, managed, bundled, extra dirs | Model-invoked; gated by `metadata.openclaw.requires` | Highest source wins on name clash — a workspace skill can shadow a bundled one; keep names unique. Never use `openclaw skills install @owner/<slug>` from ClawHub without § 6. `openclaw skills check` to debug ([docs](https://docs.openclaw.ai/tools/skills)) |
 | `codex-openai` | `<repo>/.agents/skills/` (also `$CWD` and parent), user `~/.agents/skills/` | Implicit by description, explicit `$skill-name`; `/skills` lists them | Same-name skills both stay available (no override) — avoid duplicates ([docs](https://learn.chatgpt.com/docs/build-skills)) |
 | `ollama-local` | The harness on top (`hermes` or `openclaw`) — use its row | Same | Keep skills short and single-step for small models (CMP-25) |
-| `cowork` | Skills enabled on the owner's claude.ai account (upload) | Model-invoked in Cowork / scheduled tasks | Only this repo's own folders; claude.ai uploads accept only the portable frontmatter fields ([docs](https://code.claude.com/docs/en/skills)). Upload UI path UNVERIFIED — see `knowledge/runtimes/cowork.md` |
+| `cowork` | Skills enabled on the owner's claude.ai account (upload) | Model-invoked in Cowork / scheduled tasks | Only this repo's own folders; claude.ai uploads accept only the portable frontmatter fields ([docs](https://code.claude.com/docs/en/skills)). Upload steps: `knowledge/runtimes/cowork.md`; if the UI differs, search "Skills" in claude.ai Settings |
 
 Plugins (Claude Code): skills inside a plugin load as `/plugin-name:skill-name`. A plugin from a
 marketplace is third-party code (skills + hooks + MCP) and follows § 6 exactly like a skill.
@@ -213,10 +213,13 @@ Verify (exit 0 when healthy; adapt the path to the runtime folder in § 4):
 ! grep -rElI 'sk-ant-[A-Za-z0-9]|sk-[A-Za-z0-9]{20,}|xox[bp]-|[0-9]{8,10}:[A-Za-z0-9_-]{35}' skills/
 ```
 
-## UNVERIFIED
+## Install-time checks
 
-- Cowork / claude.ai: exact UI path for uploading a skill folder.
-- Whether every runtime enforces `allowed-tools` the same way (spec calls it experimental).
+- Cowork / claude.ai upload: follow `knowledge/runtimes/cowork.md`; if the menu moved, search "Skills" in
+  claude.ai Settings and have the person confirm the skill shows as enabled.
+- `allowed-tools` (the spec calls it experimental): don't rely on it as the only guard. Keep the
+  runtime's own permission rules, and in the smoke test trigger the skill once and confirm a tool
+  outside its list is refused or asks.
 
 ## Sources
 

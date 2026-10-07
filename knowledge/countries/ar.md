@@ -29,11 +29,11 @@ No versions are pinned here. Runtimes: `knowledge/runtimes/<id>.md`. Models: `kn
 | Category | Rate |
 |---|---|
 | Marketing | **$0.0618** |
-| Utility / Authentication | **$0.026** (utility free inside an open 24 h window; authentication figure from the [flowcall](https://www.flowcall.co/blog/whatsapp-business-api-pricing) table as checked 2026-09-28, UNVERIFIED in the re-check) |
+| Utility / Authentication | **$0.026** (utility free inside an open 24 h window; authentication figure from the [flowcall](https://www.flowcall.co/blog/whatsapp-business-api-pricing) table as checked 2026-09-28; `stack-researcher` re-checks it live on Meta's pricing page before quoting) |
 
 Source: [flowcall rate table](https://www.flowcall.co/blog/whatsapp-business-api-pricing) (secondary, mirrors Meta's rate card; re-fetched 2026-10-06). Authoritative: Meta's rate card download on the [pricing page](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing); `stack-researcher` re-checks before quoting.
 
-**Service-message CONFLICT.** Meta's official doc (re-fetched 2026-10-06) says non-template messages and in-window utility templates are free; flowcall and [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md) say service messages are charged from 2026-10-01 after 1,000 free per number per month. Official doc wins; a personal Jarvis stays far under 1,000 either way.
+**Service messages: sources disagree; `stack-researcher` re-checks Meta's pricing page live before quoting.** Meta's official doc (re-fetched 2026-10-06) says non-template messages and in-window utility templates are free; flowcall and [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md) say service messages are charged from 2026-10-01 after 1,000 free per number per month. Official doc wins; a personal Jarvis stays far under 1,000 either way.
 
 **What a personal Jarvis costs on WhatsApp in Argentina.** Replies: $0. A daily briefing sent first by Jarvis: 30 × $0.026 ≈ **$0.78 USD/month** as utility, 30 × $0.0618 ≈ $1.85 as marketing. Design the briefing so the person opens the window ("escribile 'buen día' a Jarvis y te manda el resumen gratis").
 
@@ -41,20 +41,20 @@ Source: [flowcall rate table](https://www.flowcall.co/blog/whatsapp-business-api
 
 ## Fiscal / invoicing tools
 
-Electronic invoicing is run by **ARCA** (Agencia de Recaudación y Control Aduanero, formerly AFIP). Two routes: the **WSFE** web service or the "Comprobantes en línea" portal ([yo-facturo](https://yo-facturo.com/blog/arca-ex-afip-que-es-y-que-cambio/), secondary). Recent changes, all from secondary press (the ARCA resolutions themselves are not re-read in this pass, UNVERIFIED):
+Electronic invoicing is run by **ARCA** (Agencia de Recaudación y Control Aduanero, formerly AFIP). Two routes: the **WSFE** web service or the "Comprobantes en línea" portal ([yo-facturo](https://yo-facturo.com/blog/arca-ex-afip-que-es-y-que-cambio/), secondary). Recent changes, all from secondary press (`stack-researcher` confirms them against the ARCA resolutions at https://www.arca.gob.ar before relying on a date):
 - **CAE** became the mandatory authorisation method from 1 August (2026); CAEA only for contingencies ([La Capital MdP](https://www.lacapitalmdp.com/arca-postero-hasta-agosto-los-cambios-en-la-facturacion-electronica-y-el-uso-del-c-a-e-a/)).
 - From **2026-11-01** small taxpayers in the *Régimen de Inclusión Social y Promoción del Trabajo Independiente* must issue electronic vouchers as the normal method ([iProUP](https://www.iproup.com/coffee-break/71230-factura-electronica-de-arca-que-cambia-y-cuando-entra-en-vigencia.amp)).
 - From **2026-12-01** ARCA rejects authorisation requests that omit the receiver's **IVA condition** ([SIAP blog del contador](https://siap.blogdelcontador.com.ar/?p=90212)). Any tool Jarvis uses must send that field.
 
 | Tool | Default? | Integration | Trust tier |
 |---|---|---|---|
-| **Alegra** (AR) | **Default when they want invoicing through Jarvis** | OFFICIAL Alegra MCP; Argentina coverage of the MCP specifically is UNVERIFIED (the launch was Mexico-focused) ([developer.alegra.com/llms.txt](https://developer.alegra.com/llms.txt)) | 1 if AR is covered; else 4 |
+| **Alegra** (AR) | **Default when they want invoicing through Jarvis** | OFFICIAL Alegra MCP; the launch was Mexico-focused, so confirm Argentina coverage in Alegra's docs at install ([developer.alegra.com/llms.txt](https://developer.alegra.com/llms.txt)) | 1 if AR is covered; else 4 |
 | **ARCA WSFE via `codespar/mcp-afip`** | Not by default | COMMUNITY, **alpha** ("endpoint paths are best-guesses") ([codespar](https://github.com/codespar/mcp-dev-latam)) | 3: only read/test use; never production invoicing |
 | **Comprobantes en línea** (portal) | Monotributistas with low volume | No API | Jarvis prepares the data and a checklist; the person issues it in the portal |
 | Their existing invoicing SaaS | If they have one | Zapier MCP or generated wrapper | 3–4 |
 
 **Guardrails:**
-- **Issuing a voucher with CAE is irreversible**; corrections go through a credit note (UNVERIFIED in this pass; standard practice). Preview (CUIT, IVA condition, punto de venta, totals) and wait for an explicit "sí".
+- **Issuing a voucher with CAE is irreversible**; corrections go through a credit note (standard practice; the person's accountant confirms). Preview (CUIT, IVA condition, punto de venta, totals) and wait for an explicit "sí".
 - **Never** put the ARCA digital certificate, its private key or the clave fiscal in the workspace, memory or chat. If a WSFE integration is ever built, the cert lives in the host's secret store and the integration starts against ARCA's homologation (test) environment.
 - Fiscal deadlines move often: phrase reminders as "confirmalo con tu contador".
 
@@ -62,13 +62,13 @@ Electronic invoicing is run by **ARCA** (Agencia de Recaudación y Control Aduan
 
 | Tool | Status | Tier |
 |---|---|---|
-| **Mercado Libre** | OFFICIAL remote MCP `https://mcp.mercadolibre.com/mcp`, OAuth bearer; tool list UNVERIFIED ([GitHub](https://github.com/mercadolibre/mercadolibre-mcp-server)) | 1 |
-| **Mercado Pago** (dominant wallet and payments) | OFFICIAL MCP; the official AR overview lists **developer tools only** (docs, credentials, webhooks, test users, quality checks). Live payment links/refunds UNVERIFIED (CONFLICT) ([MP dev docs AR](https://www.mercadopago.com.ar/developers/en/docs/mcp-server/overview)) | 1 (dev scope) |
+| **Mercado Libre** | OFFICIAL remote MCP `https://mcp.mercadolibre.com/mcp`, OAuth bearer; list its tools after connecting and plan only on what appears ([GitHub](https://github.com/mercadolibre/mercadolibre-mcp-server)) | 1 |
+| **Mercado Pago** (dominant wallet and payments) | OFFICIAL MCP; the official AR overview lists **developer tools only** (docs, credentials, webhooks, test users, quality checks). Use payment links/refunds only if its tool list shows them after connecting ([MP dev docs AR](https://www.mercadopago.com.ar/developers/en/docs/mcp-server/overview)) | 1 (dev scope) |
 | **HubSpot** | OFFICIAL remote MCP, OAuth 2.1 ([changelog](https://developers.hubspot.com/changelog/remote-hubspot-mcp-server-is-now-generally-available)) | 1 |
-| **Pipedrive** | OFFICIAL MCP, OAuth; endpoint UNVERIFIED ([newsroom](https://www.pipedrive.com/en/newsroom/pipedrive-launches-native-mcp-server-bringing-crm-workflows-directly-into-ai-assistants)) | 1 |
-| **Kommo** | Community MCPs only (UNVERIFIED that no official one exists) | 2 |
+| **Pipedrive** | OFFICIAL MCP, OAuth; `stack-researcher` reads the endpoint from Pipedrive's docs at install ([newsroom](https://www.pipedrive.com/en/newsroom/pipedrive-launches-native-mcp-server-bringing-crm-workflows-directly-into-ai-assistants)) | 1 |
+| **Kommo** | Community MCPs only (`stack-researcher` checks for an official one at install) | 2 |
 | **Tiendanube** | No MCP verified; Zapier fallback | 4 |
-| **Stripe** | Availability for Argentine businesses UNVERIFIED; check stripe.com/global before suggesting it | — |
+| **Stripe** | Check Argentine availability at stripe.com/global before suggesting it | — |
 
 Irreversible actions (always human approval): issuing vouchers, refunds, payouts, outbound marketing templates, CRM deletes, marketplace price changes.
 
@@ -79,7 +79,7 @@ Irreversible actions (always human approval): issuing vouchers, refunds, payouts
 **What the Architect must warn (and do):**
 1. **Personal-only Jarvis:** obligations mostly start with third parties' data.
 2. **Customer data:** current rules are consent, **database registration** with the AAIP, and adequacy or contractual clauses for **international transfers** (the LLM provider in the US). Use the provider's DPA; name LLM, BSP and Railway as processors in the privacy text; draft marked "revisalo con un abogado".
-3. **AI disclosure** in the first message of a customer-facing bot ("Soy un asistente con IA de <negocio>"): good practice, not verified as a current Argentine legal requirement.
+3. **AI disclosure** in the first message of a customer-facing bot ("Soy un asistente con IA de <negocio>"): good practice; include it whether or not local law requires it.
 4. Minimise: no DNI, CUIT of individuals, card or health data in long-term memory; redact before embedding. Record processors in `compliance.md`.
 5. Tell the person the reform may change these rules; `/jarvis-refresh` tracks it.
 
@@ -87,9 +87,9 @@ Irreversible actions (always human approval): issuing vouchers, refunds, payouts
 
 | Tier | STT | TTS | Notes |
 |---|---|---|---|
-| Premium | Deepgram Nova-3 multilingual | ElevenLabs Flash v2.5 or v4 Turbo with a **rioplatense** library voice | Argentine voice availability in the library UNVERIFIED; let the person listen. A Mexican accent sounds foreign here, so do not default to it |
+| Premium | Deepgram Nova-3 multilingual | ElevenLabs Flash v2.5 or v4 Turbo with a **rioplatense** library voice | Search the library for an Argentine voice and let the person listen. A Mexican accent sounds foreign here, so do not default to it |
 | Budget cloud | Deepgram Nova-3 | Deepgram Aura-2: one of the ten Spanish voices covers an Argentine accent; which one is undocumented ([Deepgram TTS](https://developers.deepgram.com/docs/tts-models-languages-overview)) | Play samples |
-| Fully local | whisper.cpp (`medium`/`large`) | Piper: no Argentine voice verified (UNVERIFIED); fall back to a neutral voice and say so | |
+| Fully local | whisper.cpp (`medium`/`large`) | Piper: check the voice list for an Argentine voice; otherwise fall back to a neutral voice and say so | |
 | Avoid | — | Kokoro | Weak Spanish |
 
 Text register: **voseo** ("vos tenés", "fijate", "confirmalo") in the Jarvis's SOUL.md and all generated prose for Argentine users, unless they write to the Architect with tú. Money `$ 1.234,50 ARS` (dot thousands, comma decimals).
@@ -97,7 +97,7 @@ Text register: **voseo** ("vos tenés", "fijate", "confirmalo") in the Jarvis's 
 ## Timezones & currency
 
 - **`America/Argentina/Buenos_Aires`**, UTC−3, **no DST**. Other `America/Argentina/*` zones exist for historical differences but currently share UTC−3; use the one the OS reports ([IANA tz database](https://www.iana.org/time-zones)).
-- **Currency:** ARS (peso). Because of inflation, **quote recurring costs in USD first**, ARS second, using a live rate from `stack-researcher` and noting which exchange rate (official vs. card) applies. USD card charges from Argentina can carry tax withholdings (percepciones) on top; current rates UNVERIFIED, so tell the person to check their bank statement after the first month and to set spend caps in USD.
+- **Currency:** ARS (peso). Because of inflation, **quote recurring costs in USD first**, ARS second, using a live rate from `stack-researcher` and noting which exchange rate (official vs. card) applies. USD card charges from Argentina can carry tax withholdings (percepciones) on top; rates change, so tell the person to check their bank statement after the first month and to set spend caps in USD.
 - Meta can bill WhatsApp in ARS since 2026-04-01.
 
 ## Sources

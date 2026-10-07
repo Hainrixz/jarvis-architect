@@ -36,7 +36,8 @@ Secondary sources (blogs, aggregators) only when no primary exists — label the
 
 ## Rules
 
-- Never emit a value you did not fetch in this session. Unresolved → `UNVERIFIED` with what you tried.
+- Never emit a value you did not fetch in this session. Unresolved → `UNVERIFIED` with what you tried,
+  the exact check the main thread runs with the person (command or URL) and the fallback if it differs.
 - Prereleases (`-beta`, `-rc`, `canary`, `next`) are never the recommendation; report them separately.
 - Security: for runtimes with a version floor in `knowledge/runtimes/<id>.md`, search advisories
   newer than the floor. A new advisory **raises** the floor — say so loudly.

@@ -63,8 +63,10 @@ the table above. Show off your Jarvis in Discussions, without tokens or client d
    capabilities, ni en `questions/`, ni en skills, ni en este archivo. Los demás dicen "ver
    `knowledge/runtimes/hermes.md`". CI lo revisa.
 2. **Todo dato que se puede volver viejo lleva URL de fuente.** Versión, precio, ID de modelo,
-   política de un proveedor, tarifa de WhatsApp, ley de datos. Lo que no pudiste confirmar se
-   marca `UNVERIFIED`, nunca se afirma en silencio.
+   política de un proveedor, tarifa de WhatsApp, ley de datos. Lo que la fuente no confirma se
+   marca `UNVERIFIED` junto con la revisión exacta (URL o comando) y el plan B: así
+   `stack-researcher` lo confirma en vivo antes de que el Architect lo instale o lo cotice. Nunca
+   se afirma en silencio.
 3. **Nunca inventes** un comando de instalación, un nombre de skill o MCP, un ID de modelo o un
    precio. Si no lo copiaste de la fuente oficial o no lo corriste tú, no entra.
 4. **Instalaciones seguras.** Nada de `curl … | sh`, `irm … | iex` ni `sudo`. Primero el gestor de
@@ -82,7 +84,8 @@ the table above. Show off your Jarvis in Discussions, without tokens or client d
 
 **EN — The rules that govern every file.** (1) Versions live only in `knowledge/runtimes/*.md`
 (§ Pinned versions) and `knowledge/models.json` — CI checks it. (2) Every stale-prone fact carries a
-source URL; anything unconfirmed is marked `UNVERIFIED`. (3) Never invent an install command, skill
+source URL; anything the source doesn't confirm is marked `UNVERIFIED` with the exact live check (URL or
+command) and a fallback, so `stack-researcher` confirms it before the Architect installs or quotes it. (3) Never invent an install command, skill
 or MCP name, model ID or price. (4) Safe installs only: no `curl | sh`, no `irm | iex`, no `sudo`;
 package manager with a pinned version first, vendor scripts only download → show SHA-256 → the
 person runs it. (5) Credentials follow `knowledge/auth-matrix.md`: Claude Pro/Max only inside the
@@ -271,13 +274,15 @@ vulnerable. Never pin an RC, beta or "latest" as the default. Add a CHANGELOG li
 | Ley de datos | Diario oficial o sitio del regulador | Resúmenes de despachos sin enlace oficial |
 | CVE | NVD, GitHub Security Advisories, aviso del vendor | Hilos de redes sociales |
 
-Una fuente secundaria sirve solo si se marca `UNVERIFIED` y se dice por qué.
+Una fuente secundaria sirve solo marcada `UNVERIFIED`, con el porqué y la fuente oficial que
+`stack-researcher` revisa en vivo antes de citar el dato.
 
 **EN — Sources: what counts.** Versions from the registry or official releases; model prices/IDs
 from the provider's official pages; Railway cost from its pricing page and docs; policies and
 terms from the provider's official text, quoted; data law from the official gazette or regulator;
 CVEs from NVD, GitHub advisories or the vendor. A secondary source is acceptable only marked
-`UNVERIFIED`, with the reason.
+`UNVERIFIED`, with the reason and the official page `stack-researcher` re-checks live before the
+fact is quoted.
 
 ---
 

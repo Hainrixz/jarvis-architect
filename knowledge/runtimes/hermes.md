@@ -27,9 +27,9 @@ Last verified: 2026-10-06
 | Provider | Allowed credential | Never |
 |---|---|---|
 | Anthropic (Claude) | `ANTHROPIC_API_KEY` (Console key, with a workspace spend limit) | Hermes' Anthropic OAuth, which "routes as Claude Code against your Anthropic account" and is forbidden here (identity misrepresentation; [support 13189465](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account), [Hermes providers](https://hermes-agent.nousresearch.com/docs/integrations/providers), [legal](https://code.claude.com/docs/en/legal-and-compliance)) |
-| OpenAI | `OPENAI_API_KEY` (default on servers) | Hermes' `openai-codex` OAuth only on the person's own machine and with consent, since whether OpenAI sanctions it is **UNVERIFIED**. Never on Railway. |
+| OpenAI | `OPENAI_API_KEY` (default on servers) | Hermes' `openai-codex` OAuth only on the person's own machine and with consent, since OpenAI's terms don't clearly cover a third-party agent using that login: a policy grey zone, so explain the risk and log consent in spec §7. Never on Railway. |
 | OpenRouter | `OPENROUTER_API_KEY` | Shared or other people's keys |
-| Nous Portal | Nous Portal OAuth (`hermes setup --portal`), vendor-recommended. Nous terms not reviewed: **UNVERIFIED** | — |
+| Nous Portal | Nous Portal OAuth (`hermes setup --portal`), vendor-recommended. `stack-researcher` reads the current Nous Portal terms before recommending it | — |
 | Ollama / LM Studio | none (local endpoint, never exposed) | Binding Ollama to `0.0.0.0` on an untrusted network |
 
 ## Pinned versions
@@ -43,7 +43,7 @@ Hermes uses two version schemes for one release: a semver (`v0.21.5`) and a cale
 | Docker image (previous, fallback) | `nousresearch/hermes-agent:v2026.9.21@sha256:6bece0644e29a347e5ae17db43c36938c86f171c6f5e0cef18aa2075d331f3a3` (= v0.21.4) | previous stable | same | 2026-10-06 |
 | Homebrew formula `hermes-agent` | **2026.9.21** (= v0.21.4; lags GitHub by one patch). Depends on `python@3.13`, `node`, `ripgrep`, `tirith` and image libraries. Bottles exist for Apple Silicon macOS and for `arm64_linux` / `x86_64_linux` | homebrew-core stable | https://formulae.brew.sh/api/formula/hermes-agent.json | 2026-10-06 |
 | Vendor installer `install.sh` / `install.ps1` | taken from tag `v2026.9.24`, run with `--commit <sha-of-tag>` (bash) or `-Commit <sha-of-tag>` (PowerShell; it also accepts `-Tag`) | script fallback | https://hermes-agent.nousresearch.com/docs/getting-started/installation · https://github.com/NousResearch/hermes-agent/tree/v2026.9.24/scripts | 2026-10-06 |
-| PyPI `hermes-agent` | 0.19.0 (2026-07-20). **Stale, not a supported channel: do not use** (UNVERIFIED official status) | — | https://pypi.org/project/hermes-agent/ | 2026-10-06 |
+| PyPI `hermes-agent` | 0.19.0 (2026-07-20). **Stale, not a supported channel: do not use**; install from the official channels below | — | https://pypi.org/project/hermes-agent/ | 2026-10-06 |
 | Python (source installs) | 3.11–3.14; first-party installs bundle their own | — | installation docs | 2026-10-06 |
 | Node (WhatsApp Baileys bridge only) | 18+ per the WhatsApp docs. The installer at `v2026.9.24` itself wants Node 22.22+, 24.11+ or 26+ for its build and installs a Hermes-managed Node when the system one is older | — | https://hermes-agent.nousresearch.com/docs/user-guide/messaging/whatsapp · `scripts/install.sh` at the tag | 2026-10-06 |
 
@@ -54,13 +54,13 @@ Never use the moving tags `latest`, `stable` or `main` in a Jarvis. Before insta
 | CVE | Issue | Fixed in |
 |---|---|---|
 | CVE-2026-9368 | Sandbox/env handling in `execute_code` (CVSS 7.3) | 0.11.0 ([GitLab](https://advisories.gitlab.com/pypi/hermes-agent/CVE-2026-9368/)) |
-| CVE-2026-10221 | `_compress_context` | affects ≤ 0.12.0; exact fix version **UNVERIFIED** (page not read) ([GitLab](https://advisories.gitlab.com/pypi/hermes-agent/CVE-2026-10221/)) |
+| CVE-2026-10221 | `_compress_context` | affects ≤ 0.12.0; `stack-researcher` reads the fix version from the advisory before install ([GitLab](https://advisories.gitlab.com/pypi/hermes-agent/CVE-2026-10221/)) |
 | CVE-2026-9366 | Context-file scanner injection (CVSS 7.3) | 0.15.0 ([GitLab](https://advisories.gitlab.com/pypi/hermes-agent/CVE-2026-9366/)) |
 | CVE-2026-10223 | Memory-content scanner injection (CVSS 6.3) | 0.15.0 ([GitLab](https://advisories.gitlab.com/pypi/hermes-agent/CVE-2026-10223/)) |
-| CVE-2026-14625 | `tui_gateway` shell.exec protection bypass (CVSS 2.1) | affects ≤ 0.15.2; fix version **UNVERIFIED** ([SentinelOne](https://www.sentinelone.com/vulnerability-database/cve-2026-14625/)) |
+| CVE-2026-14625 | `tui_gateway` shell.exec protection bypass (CVSS 2.1) | affects ≤ 0.15.2; `stack-researcher` reads the fix version from the advisory before install ([SentinelOne](https://www.sentinelone.com/vulnerability-database/cve-2026-14625/)) |
 | CVE-2026-10222 | `.env` line sanitising injection, public exploit (CVSS 5.6) | 0.18.0 ([GitLab](https://advisories.gitlab.com/pypi/hermes-agent/CVE-2026-10222/)) |
 
-Which calendar tag corresponds to 0.18.0 is **UNVERIFIED**. In practice anything from `v2026.9.7` (v0.21.1) on is well above the floor. Releases v0.21.2 and v0.21.3 also fixed `state.db` second-writer corruption, so prefer ≥ `v2026.9.14`.
+The releases page doesn't map 0.18.0 to a calendar tag, so use the newer tags: anything from `v2026.9.7` (v0.21.1) on is well above the floor. Releases v0.21.2 and v0.21.3 also fixed `state.db` second-writer corruption, so prefer ≥ `v2026.9.14`.
 
 ## Prerequisites
 
@@ -88,7 +88,7 @@ hermes --version                   # must be ≥ the security floor
 brew pin hermes-agent              # stop `brew upgrade` from moving it silently
 ```
 
-Homebrew cannot install an older core formula by version. If `brew info hermes-agent` shows a version other than the pinned one, `stack-researcher` checks it is stable and above the floor, and the Architect records the actual version in `.jarvis/state.json`. Whether `hermes update` works on a brew install or conflicts with brew is **UNVERIFIED**, so always update with `brew upgrade hermes-agent` (after `brew unpin`).
+Homebrew cannot install an older core formula by version. If `brew info hermes-agent` shows a version other than the pinned one, `stack-researcher` checks it is stable and above the floor, and the Architect records the actual version in `.jarvis/state.json`. `hermes update` can conflict with brew on a brew install, so always update with `brew upgrade hermes-agent` (after `brew unpin`).
 
 ### Linux / WSL2: Docker image (preferred), Homebrew (alternative)
 
@@ -189,7 +189,7 @@ TELEGRAM_HOME_CHANNEL=123456789      # Chat where cron results are delivered (ow
 HERMES_TIMEZONE={{timezone}}   # Owner's IANA timezone from countries/<cc>.md (Bogotá: America/Bogota, UTC−5; CDMX: UTC−6).
 ```
 
-Set the timezone with `hermes config set HERMES_TIMEZONE {{timezone}}`. The variable name comes from the configuration docs; that natural-language cron times follow it is **UNVERIFIED**, so check it in the smoke test.
+Set the timezone with `hermes config set HERMES_TIMEZONE {{timezone}}`. The variable name comes from the configuration docs; check in the smoke test that natural-language cron times follow it (see *Known issues* for the fallback).
 
 ### `config.yaml` (Jarvis baseline; merge with what the wizards wrote)
 
@@ -255,10 +255,10 @@ Jarvis Architect writes the six workspace files into the Jarvis folder (`~/jarvi
 
 | Jarvis file | Hermes reads it from | How we wire it | Notes |
 |---|---|---|---|
-| `SOUL.md` | `$HERMES_HOME/SOUL.md` only. Hermes **does not probe the working directory** for it | Copy on every build/update: `cp ~/jarvis-<name>/SOUL.md ~/.hermes/SOUL.md` (Docker: into the mounted `~/.hermes`; Railway: see *Run & supervise*) | Always loaded. The injection scanner only warns on the owner's SOUL.md. Whether a symlink works is **UNVERIFIED**, so copy and verify with `cmp`. |
-| `USER.md` | `$HERMES_HOME/memories/USER.md` | Seed by copying **only if ≤ 1,375 chars** (`wc -m`). Longer profile detail goes into `AGENTS.md` § 1 (*Trabajo para una sola persona*) | Agent-maintained after that. The on-disk entry format is **UNVERIFIED**; if the seed is not picked up, have the owner say "Guarda en tu perfil: …" in the first session instead. |
+| `SOUL.md` | `$HERMES_HOME/SOUL.md` only. Hermes **does not probe the working directory** for it | Copy on every build/update: `cp ~/jarvis-<name>/SOUL.md ~/.hermes/SOUL.md` (Docker: into the mounted `~/.hermes`; Railway: see *Run & supervise*) | Always loaded. The injection scanner only warns on the owner's SOUL.md. Copy (not symlink) and verify with `cmp`. |
+| `USER.md` | `$HERMES_HOME/memories/USER.md` | Seed by copying **only if ≤ 1,375 chars** (`wc -m`). Longer profile detail goes into `AGENTS.md` § 1 (*Trabajo para una sola persona*) | Agent-maintained after that. The on-disk entry format isn't documented: after the first session, ask "¿Qué sabes de mí?"; if the seed is not picked up, have the owner say "Guarda en tu perfil: …" in the first session instead. |
 | `MEMORY.md` | `$HERMES_HOME/memories/MEMORY.md` | Seed the same way, **≤ 2,200 chars** | Frozen snapshot at session start; mid-session writes appear next session. Unlimited history lives in `state.db` (`session_search`, FTS5). |
-| `AGENTS.md` | Working directory: `terminal.cwd` for gateway and cron, launch dir for CLI. Priority `.hermes.md` → `AGENTS.override.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules` (first match wins) | Set `terminal.cwd` to the Jarvis folder; keep no `.hermes.md` there | That gateway sessions load `AGENTS.md` from `terminal.cwd` is **UNVERIFIED**; the smoke test asks "¿Qué reglas tienes para enviar correos?" to prove it. Startup files are truncated beyond a dynamic limit (floor 20,000 chars), keeping 70 % head + 20 % tail. |
+| `AGENTS.md` | Working directory: `terminal.cwd` for gateway and cron, launch dir for CLI. Priority `.hermes.md` → `AGENTS.override.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules` (first match wins) | Set `terminal.cwd` to the Jarvis folder; keep no `.hermes.md` there | To confirm gateway sessions load `AGENTS.md` from `terminal.cwd`, the smoke test asks "¿Qué reglas tienes para enviar correos?" to prove it. Startup files are truncated beyond a dynamic limit (floor 20,000 chars), keeping 70 % head + 20 % tail. |
 | `TOOLS.md` | Not a Hermes concept | `workspace-writer` appends its content to `AGENTS.md` under `## Tools` (and keeps `TOOLS.md` as the human copy) | Tool permissions are enforced in `config.yaml` (`mcp_servers.*.tools.include`), not by this text. |
 | `HEARTBEAT.md` | Not a Hermes concept | A cron job reads it: `hermes cron create "every 2h" "Lee ~/jarvis-<name>/HEARTBEAT.md y revisa cada punto. Si nada requiere atención, responde solo [SILENT]." --deliver telegram` | `[SILENT]` suppresses delivery ([cron docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/cron)). Restrict to waking hours in the owner's timezone. |
 | `skills/` | `~/.hermes/skills/` (primary, agent-written) + `skills.external_dirs` | Point `external_dirs` at `~/jarvis-<name>/skills` | Agent Skills format (`SKILL.md` + frontmatter). Hermes adds optional `platforms` and metadata. |
@@ -274,7 +274,7 @@ Docker: mount the Jarvis folder read-only (`-v ~/jarvis-<name>:/opt/jarvis:ro`) 
 | WhatsApp, Baileys bridge | yes (`whatsapp` adapter, Node 18+) | `hermes whatsapp` → QR → Linked Devices | `WHATSAPP_ALLOWED_USERS=<owner number>`. **Only** with explicit, logged consent (`.jarvis/state.json → consents[]` entry with `"id": "whatsapp-baileys"`, format in `knowledge/capabilities/whatsapp.md`) and a **secondary number**. Session dir `~/.hermes/platforms/whatsapp/session` = full account access; protect it like a password |
 | Discord | yes | bot token → `hermes gateway setup` | `DISCORD_ALLOWED_USERS` |
 | Slack | yes | app tokens → `hermes gateway setup` | `SLACK_ALLOWED_USERS` |
-| Signal, Email | yes | `hermes gateway setup` | platform allowlist; details **UNVERIFIED** here, read the docs page at build time |
+| Signal, Email | yes | `hermes gateway setup` | platform allowlist; read the current docs page for the platform at build time and follow its setup |
 
 WhatsApp Cloud details (24-hour customer-service window, templates outside it, DMs only, test-recipient list in development mode, country rates) are in `knowledge/capabilities/whatsapp.md` and `knowledge/countries/<cc>.md`. Locally, the webhook needs a public HTTPS path: `tailscale funnel` on that one path, with the signature check on (see `knowledge/capabilities/deploy-local.md`), or move the Jarvis to Railway, where it gets a domain. A Railway template named `hermes-whatsapp` could not be found (404), so do not rely on it.
 
@@ -326,7 +326,7 @@ mcp_servers:
       exclude: ["delete_*", "send_*"]
 ```
 
-Stdio servers receive only their explicit `env` plus a safe baseline (PATH, HOME, USER, LANG). After edits: `/reload-mcp` in chat (`mcp_reload_confirm: true` asks first). Whether `${VAR}` interpolation is supported in `config.yaml` is **UNVERIFIED**; if not, the server reads the variable from `~/.hermes/.env`, and the value never goes into `config.yaml`. Built-in tool groups are toggled with `hermes tools`: start with web, memory, files and terminal; add browser or computer use only when the spec asks.
+Stdio servers receive only their explicit `env` plus a safe baseline (PATH, HOME, USER, LANG). After edits: `/reload-mcp` in chat (`mcp_reload_confirm: true` asks first). Check the configuration docs for `${VAR}` interpolation in `config.yaml`; if it isn't supported, the server reads the variable from `~/.hermes/.env`, and the value never goes into `config.yaml`. Built-in tool groups are toggled with `hermes tools`: start with web, memory, files and terminal; add browser or computer use only when the spec asks.
 
 ## Run & supervise
 
@@ -380,12 +380,12 @@ Never run two gateways (two containers, or a container plus a native service) on
 | Volume | one volume mounted at **`/opt/data`** (holds `.env`, `config.yaml`, memories, skills, `state.db`). Some templates use `/data` + `HERMES_HOME=/data/.hermes`; do not mix the two |
 | Replicas | **exactly 1**. Never scale out, and avoid overlapping deploys while the old one still writes (`state.db`) |
 | Networking | **No public domain** for Telegram polling (worker). WhatsApp Cloud only: generate a domain targeting port `8090` and set the Meta webhook to `https://<domain>/whatsapp/webhook`. Never expose 9119 (dashboard) or 8642 (API) publicly |
-| Variables | Sealed variables for every secret and allowlist from `.env.example`. That Hermes reads process env as well as `/opt/data/.env` is **UNVERIFIED**; verify with `hermes doctor` after the first deploy, and if not, write `/opt/data/.env` once via `railway ssh` (the person runs it) with `chmod 600` |
+| Variables | Sealed variables for every secret and allowlist from `.env.example`. Hermes should read process env as well as `/opt/data/.env`; confirm with `hermes doctor` after the first deploy, and if not, write `/opt/data/.env` once via `railway ssh` (the person runs it) with `chmod 600` |
 | Workspace files | **Default for non-technical owners: a thin image built by Railway from a private GitHub repo.** Tasks: 👤 create a free GitHub account if needed and a **private** repo `jarvis-<name>` (click path in the task) → agent pushes the Jarvis folder after `gitleaks` (IRR-10, a yes) → 👤 authorize the Railway GitHub app for that one repo. The repo's `Dockerfile`: `FROM nousresearch/hermes-agent:v2026.9.24@sha256:…`, `COPY SOUL.md AGENTS.md skills/ /opt/jarvis/`, and an entrypoint step that copies `/opt/jarvis/SOUL.md` to `/opt/data/SOUL.md` on start before the original entrypoint. No secrets in the image. Fallback without GitHub: a one-time `railway ssh` copy the person runs |
 | Secret presence check | Never `railway variables` / `railway variable list` without `--json \| jq` (prints values, SEC-18). Sealed variables are omitted from CLI output, so for them the postcondition is `person-confirmed` (the person sees the lock icon), exactly as `capabilities/deploy-railway.md` § 3.5 says. No local `~/.hermes/.env` check on Railway |
 | Resources | limit 1 GB RAM (docs minimum), 2 GB if browser tools |
 | Restart policy | Always. Serverless (sleep) **off** |
-| Volume permissions | the entrypoint chowns `/opt/data` itself, so `RAILWAY_RUN_UID=0` should not be needed (**UNVERIFIED** on Railway; set it only if you see `EACCES` on the volume) |
+| Volume permissions | the entrypoint chowns `/opt/data` itself, so `RAILWAY_RUN_UID=0` should not be needed (set it only if you see `EACCES` on the volume) |
 | Backups | Railway daily volume backups on |
 | Remote admin | `railway ssh` → `hermes pairing list`, `hermes cron list`. For the dashboard, use the `hermes-gateway-via-tailscale` template pattern, never a public domain |
 
@@ -424,14 +424,14 @@ IDs are the stable ones in `knowledge/security-checklist.md` (SEC-01…SEC-33). 
 | SEC-25 | Floor + tag + digest | Version ≥ the floor in § Pinned versions; image `tag@sha256`; Railway 1 replica, one volume at `/opt/data` | `! grep -Eq 'hermes-agent:(latest\|stable\|main)' ~/jarvis-<name>/compose.yaml 2>/dev/null`; `hermes --version` vs floor |
 | SEC-26 | Safe install methods | brew / Docker digest; vendor script only downloaded, hashed, shown, and run by the person (§ Install) | validator grep for pipe-to-shell / `sudo` |
 | SEC-27 | Spend cap before first call | Anthropic workspace limit / OpenAI project limit / OpenRouter credit limit; Railway usage limit | `user_action` task done before the first model call |
-| SEC-28 | App-side limits + kill switch | Few cron jobs, heartbeat every 1–2 h with `[SILENT]`; `auxiliary` on the cheap slot. Kill switch in `RUNBOOK.md`: `/stop` in chat, `hermes gateway stop`, or stop the Railway service. Hermes' own per-session turn limit key is **UNVERIFIED**; set it from `hermes config` if offered | `RUNBOOK.md` documents the kill switch |
+| SEC-28 | App-side limits + kill switch | Few cron jobs, heartbeat every 1–2 h with `[SILENT]`; `auxiliary` on the cheap slot. Kill switch in `RUNBOOK.md`: `/stop` in chat, `hermes gateway stop`, or stop the Railway service. If `hermes config` lists a per-session turn limit, set it too | `RUNBOOK.md` documents the kill switch |
 | SEC-29 | Audit log + denied-sender alerts | `~/.hermes/logs/` (`/opt/data/logs` in Docker). Weekly cron: "resume los intentos no autorizados de los logs" → owner | `test -d ~/.hermes/logs` |
 | SEC-30 | Credential = auth-matrix cell | Claude only via `ANTHROPIC_API_KEY`, never Hermes' Anthropic OAuth; Codex OAuth never on servers; no `CLAUDE_CODE_OAUTH_TOKEN` anywhere | `! grep -Eqi 'anthropic.*oauth\|CLAUDE_CODE_OAUTH_TOKEN' ~/.hermes/config.yaml ~/jarvis-<name>/.env.example` |
 | SEC-31 | Baileys only with consent + secondary number | Hermes' **default** WhatsApp mode is Baileys (`WHATSAPP_ENABLED`); pick `WHATSAPP_CLOUD_*` explicitly. Baileys only with the consent row in spec §7 | `WHATSAPP_ENABLED=true` uncommented only with dated consent |
 | SEC-32 | Data flows and AI identity disclosed | Data-flow table at the gate (provider, `~/.hermes` / Railway volume). Customer-facing WhatsApp opens with "Soy un asistente de IA de …" | spec §9 filled |
 | SEC-33 | Panic button + weekly update check | Weekly report-only cron compares `hermes --version` with the releases page. Update path: brew → `brew unpin hermes-agent && brew upgrade hermes-agent && brew pin hermes-agent`; Docker/Railway → bump tag **and** digest, redeploy; script → `hermes update`; then `hermes config check`. Panic button: `hermes gateway stop`, `/revoke` the bot at @BotFather, rotate the provider key, `hermes pairing revoke …` | `SECURITY.md` present |
 
-**SEC-07 exception (recorded in the checklist).** SEC-07's validator check flags a server deploy without `backend: docker`, except in this Railway case. On Railway Hermes runs *as* a container and there is no Docker daemon to start sibling sandboxes (Docker-in-Docker on Railway **UNVERIFIED**/not offered), so `terminal.backend: local` inside the non-root container is the compensating control. Record it in spec §4 as "SEC-07: container boundary (Railway)" so the validator reviewer sees the reason.
+**SEC-07 exception (recorded in the checklist).** SEC-07's validator check flags a server deploy without `backend: docker`, except in this Railway case. On Railway Hermes runs *as* a container and there is no Docker daemon to start sibling sandboxes (Railway doesn't offer Docker-in-Docker), so `terminal.backend: local` inside the non-root container is the compensating control. Record it in spec §4 as "SEC-07: container boundary (Railway)" so the validator reviewer sees the reason.
 
 ## Verify
 
@@ -444,7 +444,7 @@ hermes --version
 # 2. Config is valid
 hermes config check
 
-# 3. Diagnostics (UNVERIFIED that it exits non-zero on failure; read its summary line too)
+# 3. Diagnostics (it may exit 0 even with warnings; read its summary line too)
 hermes doctor
 
 # 4. Gateway service running
@@ -488,7 +488,7 @@ Inside Docker, prefix with `docker exec -u hermes hermes` and replace `~/.hermes
 
 → `knowledge/capabilities/costs.md` for the model and Railway numbers. Hermes-specific notes:
 - The runtime is free (MIT). Cost = model tokens + host.
-- Gateway footprint: about 400–950 MB RAM for CLI plus gateway (secondary sources), with a docs minimum of 1 GB and a recommendation of 2–4 GB. On Railway that is the cheap end of the always-on range; browser tools push it up.
+- Gateway footprint: about 400–950 MB RAM for CLI plus gateway (community figures; `stack-researcher` re-checks them before quoting), with a docs minimum of 1 GB and a recommendation of 2–4 GB. On Railway that is the cheap end of the always-on range; browser tools push it up.
 - Biggest token levers: put `auxiliary` (compression, vision, titles) on the `cheap` slot from `knowledge/models.json`; keep heartbeats at 1–2 h with `[SILENT]`; keep memory files within their limits (they ride along in every prompt).
 - With Ollama on the owner's hardware the model cost is ~0, but Railway is never used for local models.
 - OpenRouter adds its platform fee on top of model prices (see `costs.md`).
@@ -502,8 +502,8 @@ Inside Docker, prefix with `docker exec -u hermes hermes` and replace `~/.hermes
 | Homebrew lags GitHub by a patch | Fine if above the floor. Need the newest? Use the Docker image |
 | PyPI package is stale (0.19.0) | Never `pip install hermes-agent` |
 | Intel Mac unsupported natively | Docker image (amd64) or Railway |
-| Forced `tool_choice` may break on Opus 5.5 / Sonnet 5.5 through some harnesses (**UNVERIFIED** for Hermes) | Smoke test tool use on the chosen Claude model; if it fails, use the previous Claude model in `models.json` or route through OpenRouter, and report it |
-| Natural-language cron times may be read in UTC (**UNVERIFIED**) | Set `HERMES_TIMEZONE`; if the briefing arrives at the wrong hour, use an explicit cron expression offset to UTC and note it in `RUNBOOK.md` |
+| Forced `tool_choice` may break on Opus 5.5 / Sonnet 5.5 through some harnesses, possibly Hermes | Smoke test tool use on the chosen Claude model; if it fails, use the previous Claude model in `models.json` or route through OpenRouter, and report it |
+| Natural-language cron times may be read in UTC | Set `HERMES_TIMEZONE`; if the briefing arrives at the wrong hour, use an explicit cron expression offset to UTC and note it in `RUNBOOK.md` |
 | WhatsApp Cloud temporary token expires after 24 h | Use a System User permanent token with only `whatsapp_business_messaging` + `whatsapp_business_management` (+ `business_management` if needed) |
 | WhatsApp Cloud can only send free text within 24 h of the owner's last message | Briefings to WhatsApp need an approved template, or deliver cron output to Telegram instead |
 | Baileys session logged out or number restricted | Re-scan QR from Linked Devices; if restricted, move to the Cloud API. This is why a secondary number is mandatory |

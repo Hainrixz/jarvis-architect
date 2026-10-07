@@ -241,8 +241,9 @@ export function agentOptions(kind: "chat" | "job", chatId?: number): Options {
       : undefined,
     hooks: { PreToolUse: [{ hooks: [guardHook(kind)] }], PostToolUse: [{ hooks: [auditHook] }] },
     maxTurns: chat ? 12 : 8,
-    // models.json: set effort explicitly (Sonnet 5.5 defaults to high). Option name UNVERIFIED on
-    // the pinned SDK; if rejected, drop it and note the higher token use in the quote. Haiku has no effort.
+    // models.json: set effort explicitly (Sonnet 5.5 defaults to high). Check the option name in the
+    // pinned SDK's sdk.d.ts (`grep -n effort node_modules/@anthropic-ai/claude-agent-sdk/*.d.ts`); if it
+    // isn't there, drop it and note the higher token use in the quote. Haiku has no effort.
     ...(chat ? { effort: "low" } : {}),
     maxBudgetUsd: Number(chat ? process.env.JARVIS_TURN_BUDGET_USD : process.env.JARVIS_JOB_BUDGET_USD),
     env: minimalEnv(),
@@ -529,7 +530,7 @@ export function startPanel(run: (p: string, k: "chat", chatId: number) => Promis
   subnet-router service (`capabilities/deploy-railway.md`).
 - **Verify on Railway:** `railway ssh -- curl -fsS http://localhost:7878/api/health`, or
   `curl -fsS http://<tailnet-ip-of-the-router-route>:7878/api/health` from a tailnet device. Add
-  ~0.1 GB RAM for the panel to the footprint in Cost (estimate, UNVERIFIED).
+  ~0.1 GB RAM for the panel to the footprint in Cost (an estimate; read the real figure in the service's Metrics tab after a day and update the quote).
 
 ### Google (Gmail/Calendar) for this runtime
 
@@ -539,7 +540,7 @@ Google tool needs one of these, in this order:
 1. **Default: a pinned T2 stdio server** (e.g. `taylorwilsdon/google_workspace_mcp`, exact version and
    hash checked by `stack-researcher`, source read before install, SEC-24) that stores and refreshes
    its own tokens on the volume. Scopes: `gmail.readonly` + `gmail.compose` (drafts only, no send).
-2. The Google Workspace remote MCP (Developer Preview; eligibility for personal Gmail **UNVERIFIED**)
+2. The Google Workspace remote MCP (Developer Preview; `stack-researcher` checks live whether personal @gmail.com accounts are eligible, and if not, use option 1)
    only with app-side OAuth: a one-off local script (`npm run google-auth`) opens the consent page,
    writes the refresh token to a sealed variable / `.env`, and `src/google.ts` refreshes the access
    token hourly and passes it as a header in `mcpServers`.
@@ -547,7 +548,7 @@ Google tool needs one of these, in this order:
 Either way: 👤 Google Cloud console steps as a `user_action` (create project → enable Gmail API →
 OAuth consent screen "External", add yourself as test user → create a Desktop OAuth client →
 download nothing into the chat). A **Testing** app's refresh token expires after about 7 days
-(**UNVERIFIED**), so either publish the app for personal use or add a weekly "reconecta Google"
+(Google's OAuth docs, "Refresh token expiration"; `stack-researcher` re-checks it), so either publish the app for personal use or add a weekly "reconecta Google"
 reminder job; the doctor checks the token age.
 
 ## Memory · Scheduling · Tools/MCP
@@ -646,7 +647,7 @@ WantedBy=default.target
 
 `systemctl --user daemon-reload && systemctl --user enable --now jarvis`. To keep it running after
 logout: `loginctl enable-linger "$USER"` (the person runs this; on some distros polkit asks for an
-admin password, UNVERIFIED per distro). WSL2 needs `systemd=true` in `/etc/wsl.conf`.
+admin password; if it does, the person types it, and `loginctl show-user "$USER" -p Linger` must print `Linger=yes`). WSL2 needs `systemd=true` in `/etc/wsl.conf`.
 
 ### Docker (local, portable; the same image goes to Railway)
 
@@ -702,7 +703,7 @@ docker run -d --name jarvis --restart unless-stopped --env-file .env \
 (`CHOWN`/`SETUID`/`SETGID` are only for the entrypoint's one-time chown and privilege drop. If
 `./data` is already owned by uid 1000, use `--user 1000:1000 --cap-drop ALL` and drop the
 `--cap-add` flags. `--read-only` + `--tmpfs /tmp --tmpfs /home/node` also works if the bundled CLI
-needs no other writable path, which is UNVERIFIED; test it before keeping it.)
+needs no other writable path. Start it that way, run the self-test and send one Telegram message; if anything logs `EROFS` or `read-only file system`, add a `--tmpfs` for that path or drop `--read-only`.)
 
 ### Railway (Tier A: one service + one volume; → `knowledge/capabilities/deploy-railway.md`)
 
@@ -715,8 +716,8 @@ needs no other writable path, which is UNVERIFIED; test it before keeping it.)
 | Variables | **Sealed**: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `OWNER_TELEGRAM_ID`. Plain: `JARVIS_HOME=/data`, `CLAUDE_CONFIG_DIR=/data/.claude`, `TZ`, `JARVIS_MODEL_*`, budgets |
 | Networking | **No public domain** (polling bot). `PORT` is injected; `/health` binds `::` |
 | Replicas | **1** (volumes forbid replicas; two pollers also cause Telegram `409 Conflict`) |
-| Restart | `Always` (dashboard or MCP `update-service`; IaC field name UNVERIFIED) |
-| Healthcheck | `/health`, timeout 120 s. Runs only at deploy time. Whether it works without a public domain is UNVERIFIED; if the deploy hangs on it, remove it and rely on the heartbeat message |
+| Restart | `Always` (dashboard or MCP `update-service`; for IaC, `stack-researcher` looks up the current `railway.json` field name in https://docs.railway.com/reference/config-as-code) |
+| Healthcheck | `/health`, timeout 120 s. Runs only at deploy time. Railway calls it on the injected `PORT` (https://docs.railway.com/reference/healthchecks); if the deploy hangs on it, remove it and rely on the heartbeat message |
 | Memory | ≤ 1.5 GB service limit; "typically well under 1 GB of RAM" (https://docs.railway.com/guides/claude-agent-sdk-app) |
 | Spend | Railway usage limit set in Cost Control **before** the first deploy |
 
@@ -813,7 +814,7 @@ npm test
 # Supply chain
 npm audit --omit=dev --audit-level=high
 
-# One real round trip with the cheap model (a few cents: the claude_code preset prompt is large and the first call pays the cache write; exact size UNVERIFIED); prints only "ok"
+# One real round trip with the cheap model (a few cents: the claude_code preset prompt is large and the first call pays the cache write); prints only "ok"
 npm run -s selftest | grep -qx ok
 
 # Running and healthy (local)
@@ -842,8 +843,8 @@ checks that the init system message (`type: "system"`, `subtype: "init"`) has `a
 (https://code.claude.com/docs/en/agent-sdk/typescript, `SDKSystemMessage`). On Bedrock/Vertex/Foundry
 the field may be absent, so the check then only requires that it is not `claude_ai_oauth`.
 
-**Railway**: `railway status` shows the service linked; logs contain `jarvis: ready` (`railway logs`;
-exact filter flags UNVERIFIED, so grep the output); the volume is listed at `/data`; the person
+**Railway**: `railway status` shows the service linked; logs contain `jarvis: ready` (`railway logs`,
+piped through `grep`, so it works whatever filter flags the CLI version has); the volume is listed at `/data`; the person
 confirms in the dashboard that the restart policy is `Always`, the usage limit is set, there is no
 public domain and there is 1 replica.
 
@@ -866,7 +867,7 @@ Railway Hobby and local). Runtime-specific notes:
 
 - **Hosting:** local $0. On Railway the SDK worker (one Node process + the Claude subprocess
   per query) is estimated at ~0.4 GB / 0.05 vCPU average → a **Hobby bill of $5–6/month**. This
-  footprint is an estimate (UNVERIFIED; rates from https://docs.railway.com/pricing/plans). Anthropic's own hosting guide sizes a fresh
+  footprint is an estimate (rates from https://docs.railway.com/pricing/plans); after the first week, read the real usage in the Railway dashboard and update the quote. Anthropic's own hosting guide sizes a fresh
   agent at 1 GiB, so the 1.5 GB cap leaves headroom.
 - **Tokens dominate.** The hosting docs say "Anthropic token cost typically dominates container
   infrastructure cost by an order of magnitude or more". Route `cheap` for jobs and heartbeats and

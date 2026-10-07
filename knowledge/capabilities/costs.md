@@ -17,7 +17,7 @@ Apply top to bottom. The first row that matches sets the cost shape; the cap row
 | If… | Then the quote is… | Caps to set before go-live (SEC-27) | One line for the person |
 |---|---|---|---|
 | They already pay Claude Pro/Max and the runtime is `claude-code-local`, `claude-p-cron` or `cowork` | **$0 extra**. The plan price, already paid | None at a provider. Confirm paid "extra usage" stays **off** unless they say yes in the same turn | "Usa tu plan de Claude, no pagas nada extra. Si llegas al límite del plan, espera a que se reinicie." |
-| They already pay a ChatGPT plan and the runtime is `codex-openai` | **$0 extra** (plan prices UNVERIFIED, see § Subscriptions) | None at a provider | "Usa tu plan de ChatGPT, no pagas nada extra." |
+| They already pay a ChatGPT plan and the runtime is `codex-openai` | **$0 extra** (`stack-researcher` re-checks plan prices live on openai.com before quoting; see § Subscriptions) | None at a provider | "Usa tu plan de ChatGPT, no pagas nada extra." |
 | Runtime is `ollama-local` | **~$0**. Hardware and electricity not counted | None (no provider bill). For a hybrid setup, cap the cloud key | "Corre en tu compu: no pagas por uso, solo la luz." |
 | Any API key (Anthropic, OpenAI) | **Token estimate** for their usage tier (§ 3) × routing (§ 3) | Provider cap ≈ **2× the monthly token estimate, rounded up** | "Pagas solo lo que Jarvis use, con un tope mensual que tú fijas." |
 | Paying through OpenRouter credits | Token estimate **+ 5.5%** | OpenRouter key credit limit + the same 2× rule | "OpenRouter cobra 5.5% extra por darte una sola llave para muchos modelos." |
@@ -73,25 +73,25 @@ Footprints are averages over a 24/7 month, mostly idle.
 
 | Workload | RAM / CPU assumed | Footprint basis | Usage $/month | **Hobby bill $/month** |
 |---|---|---|---|---|
-| Lean custom worker (calls the Messages or Responses API directly, Telegram webhook) | 0.15 GB / 0.02 vCPU | Estimate, **UNVERIFIED** | ~1.9 | **5** |
-| `claude-agent-sdk` worker (spawns a CLI subprocess per query) | 0.4 GB / 0.05 vCPU | Estimate from Claude Code idle RSS, **UNVERIFIED** | ~5 | **5–6** |
-| `hermes` gateway, 1–3 channels, 1 GB volume | 0.6 GB / 0.05 vCPU | "400 to 950 MB" CLI + gateway (secondary sources, **UNVERIFIED**) | ~7.2 | **7–8**; **9–11** with Railway Postgres (~0.2 GB) |
+| Lean custom worker (calls the Messages or Responses API directly, Telegram webhook) | 0.15 GB / 0.02 vCPU | Estimate; after deploy, `/jarvis-doctor` reads real RAM from the Railway metrics and updates the quote | ~1.9 | **5** |
+| `claude-agent-sdk` worker (spawns a CLI subprocess per query) | 0.4 GB / 0.05 vCPU | Estimate from Claude Code idle RSS; confirm with the Railway service metrics after the first day | ~5 | **5–6** |
+| `hermes` gateway, 1–3 channels, 1 GB volume | 0.6 GB / 0.05 vCPU | "400 to 950 MB" CLI + gateway (secondary sources; confirm with the Railway service metrics after the first day) | ~7.2 | **7–8**; **9–11** with Railway Postgres (~0.2 GB) |
 | `openclaw` gateway, headless, one agent | 0.8 GB / 0.05 vCPU | Railway templates ask ≥1 GB; the Docker build needs 2 GB or is OOM-killed | ~9.2 | **9–10**; **12–13** with a database |
 | `claude-code-server` (Claude Code kept alive 24/7) | 0.7–1.5 GB / 0.05 vCPU | ~360–700 MB idle RSS; open issues report idle/headless leaks (see `compatibility.md` CMP-22) | 8–16 | **8–16**. Needs a memory cap + auto-restart |
 | `ollama-local` on Railway, 7B model, CPU only | 8 GB / 2 vCPU | — | ~120 | **Not viable.** Local models run only on the person's own hardware (`compatibility.md` CMP-01) |
 | **Tier B add-ons** (add to the core row above) | | | | |
-| + Jarvis Panel inside the core process | +0.1 GB | Node + Hono, mostly idle; estimate, **UNVERIFIED** | +~1 | core bill +~1 |
-| + separate `jarvis-web` service (webhooks/dashboard) | 0.1–0.2 GB / 0.01 vCPU | Estimate, **UNVERIFIED** | +~1.5–2.5 | +~2 |
-| + Tailscale subnet-router service | 0.05–0.1 GB / 0.01 vCPU | Estimate, **UNVERIFIED** | +~0.7–1.2 | +~1 |
-| + pgvector (template) + its volume | 0.2–0.5 GB / 0.02 vCPU + ~1 GB disk | Estimate, **UNVERIFIED** | +~2.5–5.5 | +~3–6 |
-| + `backup-cron` + bucket | runs minutes a day; dumps of a few MB | Bucket pricing per [plans](https://docs.railway.com/pricing/plans), **UNVERIFIED** | <1 | <1 |
+| + Jarvis Panel inside the core process | +0.1 GB | Node + Hono, mostly idle; estimate, confirm in Railway metrics | +~1 | core bill +~1 |
+| + separate `jarvis-web` service (webhooks/dashboard) | 0.1–0.2 GB / 0.01 vCPU | Estimate, confirm in Railway metrics | +~1.5–2.5 | +~2 |
+| + Tailscale subnet-router service | 0.05–0.1 GB / 0.01 vCPU | Estimate, confirm in Railway metrics | +~0.7–1.2 | +~1 |
+| + pgvector (template) + its volume | 0.2–0.5 GB / 0.02 vCPU + ~1 GB disk | Estimate, confirm in Railway metrics | +~2.5–5.5 | +~3–6 |
+| + `backup-cron` + bucket | runs minutes a day; dumps of a few MB | Bucket pricing per [plans](https://docs.railway.com/pricing/plans), re-checked live by `stack-researcher` before quoting | <1 | <1 |
 
 Tier B examples: `claude-agent-sdk` core + panel in core + Tailscale ≈ **$7–8** ("Tier B-lite");
 add `jarvis-web` + pgvector + backups ≈ **$12–17**. The RAM footprint for `claude-agent-sdk`
 (0.4 GB average, 1.5 GB service cap, Anthropic's "1 GiB per agent" starting point) is the one in
 `runtimes/claude-agent-sdk.md` § Cost; this table uses the average.
 
-Builds are free per Railway's [plans](https://docs.railway.com/pricing/plans)); whether build minutes are ever billed is **UNVERIFIED**.
+Builds are free per Railway's [plans](https://docs.railway.com/pricing/plans)); if the person is worried about build cost, `stack-researcher` re-checks that page before quoting; the Railway usage limit (§ 7) caps it either way.
 Railway's own guide puts a full agent stack (API, worker, Postgres, Redis, bucket) at "$10 to $30 a month"
 ([estimate-ai-agent-costs](https://docs.railway.com/guides/estimate-ai-agent-costs)). A personal Jarvis is one service + volume (Tier A) and lands at the low end.
 
@@ -161,14 +161,14 @@ Re-check on every `/jarvis-refresh`
 | Claude Pro | 20 (17/month billed annually, $200 up front) | Claude app, Claude Code, Cowork; one shared usage limit | [claude.com/pricing](https://claude.com/pricing) |
 | Claude Max 5x | from 100 | Same, 5× the Pro usage | same |
 | Claude Max 20x | 200 | Same, 20× the Pro usage | same (the live page summary showed "From $100" for both Max tiers on 2026-10-06; re-check) |
-| ChatGPT Go / Plus / Pro | 8 / 20 / 100 (5x) or 200 (20x) | ChatGPT + Codex | **UNVERIFIED**: secondary source ([TechCrunch 2026-04-09](https://techcrunch.com/2026/04/09/chatgpt-pro-plan-100-month-codex/)), not confirmed on openai.com |
+| ChatGPT Go / Plus / Pro | 8 / 20 / 100 (5x) or 200 (20x) | ChatGPT + Codex | Secondary source ([TechCrunch 2026-04-09](https://techcrunch.com/2026/04/09/chatgpt-pro-plan-100-month-codex/)); `stack-researcher` re-checks [openai.com/chatgpt/pricing](https://openai.com/chatgpt/pricing) live before quoting |
 
 - "Claude Code is included in all paid plans. It shares the same usage limits as the rest of your
   plan" ([claude.com/pricing](https://claude.com/pricing)). `claude -p` and Agent SDK use on a plan
   also draw from those limits ([support 15036540](https://support.claude.com/en/articles/15036540)).
 - A plan is a flat price with a **usage ceiling**, not a dollar meter: when the limit is reached
-  Jarvis waits for the reset. How plan limits translate into tokens is **UNVERIFIED**; never promise
-  "X messages a day".
+  Jarvis waits for the reset. Providers don't publish a token figure for plan limits, so never promise
+  "X messages a day"; say "si llegas al límite, espera al reinicio".
 - A plan only ever counts for the unmodified `claude` binary used by its owner (or `codex` for a
   ChatGPT plan). Hermes, OpenClaw, Agent SDK products and any other harness use an **API key** and
   are quoted with § 3 (`auth-matrix.md`).
@@ -181,8 +181,8 @@ separate lines when the design uses them.
 
 | # | Runtime | Credential | Hosting | Light | Medium | Heavy | Caveats |
 |---|---|---|---|---|---|---|---|
-| 1 | `claude-code-local` / `claude-p-cron` / `cowork` | Claude plan | Local (or vendor, for Cowork) | 20 (Pro) | 100 (Max 5x) | 200 (Max 20x) | $0 extra if they already pay. Plan-to-token mapping **UNVERIFIED** |
-| 2 | `claude-code-server`, 24/7 | Claude plan (**flagged path**, Gate C consent) | Railway Hobby | 28–36 | 108–116 | 208–216 | Default for this runtime is an API key (`auth-matrix.md`); subscription 24/7 on a server is a grey zone, **UNVERIFIED** against Anthropic terms. Memory-leak risk (CMP-22) |
+| 1 | `claude-code-local` / `claude-p-cron` / `cowork` | Claude plan | Local (or vendor, for Cowork) | 20 (Pro) | 100 (Max 5x) | 200 (Max 20x) | $0 extra if they already pay. No token figure is published for plan limits; quote the plan, not messages |
+| 2 | `claude-code-server`, 24/7 | Claude plan (**flagged path**, Gate C consent) | Railway Hobby | 28–36 | 108–116 | 208–216 | Default for this runtime is an API key (`auth-matrix.md`); subscription 24/7 on a server is a grey zone under Anthropic's terms: explain the risk and get Gate C consent, or use an API key. Memory-leak risk (CMP-22) |
 | 3 | `claude-agent-sdk` worker, Sonnet chat + Haiku jobs (85/15) | `ANTHROPIC_API_KEY` | Railway Hobby (Tier A) | ~14 | ~70 | ~450 | Sonnet-only: 15 / 76 / 495 (use it for the cap). Truly routed 80/20: 10 / 41 / 254. Tier B: add § 2 add-ons |
 | 4 | `claude-agent-sdk` worker, Sonnet chat + Haiku jobs (85/15) | `ANTHROPIC_API_KEY` | Local | ~9 | ~64 | ~444 | Truly routed: 5 / 35 / 248 |
 | 5 | `hermes`, OpenAI routed | `OPENAI_API_KEY` | Railway Hobby | 9–13 | 18–22 | 85–89 | +5.5% on tokens if via OpenRouter credits |
@@ -190,7 +190,7 @@ separate lines when the design uses them.
 | 7 | `hermes` + `ollama-local` | none | Local hardware | ~0 | ~0 | ~0 | Quality ceiling = the local model |
 | 8 | `openclaw`, Claude routed | `ANTHROPIC_API_KEY` | Railway Hobby | 14–18 | 44–48 | 257–261 | Build needs 2 GB RAM |
 | 9 | `openclaw`, OpenAI routed | `OPENAI_API_KEY` | Railway Hobby | 11–15 | 20–24 | 87–91 | |
-| 10 | `codex-openai` | ChatGPT plan | Local | 20 (Plus) | 100 (Pro) | 200 (Pro) | Plan prices **UNVERIFIED** |
+| 10 | `codex-openai` | ChatGPT plan | Local | 20 (Plus) | 100 (Pro) | 200 (Pro) | Plan prices re-checked live by `stack-researcher` before quoting |
 | 11 | Lean custom worker, `openai.cheap` only | `OPENAI_API_KEY` | Railway Hobby | 5 | 7.5 | 22.5 | Cheapest 24/7 cloud option; weakest model |
 
 Not in the table: `claude-code-server` with an API key (the compliant default). Quote it as
@@ -218,13 +218,14 @@ prices it is about to use.
    or until they raise it. Nothing else breaks and no surprise bill arrives.
 6. **Currency.** Quote in USD (that is what providers bill). Add one line: "Tu banco puede cobrar
    tipo de cambio y tu país puede sumar impuestos a servicios digitales." Exact local tax rates are
-   not tracked here (**UNVERIFIED** per country; see `countries/<cc>.md` if it covers it).
+   not tracked here; use `countries/<cc>.md` if it covers it, otherwise say only the line above.
 7. **Separate extras** as their own lines: WhatsApp template messages, a second SIM, voice minutes,
    invoicing folios, paid MCP tools (e.g. an invoicing/accounting plan with API access).
 8. **One-time "costo de armarlo".** The Architect itself runs in Claude Code. On a Pro/Max login it
    uses the plan's limits ($0 extra). On a Console API key, a full `/jarvis-start` (interview,
-   `stack-researcher`, build, `jarvis-validator`) is roughly **$5–20 once** (estimate,
-   **UNVERIFIED**: depends on the model Claude Code uses and how many build retries there are).
+   `stack-researcher`, build, `jarvis-validator`) is roughly **$5–20 once** (estimate:
+   it depends on the model Claude Code uses and how many build retries there are; the dedicated
+   workspace spend limit below caps it).
    Say it before DISCOVERY ends for API-key users, and recommend a dedicated Console workspace with
    its own spend limit for Claude Code itself (§ 7), never the Default Workspace. A free claude.ai
    account can't run Claude Code; for a `0` budget with no plan, say so and suggest `/jarvis-quick`
@@ -254,7 +255,7 @@ the estimate.
 |---|---|---|---|---|
 | **Anthropic API** | Claude Console → Settings → Workspaces → *new workspace* "jarvis-<slug>" → **Spend limits** tab | A **dedicated workspace** with a monthly spend limit and alert thresholds, and an API key created **in that workspace**. Optional: rate limits tab (requests/tokens per minute) | Requests in that workspace are refused until the month resets or the limit is raised | [workspaces](https://platform.claude.com/docs/en/build-with-claude/workspaces) |
 | **OpenAI API** | Platform → Project settings → **Limits** → Spend → *Edit spend limit*; also org limits | A dedicated project for Jarvis with a **project hard limit**, plus spend alerts (e.g. 50/75/90%) | `429` with code `project_spend_limit_exceeded` (org: `organization_spend_limit_exceeded`). Enforcement is "not instantaneous": spend can slightly exceed the cap | [spend-limits guide](https://developers.openai.com/api/docs/guides/spend-limits) |
-| **OpenRouter** | Key settings → credit limit on the key | A per-key credit limit; prepaid credits are themselves a ceiling | Key stops working past its limit | [openrouter.ai/pricing](https://openrouter.ai/pricing) (per-key limit UI **UNVERIFIED** this pass) |
+| **OpenRouter** | Key settings → credit limit on the key | A per-key credit limit; prepaid credits are themselves a ceiling | Key stops working past its limit | [openrouter.ai/pricing](https://openrouter.ai/pricing) (if the per-key limit field isn't where described, use prepaid credits as the ceiling) |
 | **Railway** | Workspace → **Usage** page, or `railway usage limit set --target workspace --soft <alert> --hard <limit>` | **Soft limit** = email alert; **hard limit** ≥ $10 | Hard limit: "all your workloads will be taken offline". Reminders at 75/90/100%. Compute and Railway-Agent limits are separate | [cost control](https://docs.railway.com/pricing/cost-control) |
 | **Claude / ChatGPT plan** | Plan settings | Keep paid **extra usage** off unless they say yes in the same turn (SKILL rule 8) | Jarvis waits for the plan's limit to reset | [claude.com/pricing](https://claude.com/pricing) |
 
@@ -265,9 +266,10 @@ Notes:
   one key per Jarvis also makes revocation clean (`security-checklist.md` incident steps).
 - The Anthropic organization-level spend limit (Settings → Limits) also applies; mention it if they
   use the same org for other work.
-- The OpenAI hard-limit launch date (reported as 2026-07-22) comes from a secondary source:
-  **UNVERIFIED**. The guide itself is live. An earlier, UNVERIFIED reading said the error is
+- The OpenAI hard-limit launch date (reported as 2026-07-22) comes from a secondary source; what
+  matters is the live guide, which documents the hard limit. Older write-ups say the error is
   `insufficient_quota`; the live guide says `project_spend_limit_exceeded`, and the live guide wins.
+  Treat either code as "cap reached".
 - A Railway hard limit takes the service offline: the person must know Jarvis goes silent when it
   is hit. Set the soft alert low enough that they hear about it first.
 - Provider caps are the backstop. App-side limits (max turns, loop breaker, per-job budget, kill
@@ -298,16 +300,19 @@ Exact config keys are in each `runtimes/<id>.md` § Cost.
   unofficial WhatsApp bridge without consent). Compliance > security > cost (`decision-tree.md`).
 - Never read a billing dashboard or key on the person's behalf; they confirm caps themselves (SKILL rule 7).
 
-## Still UNVERIFIED
+## Re-checked live before quoting
 
-- ChatGPT plan prices (secondary source only).
-- How Claude/ChatGPT plan limits translate into tokens or messages.
-- Whether a consumer Claude plan may run Claude Code 24/7 headless on a server (quote row 2).
-- Hermes and OpenClaw RAM footprints (secondary sources and Railway templates).
-- Lean worker and Agent SDK footprints (estimates).
-- Whether Railway ever bills build minutes.
-- OpenAI hard-limit launch date; OpenRouter per-key limit UI.
-- Local digital-services tax on USD card charges per country.
+`stack-researcher` (and `/jarvis-refresh` for maintainers) re-checks these against the live source before
+they reach a quote. If a live figure differs, the live figure wins and the quote says so.
+
+- ChatGPT plan prices: [openai.com/chatgpt/pricing](https://openai.com/chatgpt/pricing).
+- Plan limits: no token or message figure is published; quote the plan price and the reset behaviour only.
+- Consumer Claude plan running Claude Code 24/7 headless on a server (quote row 2): grey zone; read the current consumer terms and usage policy, explain the risk, Gate C consent or API key.
+- Hermes and OpenClaw RAM footprints: confirmed from Railway service metrics after the first day; `/jarvis-doctor` updates the quote.
+- Lean worker and Agent SDK footprints: same metrics check.
+- Railway build billing: [docs.railway.com/pricing/plans](https://docs.railway.com/pricing/plans).
+- OpenAI hard-limit behaviour ([spend-limits guide](https://developers.openai.com/api/docs/guides/spend-limits)); OpenRouter per-key limit ([openrouter.ai/pricing](https://openrouter.ai/pricing)).
+- Local digital-services tax on USD card charges: only from `countries/<cc>.md`; otherwise the generic bank/tax line.
 - Max 20x price: [claude.com/pricing](https://claude.com/pricing) previously listed $200; the 2026-10-06 page summary rendered "From $100" for both Max tiers. Re-check on `/jarvis-refresh`.
 
 ## Sources

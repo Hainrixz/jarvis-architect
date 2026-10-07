@@ -57,6 +57,19 @@
   <key>AbandonProcessGroup</key>
   <true/>
   <!-- @end:watchdog -->
+  <!-- @if:calendar -->
+  <!-- claude-code-local nightly restart (<label>.restart, program bin/jarvis-restart.sh): runs once a
+       day at {{calendar_hour}}:{{calendar_minute}} local time; tmux must survive the script exiting. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>{{calendar_hour}}</integer>
+    <key>Minute</key>
+    <integer>{{calendar_minute}}</integer>
+  </dict>
+  <key>AbandonProcessGroup</key>
+  <true/>
+  <!-- @end:calendar -->
 
   <!-- Wait at least 30 s between restarts so a crash loop does not burn CPU. -->
   <key>ThrottleInterval</key>

@@ -5,8 +5,8 @@
 Last verified: 2026-10-06
 
 All quotes below were re-fetched from the primary source on 2026-10-06. GitHub issues are
-secondary evidence of behaviour, not policy. Anything without a primary source is marked
-`UNVERIFIED`. Versions are not repeated here; see the matching `knowledge/runtimes/<id>.md`.
+secondary evidence of behaviour, not policy. Anything without a primary source carries a
+**check live** note: `stack-researcher` confirms it at install time and the matrix default applies until it does. Versions are not repeated here; see the matching `knowledge/runtimes/<id>.md`.
 
 ## How to read it
 
@@ -46,10 +46,10 @@ quote numbers refer to § Policy quotes.
 | **OpenClaw with Claude models** (`openclaw`) | `ANTHROPIC_API_KEY` only [Q10] | `ANTHROPIC_API_KEY` only [Q10] | API key per user [Q1] |
 | **NanoClaw** (built on the Agent SDK; no runtime file — see `runtimes/claude-agent-sdk.md`) | `ANTHROPIC_API_KEY` only [Q9, Q10] | `ANTHROPIC_API_KEY` only | API key per user |
 | **Codex CLI** (`codex-openai`) | **Default:** ChatGPT sign-in (`codex login`). **Alt:** `OPENAI_API_KEY` [Q12] | `codex login --device-auth` (device code must first be enabled in ChatGPT security settings) or a copied `~/.codex/auth.json` on the volume. API key recommended for programmatic/cron use [Q12] | API key per user; plan usage only via SIWC after OpenAI's interest form [Q13] |
-| **OpenClaw with OpenAI models** (`openclaw`) | **Default:** SIWC (Beta) or Codex login. **Alt:** `OPENAI_API_KEY` [Q13, Q14] | **Default:** `OPENAI_API_KEY`. **Alt:** SIWC with a persisted host ID [Q13]. Reusing a Codex login inside OpenClaw on a server: OpenAI sanction `UNVERIFIED` | API key per user; plan usage only after OpenAI approval [Q13] |
-| **Hermes with OpenAI models** (`hermes`) | **Default:** `OPENAI_API_KEY`. Hermes `openai-codex` device-code OAuth works technically, but OpenAI sanction for a third party reusing the Codex token is `UNVERIFIED` [Q11] | `OPENAI_API_KEY` only | API key per user |
-| **Hermes with Nous Portal** (`hermes`) | Nous Portal OAuth (vendor-recommended) [Q11] | Same. Nous terms of service not reviewed — `UNVERIFIED` | `UNVERIFIED` — refuse |
-| **Hermes/OpenClaw via OpenRouter** | `OPENROUTER_API_KEY` (API key; no subscription involved). OpenRouter terms not reviewed here — `UNVERIFIED` | Same | API key per user |
+| **OpenClaw with OpenAI models** (`openclaw`) | **Default:** SIWC (Beta) or Codex login. **Alt:** `OPENAI_API_KEY` [Q13, Q14] | **Default:** `OPENAI_API_KEY`. **Alt:** SIWC with a persisted host ID [Q13]. Reusing a Codex login inside OpenClaw on a server: not sanctioned in OpenAI docs, so use the default | API key per user; plan usage only after OpenAI approval [Q13] |
+| **Hermes with OpenAI models** (`hermes`) | **Default:** `OPENAI_API_KEY`. Hermes `openai-codex` device-code OAuth works technically, but OpenAI does not document a third party reusing the Codex token, so use the API key [Q11] | `OPENAI_API_KEY` only | API key per user |
+| **Hermes with Nous Portal** (`hermes`) | Nous Portal OAuth (vendor-recommended) [Q11] | Same. Check live: read Nous Portal's terms before offering it on a server | Refuse (no documented multi-user terms) |
+| **Hermes/OpenClaw via OpenRouter** | `OPENROUTER_API_KEY` (API key; no subscription involved). Check live: read OpenRouter's terms and the provider's data-retention policy before sending private data | Same | API key per user |
 | **Ollama, local models** (`ollama-local`) | No credential. Server binds `127.0.0.1:11434` by default [Q15] | n/a — never Railway (no GPUs). On an own always-on box: no credential, but the endpoint must stay on localhost/Tailscale | n/a |
 | **Ollama Cloud models** | `ollama signin` or an Ollama key; prompts leave the machine [Q15] | Same | n/a |
 | **Claude Cowork / Desktop** (`cowork`) | The person's own claude.ai login in Anthropic's app. Draws from subscription limits [Q8]. Nothing to configure. | n/a — no self-hosting | n/a |
@@ -177,7 +177,7 @@ Other knowledge files point to rows by these names; they map to the rows above.
 - "your open-source app can request permission to use the user's ChatGPT plan for eligible Responses API requests"
 - "If you're interested in offering it in a paid or remotely hosted app, complete the interest form."
 - Self-hosted VMs: "generate and persist a stable `ext_agent_host_id` for each host separately" before the first sign-in.
-- Preview limits (store:false, stream:true, no image generation, file search, Code Interpreter, hosted MCP/connectors or audio): https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations (not re-fetched 2026-10-06; UNVERIFIED).
+- Preview limits (store:false, stream:true, no image generation, file search, Code Interpreter, hosted MCP/connectors or audio): https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations (`stack-researcher` re-fetches this page before quoting the limits).
 
 **Q14 — OpenClaw OpenAI auth** — https://docs.openclaw.ai/providers/openai/authentication
 - Codex login: "use your ChatGPT account for Codex models. Choose browser OAuth locally or device code on a remote machine."
@@ -191,7 +191,7 @@ Other knowledge files point to rows by these names; they map to the rows above.
 **Known issues (secondary evidence, behaviour not policy)**
 - **I1** — anthropics/claude-code#80091: in `--channels` mode the CLI used a stored, expired Keychain login instead of a valid `CLAUDE_CODE_OAUTH_TOKEN`; deleting the stored login restored service. Closed as not planned. https://github.com/anthropics/claude-code/issues/80091
 - **I2** — anthropics/claude-code#44945: OAuth auto-refresh broken in long-running `--channels` sessions. https://github.com/anthropics/claude-code/issues/44945
-- **I3** — anthropics/claude-code#65320: setup-token returned 401 with `claude -p`. Closed; how it was fixed is `UNVERIFIED`. https://github.com/anthropics/claude-code/issues/65320
+- **I3** — anthropics/claude-code#65320: setup-token returned 401 with `claude -p`. Closed. If `claude -p` returns 401 with a setup-token, run `claude update` and `claude setup-token` again; if it persists, use `/login` (local) or an API key. https://github.com/anthropics/claude-code/issues/65320
 
 ## How to say it (one sentence each, Spanish, for non-technical people)
 
@@ -237,7 +237,7 @@ the person insists or says "it's only for testing".
 7. Planning Remote Control on an API-key or setup-token host (it cannot work).
 8. Using the subscription token on a server without the logged consent of Rule 2.
 9. Recommending third-party "no API key needed" Claude Code templates whose auth method is not
-   documented (e.g. the Railway "Tarsee" template, auth `UNVERIFIED`). → Alternative: our own
+   documented (e.g. the Railway "Tarsee" template, auth not documented). → Alternative: our own
    `claude-code-server` build where the owner signs in themselves.
 10. Exposing an Ollama, gateway or admin port publicly as a "no credential needed" shortcut.
 
@@ -254,14 +254,16 @@ the person insists or says "it's only for testing".
 | Remote Control planned with only an API key or setup-token | MAJOR |
 | API key without a documented spend cap | MAJOR |
 
-## UNVERIFIED items
+## Check live before relying on
 
-- Channels running on `CLAUDE_CODE_OAUTH_TOKEN`: works per community reports (I1), not documented.
-- How issue #65320 (setup-token 401 with `claude -p`) was fixed.
+`stack-researcher` re-checks each item below at install time; until it confirms one, the matrix default in that row applies.
+
+- Channels running on `CLAUDE_CODE_OAUTH_TOKEN`: works per community reports (I1). If the bot stops answering, remove any stored `/login` credential (I1) and restart the channel.
+- Setup-token 401 with `claude -p` (I3): fallback is in I3 above.
 - Whether OpenAI sanctions third parties (Hermes, OpenClaw's Codex-login path) reusing a Codex
   client token on a server.
-- Nous Portal and OpenRouter terms of service (not reviewed).
-- SIWC preview-limitations page was not re-fetched on 2026-10-06.
+- Nous Portal and OpenRouter terms of service and data-retention policies.
+- SIWC preview limitations: re-fetch the page before quoting them.
 - Cowork plan availability details (secondary sources; see `runtimes/cowork.md`).
 - Railway "Tarsee" template's authentication method.
 

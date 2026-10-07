@@ -8,7 +8,7 @@ No versions are pinned here. Runtimes: `knowledge/runtimes/<id>.md`. Models: `kn
 
 ## Channels reality
 
-- WhatsApp is the dominant messaging app in Spain; a Spain-specific penetration figure was not verified in this pass (UNVERIFIED). Telegram is common among tech users. Same defaults as LATAM:
+- WhatsApp is the dominant messaging app in Spain; ask the person which apps they and their clients use. Telegram is common among tech users. Same defaults as LATAM:
 
 | Use | Channel | Why |
 |---|---|---|
@@ -30,11 +30,11 @@ What the Architect says: "En España (UE), por ahora Meta está obligada a dejar
 | Category | Rate |
 |---|---|
 | Marketing | **$0.0707** |
-| Utility / Authentication | **$0.02** (utility free inside an open 24 h window; authentication figure from the [flowcall](https://www.flowcall.co/blog/whatsapp-business-api-pricing) table as checked 2026-09-28, UNVERIFIED in the re-check) |
+| Utility / Authentication | **$0.02** (utility free inside an open 24 h window; authentication figure from the [flowcall](https://www.flowcall.co/blog/whatsapp-business-api-pricing) table as checked 2026-09-28; `stack-researcher` re-checks it live on Meta's pricing page before quoting) |
 
 Source: [flowcall rate table](https://www.flowcall.co/blog/whatsapp-business-api-pricing) (secondary, mirrors Meta's rate card; re-fetched 2026-10-06). Authoritative: Meta's rate card download on the [pricing page](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing).
 
-**Service-message CONFLICT.** Meta's official doc (re-fetched 2026-10-06) says non-template messages and in-window utility templates are free; flowcall and [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md) say service messages are charged from 2026-10-01 after 1,000 free per number per month. Official doc wins; a personal Jarvis stays far under 1,000 either way.
+**Service messages: sources disagree; `stack-researcher` re-checks Meta's pricing page live before quoting.** Meta's official doc (re-fetched 2026-10-06) says non-template messages and in-window utility templates are free; flowcall and [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md) say service messages are charged from 2026-10-01 after 1,000 free per number per month. Official doc wins; a personal Jarvis stays far under 1,000 either way.
 
 **What a personal Jarvis costs on WhatsApp in Spain.** Replies: $0. A daily briefing sent first by Jarvis: 30 × $0.02 ≈ **$0.60 USD/month** as utility, 30 × $0.0707 ≈ $2.12 as marketing.
 
@@ -46,16 +46,16 @@ Source: [flowcall rate table](https://www.flowcall.co/blog/whatsapp-business-api
 
 **Regional systems:**
 - **País Vasco: TicketBAI** (Álava, Bizkaia, Gipuzkoa) is already mandatory; Bizkaia runs it inside **Batuz** with a phased calendar 2024–2026. TicketBAI applies there instead of Verifactu ([guiafiscal](https://guiafiscal.es/iva/ticketbai-pais-vasco-2026/), [billin](https://www.billin.net/blog/bizkaia-amplia-plazo-batuz), [frihet docs](https://docs.frihet.io/en/cumplimiento/ticketbai-pais-vasco), secondary).
-- **Navarra** has its own system, outside TicketBAI (secondary; details UNVERIFIED).
-- Large companies on **SII** (immediate VAT ledger reporting) are exempt from Verifactu (UNVERIFIED in this pass).
-- Mandatory B2B e-invoicing under the "Ley Crea y Crece": implementing-regulation status as of 2026-10 UNVERIFIED. Have `stack-researcher` check before mentioning dates.
+- **Navarra** has its own system, outside TicketBAI (secondary source; `stack-researcher` checks Hacienda Foral de Navarra's site before giving details).
+- Large companies on **SII** (immediate VAT ledger reporting) are exempt from Verifactu (`stack-researcher` confirms on https://sede.agenciatributaria.gob.es before saying so).
+- Mandatory B2B e-invoicing under the "Ley Crea y Crece": implementing-regulation status changes; have `stack-researcher` check before mentioning dates.
 
 **Rule for the Architect:** Jarvis must **never generate legally valid invoices itself** (a PDF Jarvis writes is not a Verifactu/TicketBAI-compliant invoicing system). It drafts the data and pushes it into the person's compliant invoicing software, which registers and sends the record.
 
 | Tool | Default? | Integration | Trust tier |
 |---|---|---|---|
-| **Alegra** (ES) | Default if they want invoicing + accounting from zero and the MCP covers Spain | OFFICIAL Alegra MCP; Spain coverage and Verifactu/TicketBAI certification UNVERIFIED ([developer.alegra.com/llms.txt](https://developer.alegra.com/llms.txt)) | 1 if confirmed |
-| **Holded**, Quipu, Billin, Sage, A3 and other Spanish invoicing SaaS | **Default when they already use one** (most autónomos do, or have a gestoría) | MCP availability UNVERIFIED for all of them; generated wrapper over their REST API (Holded has one, UNVERIFIED scope) or Zapier MCP | 3–4 |
+| **Alegra** (ES) | Default if they want invoicing + accounting from zero and the MCP covers Spain | OFFICIAL Alegra MCP; confirm Spain coverage and Verifactu/TicketBAI certification in Alegra's docs at install ([developer.alegra.com/llms.txt](https://developer.alegra.com/llms.txt)) | 1 if confirmed |
+| **Holded**, Quipu, Billin, Sage, A3 and other Spanish invoicing SaaS | **Default when they already use one** (most autónomos do, or have a gestoría) | `stack-researcher` checks each for an MCP at install; otherwise a wrapper the architect writes over their REST API (Holded has one; read its scope in Holded's API docs) or Zapier MCP | 3–4 |
 | AEAT / Diputación forales directly | Never from the agent | — | — |
 
 **Guardrails:** issuing an invoice is **irreversible** (under Verifactu/TicketBAI the record is chained and sent; corrections need a corrective invoice, *factura rectificativa*). Preview (NIF, IVA, IRPF retention, totals) and wait for an explicit "sí". Never store the digital certificate (FNMT or similar) or Cl@ve credentials in the workspace or memory. Tax calendar reminders (modelo 303/130 quarterly) phrased as "confírmalo con tu gestoría".
@@ -64,12 +64,12 @@ Source: [flowcall rate table](https://www.flowcall.co/blog/whatsapp-business-api
 
 | Tool | Status | Tier |
 |---|---|---|
-| **HubSpot** | OFFICIAL remote MCP `https://mcp.hubspot.com`, OAuth 2.1; EU data-centre accounts supported UNVERIFIED ([changelog](https://developers.hubspot.com/changelog/remote-hubspot-mcp-server-is-now-generally-available)) | 1 |
-| **Pipedrive** | OFFICIAL MCP, OAuth; endpoint UNVERIFIED ([newsroom](https://www.pipedrive.com/en/newsroom/pipedrive-launches-native-mcp-server-bringing-crm-workflows-directly-into-ai-assistants)) | 1 |
+| **HubSpot** | OFFICIAL remote MCP `https://mcp.hubspot.com`, OAuth 2.1; check EU data-centre account support in HubSpot's docs at install ([changelog](https://developers.hubspot.com/changelog/remote-hubspot-mcp-server-is-now-generally-available)) | 1 |
+| **Pipedrive** | OFFICIAL MCP, OAuth; `stack-researcher` reads the endpoint from Pipedrive's docs at install ([newsroom](https://www.pipedrive.com/en/newsroom/pipedrive-launches-native-mcp-server-bringing-crm-workflows-directly-into-ai-assistants)) | 1 |
 | **Stripe** | OFFICIAL `https://mcp.stripe.com` (OAuth or Agent API keys; **full secret keys get 401 from 2026-10-31**); refunds/payouts need Stripe's human approval ([docs.stripe.com/mcp](https://docs.stripe.com/mcp)) | 1 |
 | **Shopify** | Official Dev/Storefront MCPs; Admin community only | 2 |
 | **Kommo** | Community MCPs only | 2 |
-| Bizum, Redsys, Amazon Seller | No MCP verified (UNVERIFIED); Zapier fallback or nothing | 4 |
+| Bizum, Redsys, Amazon Seller | No official MCP listed (`stack-researcher` checks at install); Zapier fallback or nothing | 4 |
 
 Mercado Libre and Mercado Pago do not operate in Spain. Irreversible actions (always human approval): invoices, refunds, payouts, outbound marketing templates, CRM deletes.
 
@@ -77,12 +77,12 @@ Mercado Libre and Mercado Pago do not operate in Spain. Irreversible actions (al
 
 **GDPR + LOPDGDD (Ley Orgánica 3/2018)**, supervised by the **AEPD**. Purely personal or household use is exempt (GDPR Art. 2(2)(c)); **any business use is not**.
 
-**EU AI Act Article 50 (transparency) has applied since 2026-08-02**: a system that interacts with people must tell them they are dealing with an AI (at the latest at the first interaction), and synthetic audio must be marked as AI-generated. The Digital Omnibus delayed the high-risk rules to 2027-12-02 but **not Art. 50**, apart from a marking grace period until 2026-12-02 for systems already on the market ([Jones Walker](https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html), [Ropes & Gray](https://www.ropesgray.com/en/insights/viewpoints/2026/08/102nfqm/you-talkin-to-me-operationalising-the-eu-ai-acts-transparency-obligations)). Spain's AI supervisory authority is AESIA (role in Art. 50 enforcement UNVERIFIED).
+**EU AI Act Article 50 (transparency) has applied since 2026-08-02**: a system that interacts with people must tell them they are dealing with an AI (at the latest at the first interaction), and synthetic audio must be marked as AI-generated. The Digital Omnibus delayed the high-risk rules to 2027-12-02 but **not Art. 50**, apart from a marking grace period until 2026-12-02 for systems already on the market ([Jones Walker](https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html), [Ropes & Gray](https://www.ropesgray.com/en/insights/viewpoints/2026/08/102nfqm/you-talkin-to-me-operationalising-the-eu-ai-acts-transparency-obligations)). Spain's AI supervisory authority is AESIA (check https://aesia.digital.gob.es for its role in Art. 50 enforcement).
 
 **What the Architect must enforce (not just warn):**
 1. **Customer-facing channel:** the first message must say it is an AI, e.g. "Hola, soy el asistente con IA de <negocio>." This is a hard requirement in Spain; `jarvis-validator` should check the SOUL/AGENTS greeting.
 2. **Voice that talks to third parties** (calls, voice notes to customers): disclose AI and keep the audio marked as synthetic.
-3. **Business data to US LLM providers:** sign the provider's **DPA** with **SCCs**; prefer EU data residency where offered; list LLM, BSP and Railway (pick an EU region where possible, UNVERIFIED which regions Railway offers) as processors in the **registro de actividades** and the privacy notice. Draft from template, "revísalo con un abogado".
+3. **Business data to US LLM providers:** sign the provider's **DPA** with **SCCs**; prefer EU data residency where offered; list LLM, BSP and Railway (pick an EU region where possible; list Railway's current regions with the Railway CLI or docs) as processors in the **registro de actividades** and the privacy notice. Draft from template, "revísalo con un abogado".
 4. **Personal-only Jarvis:** household exemption; say so, and note that once it handles clients' data GDPR applies.
 5. Minimise: no DNI/NIE, health or card data in long-term memory; redact before embedding. Record processors in `compliance.md`.
 
@@ -92,7 +92,7 @@ Mercado Libre and Mercado Pago do not operate in Spain. Irreversible actions (al
 |---|---|---|---|
 | Premium | Deepgram Nova-3 multilingual | **ElevenLabs** Multilingual v2 / Flash v2.5 / v4 Turbo with a **Peninsular (castellano)** voice; Multilingual v2 lists "Spanish (Spain, Mexico)" ([ElevenLabs models](https://elevenlabs.io/docs/overview/models)) | A LatAm accent sounds foreign to Spanish users |
 | Budget cloud | Deepgram Nova-3 | Deepgram Aura-2: one of the ten Spanish voices is Peninsular; which one is undocumented ([Deepgram TTS](https://developers.deepgram.com/docs/tts-models-languages-overview)) | Play samples |
-| Fully local | whisper.cpp (`medium`/`large`) | Piper `es_ES` voices (exist in the piper-voices repo; specific names and licences UNVERIFIED in this pass) | |
+| Fully local | whisper.cpp (`medium`/`large`) | Piper `es_ES` voices (in the piper-voices repo; read each voice's model card for name and licence before installing) | |
 | Avoid | — | Kokoro | Weak Spanish |
 
 Any synthetic voice sent to third parties is "synthetic audio" under Art. 50: keep the disclosure. Text register: Peninsular Spanish, **tú**, **vosotros** for plural, vocabulary "ordenador", "móvil"; Catalan, Basque or Galician if the person writes in them. Money `1.234,50 €`.
@@ -107,7 +107,7 @@ Any synthetic voice sent to third parties is "synthetic audio" under Art. 50: ke
 
 Spain observes EU daylight saving (last Sunday of March / October). Always store crons with the IANA zone, never a fixed offset, so briefings don't shift an hour twice a year ([IANA tz database](https://www.iana.org/time-zones)). Ask whether they are in Canarias.
 
-**Currency:** EUR. LLM and Railway bill in USD; show "≈ X €" using a live rate from `stack-researcher`. EU VAT may be added to USD SaaS invoices for Spanish customers (reverse charge for businesses with a VAT number; exact handling per vendor UNVERIFIED).
+**Currency:** EUR. LLM and Railway bill in USD; show "≈ X €" using a live rate from `stack-researcher`. EU VAT may be added to USD SaaS invoices for Spanish customers (reverse charge for businesses with a VAT number; check each vendor's first invoice).
 
 ## Sources
 

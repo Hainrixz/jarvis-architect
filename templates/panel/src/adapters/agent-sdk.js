@@ -3,8 +3,10 @@
 // inside panel/ only when this adapter is chosen. It authenticates with ANTHROPIC_API_KEY from
 // the environment (never logged, never returned by the API) — see knowledge/auth-matrix.md:
 // a server-side product must use an API key, not a consumer subscription.
-// UNVERIFIED live (SDK not installed where this was written): option names below come from the
-// Agent SDK TypeScript reference; check them against the installed version before relying on them.
+// Option names below follow the Agent SDK TypeScript reference.
+// LIVE CHECK after `npm install @anthropic-ai/claude-agent-sdk`: open the package's .d.ts and confirm
+// each option listed next exists with this name; rename here if the installed version differs, then
+// send one prompt from the panel and confirm text streams and a session id comes back.
 // Options used: query({prompt, options:{cwd, allowedTools, permissionMode, resume, model,
 // includePartialMessages, abortController, settingSources}}). Messages have the same shape as
 // `claude -p --output-format stream-json`, so we reuse the claude-cli event mapper.

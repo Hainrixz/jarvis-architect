@@ -36,7 +36,7 @@ the raw marker list. Max 3 questions per message.
 ## Gate B — pre-mortem
 
 "It's three months from now and this Jarvis was abandoned or caused a problem. Why?"
-If `/abogado-del-diablo` is installed, run it on the draft. Otherwise run these 8 angles inline:
+Run these 8 angles inline on the draft:
 
 1. **Cost** — what if usage is 5× the estimate? Is a hard cap set at the provider?
 2. **Uptime** — what happens when the laptop sleeps, Railway redeploys, a token expires?

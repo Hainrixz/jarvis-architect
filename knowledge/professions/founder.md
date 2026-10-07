@@ -56,7 +56,7 @@ Tiers per `knowledge/capabilities/tools-mcp.md`. Read-only first (SEC-22).
 
 | Tool | Tier | Default scope | Notes |
 |---|---|---|---|
-| Gmail · Calendar · Drive (Google Workspace MCP) | T1 (developer preview) | read; Gmail **drafts** only if asked; never send | Outlook/M365 users: Microsoft connector or T4 Zapier (UNVERIFIED which is best) |
+| Gmail · Calendar · Drive (Google Workspace MCP) | T1 (developer preview) | read; Gmail **drafts** only if asked; never send | Outlook/M365 users: Microsoft connector or T4 Zapier (ask which suite they use; check the Claude connector directory for a Microsoft 365 connector first, Zapier only if none is listed) |
 | Slack | T1 (`https://mcp.slack.com/mcp`, OAuth; through Claude.ai/Claude Code or a directory-published/internal Slack app) | read/search | Its send tool = IRR-01: leave it out of the profile (SEC-23) |
 | Notion | T1 (OAuth) | read | Docs, OKRs, meeting notes |
 | CRM: HubSpot / Pipedrive | T1 official remote MCPs | read | See `knowledge/professions/sales.md` for details |
@@ -125,7 +125,7 @@ From `templates/skills-base/`: `morning-briefing`, `inbox-triage`, `meeting-prep
 
 ## Sources
 
-- Profession → component map (founder row): Jarvis Architect design synthesis, UNVERIFIED as a single external source; component sources below. Slack Socket Mode: https://api.slack.com/socket-mode · Notion MCP: https://developers.notion.com/docs/get-started-with-mcp
+- Profession → component map (founder row): Jarvis Architect design synthesis built from the sources listed here; component sources below. Slack Socket Mode: https://api.slack.com/socket-mode · Notion MCP: https://developers.notion.com/docs/get-started-with-mcp
 - Alegra developer docs (MCP tools): https://developer.alegra.com/llms.txt · Siigo community MCP: https://glama.ai/mcp/servers/jdlar1/siigo-mcp · Facturapi pricing: https://www.facturapi.io/pricing · Facturapi community MCP: https://github.com/codespar/mcp-dev-latam
 - Data law: MX LFPDPPP 2025 (EY): https://www.ey.com/es_mx/technical/tax/boletines-fiscales/nueva-ley-federal-proteccion-datos-personal-posesion-particulares · CO SIC Circular Externa 002/2024: https://normograma.mintic.gov.co/mintic/compilacion/docs/circular_superindustria_0002_2024.htm · ES/EU AI Act Art. 50: https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html
 - Slack MCP server (`https://mcp.slack.com/mcp`, OAuth; partner clients incl. Claude.ai and Claude Code; only directory-published or internal apps): https://docs.slack.dev/ai/mcp-server/ (fetched 2026-10-06)

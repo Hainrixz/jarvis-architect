@@ -48,7 +48,8 @@ services:
       - ALL
     # @if:cap_add
     # Minimum capabilities an image needs to drop privileges itself (e.g. CHOWN, SETUID, SETGID).
-    # UNVERIFIED per image. Find the smallest set that works, test it, and record it in SECURITY.md.
+    # LIVE CHECK per image: start with none, add one at a time until `docker compose up` stays healthy,
+    # and record the final set in SECURITY.md.
     cap_add: [{{cap_add}}]
     # @end:cap_add
     security_opt:

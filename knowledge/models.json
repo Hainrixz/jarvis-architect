@@ -83,7 +83,7 @@
           "context": 1000000,
           "max_output": 128000,
           "retirement": "Not sooner than 2027-09-01",
-          "notes": "Most capable, slower and 2.5x Opus price; default effort high, thinking always on, forced tool_choice returns 400. A 30-day data-retention requirement is reported in research but is not stated on its model page (UNVERIFIED); until confirmed, never use it for private or regulated data.",
+          "notes": "Most capable, slower and 2.5x Opus price; default effort high, thinking always on, forced tool_choice returns 400. A 30-day data-retention requirement is reported in research but is not stated on its model page; stack-researcher re-checks the model page, and until it confirms otherwise, never use it for private or regulated data.",
           "cache_write_5m": 12.5,
           "cache_write_1h": 20.0,
           "tokenizer": "new (~1.3x tokens)"
@@ -170,7 +170,7 @@
       "banned": [
         {
           "id": "gpt-5.5",
-          "reason": "Previous flagship; leaves ChatGPT and Codex on 2026-10-14. API retirement date UNVERIFIED. Costs more ($5/$30)."
+          "reason": "Previous flagship; leaves ChatGPT and Codex on 2026-10-14. stack-researcher re-checks the API retirement date on the deprecations page before quoting it. Costs more ($5/$30)."
         },
         {
           "id": "gpt-5.6-sol",
@@ -185,7 +185,7 @@
           "reason": "Previous generation ($0.20/$1.20), 2x gpt-6-luna."
         }
       ],
-      "subscriptions_note": "ChatGPT Go $8, Plus $20, Pro $100 or $200 per month (secondary source TechCrunch 2026-04-09; UNVERIFIED on openai.com).",
+      "subscriptions_note": "ChatGPT Go $8, Plus $20, Pro $100 or $200 per month (secondary source TechCrunch 2026-04-09; re-checked live on openai.com/chatgpt/pricing by stack-researcher before quoting).",
       "pricing_note": "OpenAI prices are short-context (<=272K input tokens). Above 272K input, the long_context_over_272k rates apply. Keep memory/context lean so a Jarvis stays under 272K."
     },
     "openrouter": {
@@ -200,7 +200,7 @@
         "https://openrouter.ai/pricing",
         "https://openrouter.ai/docs/faq"
       ],
-      "notes": "Open-weight API models (GLM-5.x, DeepSeek V4 Flash, Kimi) can be very cheap; their OpenRouter prices are UNVERIFIED as of 2026-10-06. Never send private data to a provider without checking its retention policy."
+      "notes": "Open-weight API models (GLM-5.x, DeepSeek V4 Flash, Kimi) can be very cheap; stack-researcher reads their live price on openrouter.ai/models before quoting. Never send private data to a provider without checking its retention policy."
     },
     "local": {
       "runtime": "Ollama (see runtimes/ollama-local.md for the pinned version) or MLX on Apple Silicon",
@@ -282,7 +282,7 @@
             {
               "model": "Hermes 4.3 36B",
               "approx_memory_gb": 22,
-              "notes": "Memory is an estimate (UNVERIFIED)."
+              "notes": "Memory is an estimate; preflight compares it with the machine's free RAM before pulling."
             }
           ],
           "use_for": "main slot for a privacy-first Jarvis"
@@ -304,7 +304,7 @@
             {
               "model": "Hermes 4 70B",
               "approx_memory_gb": 43,
-              "notes": "Memory is an estimate (UNVERIFIED)."
+              "notes": "Memory is an estimate; preflight compares it with the machine's free RAM before pulling."
             }
           ],
           "use_for": "max slot for local-only setups"
@@ -316,7 +316,7 @@
             {
               "model": "nomic-embed-text or bge-m3 via Ollama",
               "approx_memory_gb": 1,
-              "notes": "Local memory search; size approximate (UNVERIFIED)."
+              "notes": "Local memory search; size approximate."
             }
           ],
           "use_for": "memory / vector search"
@@ -331,7 +331,7 @@
         "https://localaimaster.com/blog/best-ollama-models-for-agents",
         "https://huggingface.co/NousResearch/Hermes-4.3-36B"
       ],
-      "notes": "Tool-calling quality tiers are qualitative (UNVERIFIED, no head-to-head benchmark found). Local memory sizes come from secondary sources."
+      "notes": "Tool-calling quality tiers are qualitative (no head-to-head benchmark; run one tool-calling smoke test on the chosen model during BUILD). Local memory sizes come from secondary sources."
     }
   }
 }

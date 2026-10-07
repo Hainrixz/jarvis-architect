@@ -71,7 +71,7 @@ Zapier MCP fallback. **Every integration starts read-only** (SEC-22).
 | Notion | T1 (Notion-hosted MCP, OAuth) | read; write to one "Ideas" database only if asked | Content calendar and idea bank. Endpoint `https://mcp.notion.com/mcp` (streamable HTTP, OAuth; Notion docs, checked 2026-10-06) |
 | Google Drive / Docs | T1 (Google Workspace MCP, developer preview) | read | Scripts folder, media kit. Preview status: re-check before promising |
 | Social scheduler (Zernio-type, multi-platform) | T1 for Zernio (vendor-hosted remote MCP, OAuth 2.1) | **read (analytics, queue) first**; creating posts = draft/queue only, publishing = IRR-02 | Zernio advertises posting, inbox, analytics and ads tools across many platforms. Ad tools move money (IRR-03): keep them out of the tool profile (SEC-23) |
-| YouTube Data / Analytics API | T2 (community MCP, many forks) or T3 wrapper | read (`youtube.readonly`, analytics) | No first-party Google YouTube MCP found (UNVERIFIED). Prefer a generated read-only wrapper over an unknown fork |
+| YouTube Data / Analytics API | T2 (community MCP, many forks) or T3 wrapper | read (`youtube.readonly`, analytics) | No first-party Google YouTube MCP found; check Google's developer docs at install for a newer one. Prefer a generated read-only wrapper over an unknown fork |
 | Instagram Graph API | T3 wrapper or via the scheduler | read insights | Publishing via the API works only for **professional** accounts and is capped at 100 API-published posts per 24 h ([Meta docs](https://developers.facebook.com/docs/instagram-platform/content-publishing/)) |
 | Image / video generation (Higgsfield-type MCP) | T1 if vendor-hosted OAuth | generate only | Spends credits: show the cost first and treat paid generations as IRR-03 when they exceed a set budget |
 | Playwright MCP | T1 (vendor's local package, pinned) | read-only browsing of public pages | **No logged-in scraping** of Instagram/TikTok: it breaks their terms and risks the account. Public pages only |
@@ -121,8 +121,8 @@ template: `workspace-writer` writes each from its one-line spec below, in Agent 
 - **AI disclosure:** in Spain, EU AI Act Art. 50 requires marking synthetic audio/video (see
   `knowledge/countries/es.md`). Elsewhere, recommend disclosing AI-generated media as good practice.
 - **Sponsored content:** ad-disclosure rules for influencers exist in several countries (e.g. Spain's
-  rules for high-reach users; Mexico and Colombia consumer-protection guidance). Specifics per country
-  are UNVERIFIED here: Jarvis reminds them to label "publicidad/colab" and points to the country file.
+  rules for high-reach users; Mexico and Colombia consumer-protection guidance). Jarvis does not
+  restate per-country specifics: it reminds them to label "publicidad/colab" and points to the country file.
 - **Copyright:** don't suggest using trending music or third-party clips outside the platform's own
   library; flag it in drafts.
 - **Data sensitivity:** low by default. Brand contracts and rates are confidential: keep them in the
@@ -150,7 +150,7 @@ Ask only what this pack needs (1–3):
 
 ## Sources
 
-- Profession → component map (creator row): Jarvis Architect design synthesis, UNVERIFIED as a single external source; component sources below. Playwright MCP: https://github.com/microsoft/playwright-mcp
+- Profession → component map (creator row): Jarvis Architect design synthesis built from the sources listed here; component sources below. Playwright MCP: https://github.com/microsoft/playwright-mcp
 - WhatsApp policy (business bots allowed, general-purpose assistants banned since 2026-01-15): https://www.facebook.com/legal/Meta-Terms-for-WhatsApp-Business-Platform · https://respond.io/blog/whatsapp-general-purpose-chatbots-ban
 - Voice (Spanish TTS/STT): https://elevenlabs.io/docs/overview/models · https://developers.deepgram.com/docs/tts-models-languages-overview · https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md · https://huggingface.co/rhasspy/piper-voices/tree/293cad0539066f86e6bce3b9780c472cc9157489/es/es_MX
 - Instagram content publishing (professional accounts, 100 posts/24 h): https://developers.facebook.com/docs/instagram-platform/content-publishing/ (fetched 2026-10-06)

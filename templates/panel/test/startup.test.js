@@ -35,7 +35,9 @@ test('refuses to start on a non-loopback host without PANEL_PASSWORD (Spanish er
 });
 
 test('refuses to start without PANEL_ADAPTER outside tests', async () => {
-  const { code, out } = await run({ NODE_ENV: 'production', PANEL_HOST: '127.0.0.1' });
+  // PANEL_ADAPTER set to '' on purpose: server.js loads panel/.env without overriding set variables,
+  // so an installed panel's own .env (PANEL_ADAPTER=claude-cli) can't make this test start a server.
+  const { code, out } = await run({ NODE_ENV: 'production', PANEL_HOST: '127.0.0.1', PANEL_ADAPTER: '' });
   assert.equal(code, 1);
   assert.match(out, /PANEL_ADAPTER/);
 });
@@ -76,6 +78,24 @@ test('claude stream-json mapper: partial deltas, no duplicate text, done with se
   const evs2 = [{ type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'text', text: 'Entero' }] } }].flatMap((e) => m2.map(e));
   assert.deepEqual(evs2, [{ type: 'delta', text: 'Entero' }]);
   assert.throws(() => createClaudeEventMapper().map({ type: 'result', subtype: 'error_during_execution', is_error: true }), /error/);
+});
+
+test('claude stream-json mapper: text from turns around a tool call is separated', () => {
+  const sd = (t) => ({ type: 'stream_event', parent_tool_use_id: null, event: { type: 'content_block_delta', delta: { type: 'text_delta', text: t } } });
+  const start = { type: 'stream_event', parent_tool_use_id: null, event: { type: 'message_start' } };
+  const m = createClaudeEventMapper();
+  const text = [
+    start, sd('Voy a leer.'), { type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'text', text: 'Voy a leer.' }] } },
+    start, { type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'tool_use', name: 'Read' }] } },
+    start, sd('Listo'), sd(', 1 tarea.'),
+  ].flatMap((e) => m.map(e)).map((e) => e.text).join('');
+  assert.equal(text, 'Voy a leer.\n\nListo, 1 tarea.');
+  const m2 = createClaudeEventMapper(); // without --include-partial-messages
+  const t2 = [
+    { type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'text', text: 'Uno.' }] } },
+    { type: 'assistant', parent_tool_use_id: null, message: { content: [{ type: 'text', text: 'Dos.' }] } },
+  ].flatMap((e) => m2.map(e)).map((e) => e.text).join('');
+  assert.equal(t2, 'Uno.\n\nDos.');
 });
 
 test('codex args: prompt via stdin on new runs, after -- on resume, never dangerous flags', () => {

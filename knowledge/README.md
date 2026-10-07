@@ -25,8 +25,9 @@ Last verified: 2026-10-06
 1. Every `.md` starts with `# Title`, a one-line `>` summary, and `Last verified: YYYY-MM-DD`.
 2. **Version numbers live only in `runtimes/*.md` (§ Pinned versions) and `models.json`.** Other
    files say "see `runtimes/hermes.md`" instead of repeating a version.
-3. Every factual claim that can go stale carries a source URL. Unconfirmed claims are marked
-   `UNVERIFIED` — never silently stated as fact.
+3. Every factual claim that can go stale carries a source URL. Claims resting on a secondary
+   source carry a **check live** note (what `stack-researcher` re-checks at install time, plus
+   the fallback) — never silently stated as fact.
 4. Every cross-reference uses the paths above and must resolve.
 5. No secrets, no real tokens, no personal data in examples. Use obviously fake values
    (`123456789` for a Telegram user ID, `sk-ant-...` truncated).

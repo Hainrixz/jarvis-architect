@@ -57,13 +57,13 @@ community · T3 alpha/generated wrapper · T4 Zapier). All start **read-only** (
 
 | Tool | Tier | Default scope | Notes |
 |---|---|---|---|
-| **POS** — Parrot | T3 | read (sales, items) | Parrot advertises an open API; no MCP found. Generate a thin wrapper (`la-forja:mcp-tool-forge`) or use Zapier (T4). Endpoint details UNVERIFIED |
-| **POS** — Soft Restaurant, Loyverse, others | T3/T4 | read | No MCP found; API availability UNVERIFIED. Fallback that always works: the POS's daily report by email or a CSV export dropped in a folder Jarvis reads |
+| **POS** — Parrot | T3 | read (sales, items) | Parrot advertises an open API; no MCP found. The architect writes a thin read-only MCP wrapper itself, or use Zapier (T4). Take endpoints and access terms from Parrot's developer docs or support before writing the wrapper |
+| **POS** — Soft Restaurant, Loyverse, others | T3/T4 | read | No MCP found; at install, check the vendor's developer docs or ask its support whether an API is available. Fallback that always works: the POS's daily report by email or a CSV export dropped in a folder Jarvis reads |
 | Google Sheets / Drive (Workspace MCP) | T1 | read | Inventory and supplier list in a Sheet is the simplest week-one setup |
 | Gmail (Workspace MCP) | T1 | read | POS closing reports, delivery-app statements, supplier invoices. Bodies are untrusted (`SEC-12`) |
 | Google Calendar (Workspace MCP) | T1 | read | Supplier deliveries, events, private bookings |
-| **Google Business Profile** (reviews) | T3 | read | No first-party MCP; community servers exist. The API needs a verified profile and approved API access (per community READMEs, UNVERIFIED). Week one: owner pastes or forwards new reviews; Jarvis drafts. Posting a reply = `IRR-02` |
-| Delivery apps (Rappi, DiDi Food, Uber Eats) | none | read emailed statements / exported files | No public MCP for merchants found (UNVERIFIED). Menu or price edits on these apps are `IRR-11` and stay manual |
+| **Google Business Profile** (reviews) | T3 | read | No first-party MCP; community servers exist. The API needs a verified profile and approved API access (per community READMEs; confirm at https://developers.google.com/my-business before relying on it). Week one: owner pastes or forwards new reviews; Jarvis drafts. Posting a reply = `IRR-02` |
+| Delivery apps (Rappi, DiDi Food, Uber Eats) | none | read emailed statements / exported files | No public merchant MCP found; check each app's partner portal at install. Menu or price edits on these apps are `IRR-11` and stay manual |
 | **Invoicing** — Facturapi (MX) / Alegra (MX, CO, ES…) / Siigo (CO) | T1–T3 | read | Stamp/cancel = `IRR-05`. Prefer the PAC's or POS's **self-invoice portal** (autofactura) so customers invoice themselves; Jarvis only answers "¿cómo pido mi factura?" with the portal link. Details in `knowledge/countries/<cc>.md` |
 | Payments — Mercado Pago / Stripe / Clip | T1 (MP/Stripe), T3 (Clip) | read | Refunds and payment links with amounts = `IRR-03`. Stripe MCP needs Agent keys or OAuth (`CMP-37`) |
 
@@ -150,6 +150,6 @@ Pack skills (week one = at most 3):
 - Railway cron (UTC, 5-minute minimum, must exit): https://docs.railway.com/reference/cron-jobs
 - EU AI Act Art. 50 timing: https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html
 
-UNVERIFIED in this file: Parrot API endpoints and access terms; Soft Restaurant / Loyverse API or
+`stack-researcher` re-checks these live at install time: Parrot API endpoints and access terms; Soft Restaurant / Loyverse API or
 MCP; Google Business Profile API access requirements; merchant APIs for Rappi, DiDi Food and Uber
 Eats.

@@ -16,7 +16,7 @@
 //   - cron schedule of backup-cron   → `update-service` cronSchedule (5-field, UTC, ≥ 5 min apart)
 //   - restart policy "Always" (core, web), serverless off, memory limits
 //   - volume backups, sealing variables, removing the pgvector template's TCP proxy
-// UNVERIFIED: whether a later SDK release adds cron/restart fields — /jarvis-refresh re-checks.
+// LIVE CHECK: /jarvis-refresh re-reads the IaC reference; if cron/restart fields appear, move them here.
 
 import { bucket, defineRailway, github, group, image, preserve, project, service, volume } from "railway/iac";
 
@@ -129,7 +129,8 @@ export default defineRailway(() => {
       // Same reference as the core: pgvector → DATABASE_URL_PRIVATE (dump travels over the private network).
       DATABASE_URL: preserve(),
       // Bucket credentials: add them from the bucket's Credentials tab as variable-reference presets.
-      // UNVERIFIED: an IaC accessor for bucket credentials (none in the reference), hence preserve().
+      // The IaC reference has no bucket-credential accessor, hence preserve(). LIVE CHECK: if the
+      // installed `railway/iac` exports one, use it instead.
       AWS_ACCESS_KEY_ID: preserve(),
       AWS_SECRET_ACCESS_KEY: preserve(),
       AWS_DEFAULT_REGION: preserve(),

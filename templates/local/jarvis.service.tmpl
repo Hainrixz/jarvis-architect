@@ -37,7 +37,7 @@ TasksMax=256
 # Light hardening that works in user units.
 NoNewPrivileges=yes
 UMask=0077
-# UNVERIFIED per distro: PrivateTmp in a *user* unit needs unprivileged user namespaces.
+# LIVE CHECK per distro: PrivateTmp in a *user* unit needs unprivileged user namespaces.
 # If `systemctl --user start` fails with status 226/NAMESPACE, remove this line and note it in SECURITY.md.
 PrivateTmp=yes
 

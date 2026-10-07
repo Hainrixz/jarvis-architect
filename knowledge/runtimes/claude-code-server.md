@@ -25,7 +25,7 @@ Why not default for everyone: Channels are a **research preview** (flag syntax m
 **Alternative, only with logged consent (Gate C):** the owner's own Pro/Max subscription inside the same unmodified binary, via `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`. What Anthropic says, verbatim:
 - The token is "for CI pipelines, scripts, or other environments where interactive browser login isn't available". It "can only make model requests, so it can't establish Remote Control sessions or fetch claude.ai connectors. MCP servers you configure locally still work." ([authentication](https://code.claude.com/docs/en/authentication#generate-a-long-lived-token))
 - The legal page allows "an end user… signing in to the unmodified Claude Code binary with their own Claude subscription, including where a platform hosts Claude Code", and says Pro/Max limits "assume ordinary, individual usage" ([legal-and-compliance](https://code.claude.com/docs/en/legal-and-compliance)).
-- Channels on the token are **not documented**. Community reports say they work, with bugs (#80091 stale Keychain login wins over the env token; #44945 refresh in long `--channels` sessions). Treat as best-effort, UNVERIFIED for channels.
+- Channels on the token are **not documented**. Community reports say they work, with bugs (#80091 stale Keychain login wins over the env token; #44945 refresh in long `--channels` sessions). Treat as best-effort: the nightly restart and the 401 fallback in Risks #4 cover these, and if they keep failing, switch to `ANTHROPIC_API_KEY`.
 
 Consent sentence (ES): *"Usar tu suscripción en un servidor está permitido solo con el programa oficial de Claude, solo para ti, y Anthropic puede cambiar o hacer cumplir la regla sin aviso. Si falla, cambiamos a llave de API. ¿Aceptas?"* No → API key.
 
@@ -41,7 +41,7 @@ Hard rules:
 |---|---|---|---|---|
 | Claude Code CLI | **2.1.285** | stable (npm dist-tag `stable`; `latest` is 2.1.292) | https://registry.npmjs.org/@anthropic-ai/claude-code · https://formulae.brew.sh/api/cask/claude-code.json | 2026-10-06 |
 | Bun (runs the channel plugins) | **1.4.2** | stable | https://registry.npmjs.org/bun · https://formulae.brew.sh/api/formula/bun.json | 2026-10-06 |
-| Telegram channel plugin `telegram@claude-plugins-official` | **0.0.7** (`plugin.json`) | marketplace HEAD (no tag pinning documented — UNVERIFIED) | https://github.com/anthropics/claude-plugins-official/tree/main/external_plugins/telegram | 2026-10-06 |
+| Telegram channel plugin `telegram@claude-plugins-official` | **0.0.7** (`plugin.json`) | marketplace HEAD (the marketplace documents no tag pinning, so the build records the installed `plugin.json` version and `/jarvis-doctor` compares it) | https://github.com/anthropics/claude-plugins-official/tree/main/external_plugins/telegram | 2026-10-06 |
 | Base image `node:24-bookworm-slim` | digest `sha256:d6aa754f16b3197301076f047b5def2f02ea1dbbc2ca920407d46d7ec7f87b20` | Node 24 LTS | https://hub.docker.com/_/node | 2026-10-06 |
 | supercronic (in-container cron) | **v0.2.49** · amd64 `sha256:a53ae236602c7338aba3fbaff40bda6300eae3b9fedb8261eb06cfe3724430c1` · arm64 `sha256:02aa0cb229ba09050cba6638059dadb9eedc2276632ea43d6a57a2f8c1629dd5` | GitHub release | https://github.com/aptible/supercronic/releases/tag/v0.2.49 | 2026-10-06 |
 | tmux | Debian bookworm package (Homebrew stable is 3.7c) | distro | https://formulae.brew.sh/api/formula/tmux.json | 2026-10-06 |
@@ -112,7 +112,7 @@ ENTRYPOINT ["/app/bin/entrypoint"]
 Notes:
 - The image runs as the `node` user (uid 1000). On a VPS the Docker named volume inherits `/data`'s `node` ownership on first use, so nothing runs as root. On Railway, volumes mount as root-owned, and Railway's documented workaround is `RAILWAY_RUN_UID=0` (https://docs.railway.com/volumes/reference). That starts the container as root, so the entrypoint only fixes volume ownership and then drops to `node` with `setpriv`. Claude itself never runs as root.
 - Updates = change the `ARG` pins, rebuild, redeploy. In-container auto-update is off (`DISABLE_AUTOUPDATER=1`, documented at https://code.claude.com/docs/en/setup#disable-auto-updates).
-- Stronger integrity (optional): install from Anthropic's signed apt repo instead of npm (key fingerprint above; https://code.claude.com/docs/en/setup#install-with-linux-package-managers). Exact apt version-pin string for `claude-code`: UNVERIFIED — check `apt-cache madison claude-code` once before pinning.
+- Stronger integrity (optional): install from Anthropic's signed apt repo instead of npm (key fingerprint above; https://code.claude.com/docs/en/setup#install-with-linux-package-managers). To pin the apt version, run `apt-cache madison claude-code` and use the exact version string it prints (`apt-get install claude-code=<that string>`).
 
 ### Person's machine (to build/deploy and for `claude setup-token` if the consent path is taken)
 
@@ -211,7 +211,7 @@ DISABLE_AUTOUPDATER=1
 
 - `defaultMode: "default"` (Manual) asks before every edit, write, non-read-only shell command and network call that is not in `allow`. So `Write` and `Bash` need no explicit `ask` rule. Never put a bare `"Bash"` or `"Bash(*)"` in `allow` (SEC-23).
 - Manual mode is deliberate. Since v2.1.283 **auto mode is the built-in starting mode** for interactive sessions ([permission-modes](https://code.claude.com/docs/en/permission-modes)); we also pass `--permission-mode default` on the command line so the owner, not a classifier, approves anything outside `allow`. Those prompts are relayed to Telegram (§ Channels).
-- MCP tool names for plugin servers (`mcp__plugin_telegram_telegram__reply`) follow the observed `mcp__plugin_<plugin>_<server>__<tool>` pattern — UNVERIFIED; confirm with `/permissions` on first boot and fix the rule if it differs. The reply tool can only send to chats in `allowFrom` (plugin source, `server.ts`), so auto-allowing it is low risk.
+- MCP tool names for plugin servers (`mcp__plugin_telegram_telegram__reply`) follow the observed `mcp__plugin_<plugin>_<server>__<tool>` pattern. On first boot, run `/permissions` and fix the rule if the listed name differs. The reply tool can only send to chats in `allowFrom` (plugin source, `server.ts`), so auto-allowing it is low risk.
 - Rule path syntax (`./` = relative to cwd, `//` = absolute, `~/` = home): https://code.claude.com/docs/en/settings-reference#permission-rule-syntax.
 - Add `allowedDomains` only for APIs the spec needs (e.g. Gmail MCP does not need it — MCP runs outside the sandbox; Bash scripts that call an API do).
 
@@ -299,7 +299,7 @@ export default defineRailway(() => {
 });
 ```
 
-IaC shape from https://docs.railway.com/infrastructure-as-code (fields as listed in https://docs.railway.com/infrastructure-as-code/reference). Not expressible in IaC per the reference (UNVERIFIED): restart policy and memory cap → set in the dashboard: **Settings → Deploy → Restart policy = Always**, **Settings → Deploy → Replica Limits → Memory ≈ 2 GB** (https://docs.railway.com/guides/right-size-cpu-memory#set-replica-limits). No public domain, no healthcheck path (worker service: Telegram uses long polling, nothing listens).
+IaC shape from https://docs.railway.com/infrastructure-as-code (fields as listed in https://docs.railway.com/infrastructure-as-code/reference). Restart policy and memory cap are set in the dashboard (if the IaC reference lists them by build time, `stack-researcher` moves them into `railway.json`): **Settings → Deploy → Restart policy = Always**, **Settings → Deploy → Replica Limits → Memory ≈ 2 GB** (https://docs.railway.com/guides/right-size-cpu-memory#set-replica-limits). No public domain, no healthcheck path (worker service: Telegram uses long polling, nothing listens).
 
 ## Workspace mapping
 
@@ -345,7 +345,7 @@ Auto memory: set `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` if the spec says "one memor
 | Channel | Native? | Setup on this runtime |
 |---|---|---|
 | **Telegram** (default) | Yes, official plugin (Bun) | Bot via @BotFather → Sealed `TELEGRAM_BOT_TOKEN` → static `access.json` with the owner's numeric id → plugin installed once in the first-boot session (`/plugin install telegram@claude-plugins-official`, **user scope**) → launch with `--channels plugin:telegram@claude-plugins-official`. Long polling: no public URL. |
-| Discord | Yes, official plugin | Same pattern: `/plugin install discord@claude-plugins-official`, `DISCORD_BOT_TOKEN`, Message Content Intent on, `--channels plugin:discord@claude-plugins-official`, `/discord:access policy allowlist`. Static-mode support in the Discord plugin: UNVERIFIED → pair once from the `railway ssh` terminal, then set `allowlist`. |
+| Discord | Yes, official plugin | Same pattern: `/plugin install discord@claude-plugins-official`, `DISCORD_BOT_TOKEN`, Message Content Intent on, `--channels plugin:discord@claude-plugins-official`, `/discord:access policy allowlist`. Pair once from the `railway ssh` terminal, then set `allowlist` (works whether or not the Discord plugin has a static mode). |
 | iMessage | macOS only | Not available on a server → `claude-code-local` |
 | WhatsApp | No official channel | Not on this runtime. Do not load a community WhatsApp bridge with `--dangerously-load-development-channels`. |
 | Remote Control (Claude app) | Needs a claude.ai `/login` | Not with API key or setup-token ([remote-control](https://code.claude.com/docs/en/remote-control)). |
@@ -371,7 +371,7 @@ Telegram allows exactly one `getUpdates` consumer per token: never run this bot 
 23 9 * * 1     /app/bin/jarvis-job weekly-review   # SEC-29/33: digest of audit.jsonl + jobs.log (needs Read on /data/logs: add it to that job's allowlist); never updates anything
 ```
 
-supercronic honouring `TZ` from the environment: UNVERIFIED for v0.2.49 → verify with a one-off line at the next minute during build task.
+Check that supercronic honours `TZ` during the build task: add a one-off line for the next minute in local time, confirm it fires at that minute, then remove it. If it fires at the UTC minute instead, write the crontab in UTC.
 
 `bin/jarvis-job`:
 
@@ -392,7 +392,7 @@ printf '%s' "$out" | jq -r '.result // "(sin resultado)"' | head -c 4000 | /app/
 printf '%s %s cost=%s\n' "$(date -Is)" "$job" "$(printf '%s' "$out" | jq -r '.total_cost_usd // "?"')" >> /data/logs/jobs.log
 ```
 
-`dontAsk` denies anything not pre-approved, so a job can never send email, post or pay: those stay in the chat session behind the relay ([permission-modes#allow-only-pre-approved-tools-with-dontask-mode](https://code.claude.com/docs/en/permission-modes)). The JSON field name `total_cost_usd` is UNVERIFIED for 2.1.285 — the log line degrades to `?` if absent.
+`dontAsk` denies anything not pre-approved, so a job can never send email, post or pay: those stay in the chat session behind the relay ([permission-modes#allow-only-pre-approved-tools-with-dontask-mode](https://code.claude.com/docs/en/permission-modes)). The log line reads the JSON field `total_cost_usd` and writes `?` if the field is absent, so the job never fails on it.
 
 `bin/notify-telegram` (token never on argv, never echoed):
 
@@ -536,7 +536,7 @@ bwrap --ro-bind / / --unshare-all true
 claude doctor >/dev/null
 ```
 
-`claude doctor` exit code on warnings: UNVERIFIED — treat a non-zero as "read the output", not as a failed build.
+`claude doctor` may exit non-zero on warnings alone, so treat a non-zero as "read the output", not as a failed build.
 
 **Smoke test (with the person):**
 1. Owner sends "hola, ¿quién eres?" → reply in the SOUL voice within ~30 s.
@@ -553,22 +553,22 @@ claude doctor >/dev/null
 Runtime-specific:
 - **Hosting:** Railway Hobby ~$8–16 USD/month for Claude Code + Bun kept alive (0.7–1.5 GB RAM average because of leak headroom), vs ~$5 for a lean worker. Free/Trial plans do not fit (no `Always` restart; Free caps RAM at 0.5 GB). Source: https://docs.railway.com/pricing/plans and https://docs.railway.com/pricing/understanding-your-bill.
 - **Tokens (API key):** every turn carries the Claude Code system prompt + imported workspace files; keep `MEMORY.md` short and route jobs to the `cheap` slot. Prompt caching helps on long sessions.
-- **Subscription path (consent):** model usage draws from the owner's plan limits (Agent SDK / `claude -p` split still paused as of 2026-10-06 — https://support.claude.com/en/articles/15036540); hosting cost unchanged. Whether a 24/7 server fits "ordinary, individual usage": UNVERIFIED.
+- **Subscription path (consent):** model usage draws from the owner's plan limits (Agent SDK / `claude -p` split still paused as of 2026-10-06 — https://support.claude.com/en/articles/15036540); hosting cost unchanged. Whether a 24/7 server fits "ordinary, individual usage" is a grey zone the policy doesn't settle: explain it to the owner, get consent, and log it in spec §7; the API-key path avoids it.
 
 ## Known issues & fallbacks
 
 | # | Issue | Fallback |
 |---|---|---|
 | 1 | Memory leaks in long-running sessions (#61425, #67433, #76185 on claudeissues.com) | Supervisor RSS cap + nightly restart + platform memory limit (already built in). If restarts exceed ~5/day, move chat to `runtimes/claude-agent-sdk.md` or `runtimes/hermes.md`. |
-| 2 | Bubblewrap can't create namespaces inside the container (common on PaaS / default Docker seccomp) → with `failIfUnavailable:true` Bash can't run (exact behaviour UNVERIFIED) | Keep Claude usable without a shell: set `"sandbox": {"enabled": false}` **and** remove the shell tool entirely by adding `--tools "Read,Edit,Write,Grep,Glob,WebSearch,WebFetch"` to `bin/jarvis-run` and `bin/jarvis-job` (`--tools` removes built-ins not listed and does not touch MCP tools, so the Telegram reply still works: [cli-reference](https://code.claude.com/docs/en/cli-reference)). Record the SEC-07 exception in spec §4. The container (uid 1000, no host mounts) is the boundary. Never "fix" this with `--privileged` or bypass mode. |
+| 2 | Bubblewrap can't create namespaces inside the container (common on PaaS / default Docker seccomp) → with `failIfUnavailable:true` Bash can't run. Check at build: run one Bash command from the session; if it errors with a sandbox/namespace message, apply the mitigation | Keep Claude usable without a shell: set `"sandbox": {"enabled": false}` **and** remove the shell tool entirely by adding `--tools "Read,Edit,Write,Grep,Glob,WebSearch,WebFetch"` to `bin/jarvis-run` and `bin/jarvis-job` (`--tools` removes built-ins not listed and does not touch MCP tools, so the Telegram reply still works: [cli-reference](https://code.claude.com/docs/en/cli-reference)). Record the SEC-07 exception in spec §4. The container (uid 1000, no host mounts) is the boundary. Never "fix" this with `--privileged` or bypass mode. |
 | 3 | Channels are a research preview; `--channels` syntax/protocol may change; flag hidden from `--help` | Pin the CLI; `/jarvis-refresh` re-reads https://code.claude.com/docs/en/channels before any bump. |
-| 4 | Token path: stale stored login beats env token in `--channels` (#80091); OAuth refresh broken in long channel sessions (#44945); 401 with `claude -p` (#65320, fix UNVERIFIED) | Entrypoint deletes `.credentials.json`; nightly restart; if 401s persist → switch to `ANTHROPIC_API_KEY` (just change the Sealed variables). |
+| 4 | Token path: stale stored login beats env token in `--channels` (#80091); OAuth refresh broken in long channel sessions (#44945); 401 with `claude -p` (#65320; check the issue for a fix in the pinned version) | Entrypoint deletes `.credentials.json`; nightly restart; if 401s persist → switch to `ANTHROPIC_API_KEY` (just change the Sealed variables). |
 | 5 | First boot needs an interactive TTY (key approval, trust, plugin install) | `railway ssh` + tmux attach (§ Run & supervise). Everything lives on `/data`, so it happens once per volume. |
 | 6 | Railway redeploy = brief downtime (volume service, 1 replica) and Telegram messages sent meanwhile | Plugin polls on restart and picks up pending updates (Telegram keeps them ~24 h). Deploy outside working hours. |
 | 7 | Two consumers of the same bot token (laptop + server) → `409 Conflict`, messages lost | One bot per runtime; a separate bot for local testing. |
 | 8 | Remote Control / claude.ai connectors wanted | Not with API key or token. Use `/login` in the container with consent (expires; renew), or `claude-code-local`. |
 | 9 | Railway `railway.json` stops being read 2026-12-01 | Use `.railway/railway.ts` (above); dashboard for restart policy + replica limits. |
-| 10 | `claude --bg` / agent-view supervisor could replace tmux | Not validated with `--channels` — UNVERIFIED; keep tmux. |
+| 10 | `claude --bg` / agent-view supervisor could replace tmux | Not documented with `--channels`; keep tmux. |
 
 ## Sources
 

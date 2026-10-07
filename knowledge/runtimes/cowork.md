@@ -29,7 +29,7 @@ the workspace folder, and the first scheduled task. Then it hands over. Don't ad
 | "Nothing leaves my computer" | `ollama-local` |
 | Custom code, webhooks, their own web UI | `claude-agent-sdk` |
 | Free plan only | Cowork needs a paid plan, so look at `ollama-local` or a cheap API-key setup in `knowledge/decision-tree.md` |
-| Desktop runs on Linux | Use Cowork on the web (claude.ai). Cowork on Claude Desktop for Linux isn't on Anthropic's platform list. Dispatch lists a Linux desktop app without computer use (conflicting sources, UNVERIFIED) |
+| Desktop runs on Linux | Use Cowork on the web (claude.ai). Cowork on Claude Desktop for Linux isn't on Anthropic's platform list. Dispatch lists a Linux desktop app without computer use; the sources disagree, so default to the web and use the Linux app only if the person already has it working |
 
 ## Auth
 
@@ -64,7 +64,7 @@ What `questions/0-preflight.md` must show (or the person confirms):
 
 | Check | macOS | Windows | Linux |
 |---|---|---|---|
-| OS | macOS 13 or newer (cask requirement) | Windows 10/11 x64 or ARM64 (both in the winget manifest; Dispatch lists Windows x64 only) | Use claude.ai on the web. Desktop availability is UNVERIFIED |
+| OS | macOS 13 or newer (cask requirement) | Windows 10/11 x64 or ARM64 (both in the winget manifest; Dispatch lists Windows x64 only) | Use claude.ai on the web |
 | Package manager | `brew --version` (optional, the `.dmg` works too) | `winget --version` (optional) | — |
 | Plan | Pro, Max, Team or Enterprise. **Ask, don't detect.** | same | same |
 | Phone (optional) | Claude app installed and signed in to the same account | same | same |
@@ -153,14 +153,14 @@ settings page holds standing instructions.
 **3. Connect the folder** (user_action). In a Cowork task, choose the `Jarvis` folder as the working
 folder. Folder instructions ("project-specific context to Cowork when you select a local folder on desktop.
 Claude can also update these on its own", https://support.claude.com/articles/13345190) exist, but
-the file name or storage Cowork uses for them is not documented (UNVERIFIED), so the pointer lives in the
+the file name or storage Cowork uses for them is not documented, so the pointer lives in the
 global instructions instead (step 2).
 
 **4. Connectors, read-only first** (user_action, SEC-22). In Claude: **Settings › Connectors**, add only
 what the spec lists, usually Gmail, Google Calendar and Google Drive, or the profession pack's
 equivalents. Where per-tool permissions exist, set write tools to **Ask**. Anthropic fixes
 irreversible mail/calendar writes (send, forward, create/update events) to *ask* in admin
-controls (source: support search summary, UNVERIFIED for Pro/Max personal accounts). Prefer
+controls (source: support search summary). On Pro/Max personal accounts, open each connector's settings and set its write tools to **Ask** yourself. Prefer
 connectors from Anthropic's directory.
 
 **5. First scheduled task** (user_action, see *Scheduling*).
@@ -169,15 +169,14 @@ connectors from Anthropic's directory.
 
 **7. Projects:** Claude Projects with uploaded files and project instructions are a valid alternative
 to the folder for people who prefer not to touch files: upload SOUL/USER/AGENTS/MEMORY.md and paste
-the global-instructions text as project instructions. Whether scheduled tasks can run *inside* a
-Project is UNVERIFIED. Default to the folder + global instructions.
+the global-instructions text as project instructions. Scheduled tasks are documented for the folder, not for Projects, so default to the folder + global instructions.
 
 ## Workspace mapping
 
 | Jarvis file | How Cowork gets it |
 |---|---|
 | SOUL.md, USER.md, AGENTS.md | Digest pasted into **Global instructions** (always loaded) + full files read from the connected folder |
-| MEMORY.md | Read from the folder. Claude appends on "recuerda…". Claude's own account memory feature may also apply; its behaviour inside Cowork is UNVERIFIED. MEMORY.md stays the source of truth because it is portable |
+| MEMORY.md | Read from the folder. Claude appends on "recuerda…". Claude's own account memory feature may also apply; MEMORY.md stays the source of truth because it is portable, and SOUL.md tells Claude to write facts there |
 | HEARTBEAT.md | Pasted into the scheduled-task prompt. Remote tasks can't read local files (see *Scheduling*) |
 | TOOLS.md | Documentation for the owner. The real tool list is the Connectors page |
 | Skills (`templates/skills-base/`) | Cowork supports skills and plugins ("Scheduled tasks have access to the same capabilities as regular Cowork tasks, including connected tools, skills, and installed plugins"). Upload only the Architect's own SKILL.md folders. Third-party plugins follow SEC-24 |
@@ -192,10 +191,10 @@ Portability: if they outgrow Cowork, the same folder moves unchanged to `claude-
 | Claude Desktop (macOS/Windows) | Native | Main surface |
 | claude.ai web | Native since 2026-07-07 | Linux users live here |
 | Claude mobile app | Native since 2026-07-07 | Talk to Jarvis from the phone |
-| **Dispatch** | Limited beta, Pro and Max. "Not available to new users" (support article). Plan rollout dates are secondary, UNVERIFIED | One continuous thread from phone → desktop does the work with local files, connectors and apps. **Desktop must be awake with the app open.** Setup: Cowork › Dispatch › Get started → file access + keep-awake settings (labels UNVERIFIED; needs latest Desktop + mobile app, same account) |
+| **Dispatch** | Limited beta, Pro and Max. "Not available to new users" (support article). Plan rollout dates are re-checked live by `stack-researcher` before promising Dispatch | One continuous thread from phone → desktop does the work with local files, connectors and apps. **Desktop must be awake with the app open.** Setup: Cowork › Dispatch › Get started → file access + keep-awake settings (labels may differ by app version; needs latest Desktop + mobile app, same account) |
 | Telegram / WhatsApp / Discord / iMessage / email-in | **Not available** | → `claude-code-local` (Telegram/Discord/iMessage) or `hermes`/`openclaw` (WhatsApp) |
 
-**Owner access (SEC-01 is not applicable: no inbound channel, per `knowledge/security-checklist.md`):** the account login is the allowlist. Cowork sessions belong to the signed-in account (UNVERIFIED wording on sharing). Controls: a strong password + 2FA on the Claude account and on the email behind it,
+**Owner access (SEC-01 is not applicable: no inbound channel, per `knowledge/security-checklist.md`):** the account login is the allowlist. Cowork sessions belong to the signed-in account; don't share that account with anyone. Controls: a strong password + 2FA on the Claude account and on the email behind it,
 the phone app behind a device lock, and no shared Claude account (Team plan seats are per person).
 There are no bot IDs to allowlist and nothing is reachable by strangers.
 
@@ -233,7 +232,7 @@ Nothing to supervise: no launchd, systemd, Docker or Railway. **Never Railway.**
 - Remote scheduled tasks run on Anthropic's side.
 - Local tasks and Dispatch need the computer awake + Claude Desktop open. On macOS, add Claude to
   *Login Items* (System Settings › General › Login Items). On Windows, enable "start at login" in
-  Claude's settings if present (UNVERIFIED label), or add it to the Startup folder.
+  Claude's settings if the option is there, otherwise add it to the Startup folder (`Win+R` → `shell:startup`).
 - Liveness signal = the morning briefing arriving. If it's missing two days in a row, run `/jarvis-doctor`.
 
 ## Security hardening
@@ -321,7 +320,7 @@ before suggesting another runtime.
 | A tool has no connector (LATAM fiscal/CRM) | A directory connector (e.g. Zapier) if available, reviewed under SEC-24, or keep it manual. Never a random local MCP |
 | Plan limits reached | Fewer/longer intervals, cheaper model choice in the task's model selector, or Max |
 | Settings labels differ from this file (UI moves fast) | Ask the person to describe their screen. `stack-researcher` re-checks the support articles below |
-| Linux desktop | claude.ai web for Cowork. Dispatch lists a Linux desktop app, but computer-use tasks aren't available on Linux (Dispatch article); Cowork's own requirements list only macOS/Windows Desktop, so treat Linux desktop as UNVERIFIED |
+| Linux desktop | claude.ai web for Cowork. Dispatch lists a Linux desktop app, but computer-use tasks aren't available on Linux (Dispatch article); Cowork's own requirements list only macOS/Windows Desktop, so default to the web on Linux |
 | Team/Enterprise with Cowork disabled | Admin must enable it, otherwise `claude-code-local` if allowed by their company |
 
 ## Sources

@@ -67,13 +67,13 @@ a Claude plan (CMP-30, SEC-01).
 | Calendar | Google Workspace MCP (Calendar), developer preview | T1 | Read events | Creating/accepting events with clients = IRR-06 |
 | Bookings | **Calendly** official remote MCP `https://mcp.calendly.com` (OAuth/DCR) **or** **Cal.com** official `https://mcp.cal.com/mcp` (OAuth 2.1) | T1 | List events, invitees, event types | Cancel/reschedule = IRR-04/IRR-06; single-use links fine after yes |
 | Payments | **Stripe** official `https://mcp.stripe.com` (OAuth / Agent key) | T1 | `stripe_api_read`; deny `stripe_api_write` | Payment link with amount sent to a client, refunds = IRR-03 |
-| Payments (LATAM) | Mercado Pago official MCP is developer-scope only (UNVERIFIED for live payments) → T3 wrapper over MP REST for "who paid?" | T1 dev / T3 | Read payments | Links = IRR-03 |
+| Payments (LATAM) | Mercado Pago official MCP is developer-scope only (after connecting, use payment tools only if its tool list shows them) → T3 wrapper over MP REST for "who paid?" | T1 dev / T3 | Read payments | Links = IRR-03 |
 | Client notes / programs | **Notion** official `https://mcp.notion.com/mcp` — only the "Clientes" database shared | T1 | Read | Page updates after yes (IRR-11 if it feeds automations) |
-| Light CRM | HubSpot (`https://mcp.hubspot.com`, free CRM tier) or Pipedrive official MCP (paid plans; endpoint URL UNVERIFIED) | T1 | Read contacts/deals | Stage moves = IRR-11; deletes IRR-04 |
+| Light CRM | HubSpot (`https://mcp.hubspot.com`, free CRM tier) or Pipedrive official MCP (paid plans; `stack-researcher` reads the endpoint URL from Pipedrive's docs at install) | T1 | Read contacts/deals | Stage moves = IRR-11; deletes IRR-04 |
 | Meeting transcripts | Google Meet transcripts in Drive via Workspace MCP (Drive read) | T1 | `drive.readonly` scoped to the transcripts folder | — |
 | Email | Workspace MCP (Gmail) | T1 | `gmail.readonly` + drafts | Send = IRR-01 |
 
-Zoom/Fathom/other note-takers: no MCP evaluated in this pass (UNVERIFIED). Use exported
+Zoom/Fathom/other note-takers: no official MCP listed; check the vendor docs at install, otherwise use exported
 transcripts or the coach's voice note instead. Recording a session needs the client's consent.
 
 ## Scheduled jobs
@@ -154,6 +154,6 @@ Pack skills (max 3 in week one):
 - Mexico LFPDPPP 2025 (secondary): https://www.hoganlovells.com/es/publications/mexicos-new-federal-data-protection-law-what-it-means-for-companies
 - Railway cron (UTC): https://docs.railway.com/reference/cron-jobs
 
-UNVERIFIED in this file: Calendly MCP tool count and launch date (secondary/community post);
+`stack-researcher` re-checks these live at install time: Calendly MCP tool count and launch date (secondary/community post);
 Mercado Pago live-payment tools; MCPs for Zoom/Fathom; whether a coach's notes fall under any
 domestic-use exclusion in Mexico's LFPDPPP 2025.

@@ -148,8 +148,8 @@ Source: https://code.claude.com/docs/en/routines (fetched 2026-10-06). **Researc
 - **Minimum interval 1 hour.** "Expressions that run more frequently are rejected." Times are
   entered in local time and converted automatically.
 - **Fresh clone every run:** no local files. The workspace (SOUL/USER/MEMORY/HEARTBEAT.md) must be in
-  a GitHub repo the routine clones, **with no secrets in it**. Whether a routine can run with no
-  repository attached is UNVERIFIED.
+  a GitHub repo the routine clones, **with no secrets in it**. If the routine form lets the person skip the repository, a
+  connectors-only job can run without one; if it requires one, attach the workspace repo.
 - Requires a **claude.ai subscription login** (Pro, Max, Team, Enterprise). `/schedule` is hidden
   with a Console API key. It draws from subscription usage. Hourly limits: 100 scheduled runs per
   hour per account, 30 Run-now/API fires per hour per routine. The older "5/15/25 runs per day"
@@ -175,12 +175,12 @@ unmodified `claude` binary, or an `ANTHROPIC_API_KEY` with a spend cap. `--bare`
 credentials or the system keychain", so **`--bare` needs an API key**. With a subscription login,
 run without `--bare`, from the Jarvis folder, so the folder's CLAUDE.md and `.mcp.json` load. Usage
 draws from the subscription's limits ([support 15036540](https://support.claude.com/en/articles/15036540)).
-Whether a LaunchAgent can read the login from the macOS keychain without an open terminal is
-UNVERIFIED. The build task verifies it with a forced run (`launchctl kickstart`), and on failure
-falls back to `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN` (allowed for "CI pipelines and
+The LaunchAgent reads the stored `/login` from the macOS keychain; the build task proves it with a
+forced run (`launchctl kickstart`) and checks the log. If that run reports an auth error, it falls
+back to `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN` (allowed for "CI pipelines and
 scripts", see `auth-matrix.md`, consent logged in spec §7). For `claude-p-cron` it goes in the
 mode-600 `.env`. For `claude-code-local` it goes in **`jobs/.env.jobs`** (mode 600, gitignored),
-which only `run-job.sh` sources: `bin/jarvis-up.sh` sources `.env`, and the token there would
+which only `run-job.sh` reads: `bin/jarvis-up.sh` sources `.env`, and the token there would
 outrank the channel session's `/login`. That token "can only make model requests, so it
 can't … fetch claude.ai connectors" ([authentication](https://code.claude.com/docs/en/authentication#generate-a-long-lived-token)):
 with it, Gmail/Calendar must come from MCP servers in the folder's `.mcp.json`, not claude.ai connectors.
@@ -191,59 +191,176 @@ with it, Gmail/Calendar must come from MCP servers in the folder's `.mcp.json`, 
 | Flag | Why |
 |---|---|
 | `--permission-mode dontAsk` | Denies every call that would otherwise prompt. Only allow-listed tools run |
-| `--allowedTools "<read-only tools>"` | Exactly the read tools the job needs (e.g. `Read`, a calendar list tool, a Gmail search tool) |
-| `--disallowedTools "<send/delete tools>"` | Belt and braces: name every send/post/delete MCP tool the folder has |
+| `--tools "<built-in read tools>"` + `--allowedTools "<read-only tools>"` | Exactly the read tools the job needs (e.g. `Read`, a calendar list tool, a Gmail search tool). `--tools` narrows the built-in set; MCP tools are named only in `--allowedTools` |
+| `--disallowedTools "<send/delete tools>"` | Belt and braces: name every send/post/delete MCP tool the folder has (`jobs/<job>.deny`) |
+| `--strict-mcp-config --mcp-config ./mcp.jobs.json` | The job sees only the read-only MCP servers in `mcp.jobs.json`, never the folder's `.mcp.json` or user-level servers |
+| `--output-format json` | The wrapper reads `result`, `is_error`, `total_cost_usd`, `permission_denials` for the audit line |
 | `--permission-prompts none` | "When nobody is available to answer permission prompts, for example in a scheduled job". Needs a recent Claude Code (see `runtimes/claude-code-local.md`); drop the flag if the pinned version rejects it, since `-p` with no host denies prompts anyway |
 | `--max-turns 12` | Turn cap. "Exits with an error when the limit is reached" |
-| `--max-budget-usd 0.50` | Per-run cap against the client-side estimate (meaningful on an API key) |
+| `--max-budget-usd 0.50` | Per-run cap against the client-side estimate (meaningful on an API key). `JARVIS_MAX_BUDGET_USD`, `JARVIS_MAX_TURNS` in `.env` |
 | `--model "$JARVIS_MODEL_CHEAP"` / `"$JARVIS_MODEL_MAIN"` | Subscription login: the Claude Code **aliases** (`haiku`, `sonnet`), so a model retirement never breaks a job. API key: IDs from `knowledge/models.json`. Written into `.env` by the build |
-| `--settings .claude/headless-settings.json` | `claude-code-local` only: same sandbox as the channel session (SEC-07/09) and the channel plugin off (no second poller) |
-| `--append-system-prompt-file jobs/<job>.md` | The job's prompt lives in the repo, not in the plist |
+| `--settings .claude/headless-settings.json` | `claude-code-local` only: same sandbox as the channel session (SEC-07/09) and the channel plugin off (no second poller). Without that file (`claude-p-cron`): `--setting-sources project` |
+| `--append-system-prompt-file jobs/<job>.md` | The job's prompt lives in the repo, not in the plist. `claude-p-cron` uses a skill instead: prompt `/<job>` from `.claude/skills/<job>/SKILL.md` |
 | `--no-session-persistence` | Don't pile up hundreds of heartbeat sessions on disk |
 
 Never `--dangerously-skip-permissions` / `bypassPermissions` in a scheduled job (`SEC-10`). Each job's
 `.tools` file lists only the tools that job needs (`SEC-23`).
 
-**Wrapper** `jobs/run-job.sh <job>` (written by the build. Secrets come from mode-600 files, never
-from the plist, and are never printed or put in argv). The bot token is read from the channel's
-token file (`claude-code-local`: `~/.claude/channels/telegram/.env`; `claude-p-cron`: the Jarvis
-`.env`) in a subshell and handed to curl on stdin (`-K -`), so it never shows in `ps` and never
-enters Claude's environment:
+**Canonical wrapper** `jobs/run-job.sh <job>`. This is the **only** copy: `claude-code-local`
+and `claude-p-cron` both install it verbatim (`runtimes/claude-p-cron.md` points here), `chmod 700`.
+What it guarantees:
+
+- **The bot token never reaches `claude`** (or any MCP server it spawns). Config files are parsed as
+  `KEY=VALUE`, never sourced or exported; only `JARVIS_*`, `OWNER_*` and the model credential are
+  kept. `claude` runs under `env -i` with `HOME PATH USER LANG TMPDIR`, the credential when one is
+  needed, and the MCP secret names listed in `JARVIS_JOB_ENV`. The token is read from
+  `JARVIS_BOT_TOKEN_FILE` (`claude-code-local`: `~/.claude/channels/telegram/.env`, the default;
+  `claude-p-cron`: `.env`) in a subshell at send time and handed to curl on stdin (`-K -`), so it
+  never shows in `ps`.
+- **Locked-down run:** `--permission-mode dontAsk` with an explicit tool list (refuses wildcards,
+  Bash/Edit/Write and bare `WebFetch`), `--strict-mcp-config --mcp-config ./mcp.jobs.json`,
+  `--max-turns` + `--max-budget-usd`.
+- **Delivery** `JARVIS_DELIVERY=telegram|file` (default `telegram`); `JARVIS_DRY_RUN=1` never sends.
+- **Failures are never silent:** `claude` rc≠0, `is_error` not `false`, or an empty result →
+  `FAILED` line in `logs/jobs.log`, `outbox/<stamp>-<job>-AVISO.txt`, the AVISO on Telegram in
+  telegram mode, and **exit 1** so launchd/systemd/Task Scheduler record the failure.
+- **Complete audit line every run** in `logs/audit.tsv` (`rc= error= cost_est= denied=`), with
+  `error=unknown cost_est=0 denied=0` when the JSON is empty (e.g. `claude` not on `PATH`, rc=127).
+  Successful runs also log `<job> ok` in `logs/jobs.log`.
+- **Kill switch** `STOP` file, per-job `mkdir` lock, job name limited to `[a-z0-9-]` (no paths, no flags).
+
+Per job: the prompt is `jobs/<job>.md` (appended as system prompt) or, if absent, the skill
+`.claude/skills/<job>/SKILL.md` (prompt `/<job>`); tools in `jobs/<job>.tools` (default
+`Read,Grep,Glob`; MCP tools by exact name); model slot `cheap|main` in `jobs/<job>.model` (default
+`main`, `cheap` for `heartbeat`) → `JARVIS_MODEL_CHEAP` / `JARVIS_MODEL_MAIN`; optional
+`jobs/<job>.deny` for `--disallowedTools`. `mcp.jobs.json` holds only the read-only servers jobs
+may use (start with `{"mcpServers": {}}`). `outbox/`, `logs/` and `STOP` are gitignored. Runs under
+macOS `/bin/bash` 3.2.
 
 ```bash
 #!/usr/bin/env bash
+# jobs/run-job.sh <job>: the one wrapper for every scheduled `claude -p` job
+# (claude-code-local and claude-p-cron). Canonical copy: knowledge/capabilities/scheduling.md.
 set -euo pipefail
-cd "$(dirname "$0")/.."                       # the Jarvis folder
-set -a; . ./.env; set +a                      # mode 600, gitignored: OWNER_TELEGRAM_ID, model aliases, MCP secrets.
-                                              # Never ANTHROPIC_API_KEY on a subscription login, never the bot token
-[ -f jobs/.env.jobs ] && { set -a; . jobs/.env.jobs; set +a; }   # optional setup-token fallback (claude-code-local)
-TOKEN_FILE="${JARVIS_BOT_TOKEN_FILE:-$HOME/.claude/channels/telegram/.env}"
-SETTINGS=(); [ -f .claude/headless-settings.json ] && SETTINGS=(--settings .claude/headless-settings.json)
-JOB="$1"; LOCK=".jarvis-locks/$JOB"
-mkdir -p .jarvis-locks logs
-mkdir "$LOCK" 2>/dev/null || { echo "$(date) $JOB skipped: previous run still going" >> logs/jobs.log; exit 0; }
-trap 'rmdir "$LOCK"' EXIT
-MODEL_VAR="JARVIS_MODEL_$(tr a-z A-Z < "jobs/$JOB.model")"   # cheap | main
-OUT=$(claude -p "Run the job described in your instructions." "${SETTINGS[@]}" \
-  --append-system-prompt-file "jobs/$JOB.md" \
-  --model "${!MODEL_VAR}" \
-  --permission-mode dontAsk --allowedTools "$(cat "jobs/$JOB.tools")" \
-  --max-turns 12 --max-budget-usd "${JARVIS_JOB_BUDGET_USD:-0.50}" \
-  --no-session-persistence 2>>logs/jobs.log) \
-  && echo "$(date) $JOB ok" >> logs/jobs.log \
-  || { echo "$(date) $JOB FAILED" >> logs/jobs.log
-       OUT="⚠️ Jarvis: el trabajo '$JOB' falló. Revisa logs/jobs.log o corre /jarvis-doctor."; }
-case "$OUT" in HEARTBEAT_OK*|*HEARTBEAT_OK) exit 0 ;; esac   # silent heartbeat
-( . "$TOKEN_FILE"                             # subshell: TELEGRAM_BOT_TOKEN never reaches claude's env
-  printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TELEGRAM_BOT_TOKEN" |
-  curl -fsS -K - --data-urlencode "chat_id=${OWNER_TELEGRAM_ID}" \
-       --data-urlencode "text=${OUT:0:4000}" > /dev/null )
+JOB="${1:-}"
+case "$JOB" in (""|-*|*[!a-z0-9-]*) echo "bad job name" >&2; exit 2;; esac   # no paths, no flags
+cd "$(dirname "$0")/.."                                    # the Jarvis folder
+mkdir -p outbox logs
+STAMP="$(date +%Y-%m-%dT%H%M)"; OUT="outbox/$STAMP-$JOB.json"
+[ -f STOP ] && { echo "$(date '+%F %T') $JOB skipped: STOP file" >> logs/jobs.log; exit 0; }   # kill switch
+
+# Config is parsed, never sourced, never exported. Only non-secret JARVIS_*/OWNER_* settings and
+# the model credential are kept; the bot token is skipped here and read only at send time.
+cfg_get() { [ -f "$1" ] || return 0; grep -E "^$2=" "$1" | tail -n 1 | cut -d= -f2- | tr -d '\r"' || true; }
+load_cfg() {
+  [ -f "$1" ] || return 0
+  local line k
+  while IFS= read -r line || [ -n "$line" ]; do
+    k="${line%%=*}"; [ "$k" != "$line" ] || continue
+    case "$k" in (JARVIS_*|OWNER_*|CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY) ;; (*) continue;; esac
+    case "$k" in (*[!A-Z0-9_]*) continue;; esac
+    line="${line#*=}"; line="${line%$'\r'}"; line="${line%\"}"; printf -v "$k" '%s' "${line#\"}"
+  done < "$1"
+}
+load_cfg .env                  # OWNER_TELEGRAM_ID, JARVIS_* (models, limits, delivery)
+load_cfg jobs/.env.jobs        # claude-code-local only: optional setup-token fallback (mode 600)
+[ "${JARVIS_AUTH:-subscription}" = "api_key" ] || unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
+DELIVERY="${JARVIS_DELIVERY:-telegram}"                     # telegram | file
+TOKEN_FILE="${JARVIS_BOT_TOKEN_FILE:-$HOME/.claude/channels/telegram/.env}"   # claude-p-cron: .env
+
+audit() {  # one complete line per run, even when claude is missing or printed nothing
+  printf '%s\t%s\trc=%s\terror=%s\tcost_est=%s\tdenied=%s\n' \
+    "$STAMP" "$JOB" "${RC:-2}" "${ISERR:-unknown}" "${COST:-0}" "${DENIED:-0}" >> logs/audit.tsv
+}
+send_telegram() {  # subshell: the token is read at send time, never exported, never in argv
+  ( TOK="$(cfg_get "$TOKEN_FILE" TELEGRAM_BOT_TOKEN)"; [ -n "$TOK" ] || exit 1
+    printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TOK" |
+      curl -sS --fail --max-time 20 -o /dev/null -K - \
+        --data-urlencode "chat_id=${OWNER_TELEGRAM_ID:-}" --data-urlencode "text=$1" 2>/dev/null )
+}
+fail() {  # never silent: log line, AVISO file in outbox/, Telegram when configured, exit 1
+  local msg="AVISO Jarvis: el trabajo '$JOB' falló ($1). Revisa logs/$JOB.stderr y logs/audit.tsv, o corre /jarvis-doctor. Si dice 'Login expired': abre la terminal, ejecuta claude y escribe /login."
+  echo "$(date '+%F %T') $JOB FAILED ($1)" >> logs/jobs.log
+  printf '%s\n' "$msg" > "outbox/$STAMP-$JOB-AVISO.txt"
+  if [ "$DELIVERY" = telegram ] && [ -z "${JARVIS_DRY_RUN:-}" ] && [ -z "${NO_TG:-}" ]; then
+    send_telegram "$msg" || echo "telegram send failed" >> "logs/$JOB.stderr"; fi
+  exit 1
+}
+abort() { audit; fail "$1"; }                              # config error before claude ran
+
+LOCK="logs/.$JOB.lock"
+mkdir "$LOCK" 2>/dev/null || { echo "$(date '+%F %T') $JOB skipped: previous run still going" >> logs/jobs.log; exit 0; }
+trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+case "$DELIVERY" in (telegram|file) ;; (*) abort "JARVIS_DELIVERY debe ser telegram o file";; esac
+
+# Job definition: prompt (jobs/<job>.md or a skill), tool list, model slot, optional deny list
+if   [ -f "jobs/$JOB.md" ];                 then PROMPT="Run the job described in your instructions."; PFILE=(--append-system-prompt-file "jobs/$JOB.md")
+elif [ -f ".claude/skills/$JOB/SKILL.md" ]; then PROMPT="/$JOB"; PFILE=()
+else abort "no existe jobs/$JOB.md ni .claude/skills/$JOB/SKILL.md"; fi
+TOOLS="Read,Grep,Glob"
+[ -f "jobs/$JOB.tools" ] && { TOOLS="$(tr -s ' \r\n,' ',' < "jobs/$JOB.tools")"; TOOLS="${TOOLS#,}"; TOOLS="${TOOLS%,}"; }
+case "$TOOLS" in (""|*'*'*) abort "lista de herramientas vacía o con comodín";; esac
+printf '%s\n' "$TOOLS" | tr ',' '\n' | grep -Eq '^(Bash|Edit|Write|NotebookEdit)($|\()|^WebFetch$' \
+  && abort "lista de herramientas con shell, escritura o fetch sin dominio"
+BUILTIN="$(printf '%s\n' "$TOOLS" | tr ',' '\n' | grep -v '^mcp__' | paste -sd, - || true)"
+DENY=(); [ -f "jobs/$JOB.deny" ] && DENY=(--disallowedTools "$(tr -s ' \r\n,' ',' < "jobs/$JOB.deny")")
+SLOT=main; [ "$JOB" = heartbeat ] && SLOT=cheap
+[ -f "jobs/$JOB.model" ] && SLOT="$(tr -d ' \r\n' < "jobs/$JOB.model")"
+case "$SLOT" in
+  (cheap) MODEL="${JARVIS_MODEL_CHEAP:-${JARVIS_MODEL_MAIN:-}}";;
+  (main)  MODEL="${JARVIS_MODEL_MAIN:-}";;
+  (*)     MODEL="";;
+esac
+[ -n "$MODEL" ] || abort "sin modelo: JARVIS_MODEL_MAIN / JARVIS_MODEL_CHEAP en .env"
+[ -f mcp.jobs.json ] || abort "falta mcp.jobs.json"
+SETTINGS=(--setting-sources project)                                                     # claude-p-cron
+[ -f .claude/headless-settings.json ] && SETTINGS=(--settings .claude/headless-settings.json)   # claude-code-local
+
+# claude gets an explicit, minimal environment: no bot token, nothing inherited by accident
+CENV=(HOME="$HOME" PATH="$PATH" USER="${USER:-$(id -un)}" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}")
+[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && CENV+=(CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN")
+[ -n "${ANTHROPIC_API_KEY:-}" ] && CENV+=(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY")         # only with JARVIS_AUTH=api_key
+for k in ${JARVIS_JOB_ENV:-}; do                           # MCP secrets mcp.jobs.json references as ${NAME}
+  case "$k" in (*BOT_TOKEN*|*[!A-Z0-9_]*) continue;; esac
+  CENV+=("$k=$(cfg_get .env "$k")")
+done
+
+set +e
+env -i "${CENV[@]}" claude -p "$PROMPT" ${PFILE[@]+"${PFILE[@]}"} "${SETTINGS[@]}" \
+  --model "$MODEL" --output-format json \
+  --permission-mode dontAsk --permission-prompts none \
+  --tools "$BUILTIN" --allowedTools "$TOOLS" ${DENY[@]+"${DENY[@]}"} \
+  --strict-mcp-config --mcp-config ./mcp.jobs.json \
+  --max-turns "${JARVIS_MAX_TURNS:-12}" --max-budget-usd "${JARVIS_MAX_BUDGET_USD:-0.50}" \
+  --no-session-persistence < /dev/null > "$OUT" 2> "logs/$JOB.stderr"
+RC=$?
+set -e
+
+TEXT=""; ISERR=unknown; COST=0; DENIED=0                   # defaults when the JSON is empty or missing
+if [ -s "$OUT" ] && command -v jq >/dev/null && jq -e . "$OUT" >/dev/null 2>&1; then
+  TEXT="$(jq -r '.result // empty' "$OUT" 2>/dev/null || true)"
+  ISERR="$(jq -r '.is_error // false' "$OUT" 2>/dev/null || echo unknown)"
+  COST="$(jq -r '.total_cost_usd // 0' "$OUT" 2>/dev/null || echo 0)"
+  DENIED="$(jq -r '(.permission_denials // []) | length' "$OUT" 2>/dev/null || echo 0)"
+fi
+audit
+{ [ "$RC" -eq 0 ] && [ "$ISERR" = false ] && [ -n "$TEXT" ]; } || fail "rc=$RC error=$ISERR"
+
+case "$TEXT" in (HEARTBEAT_OK*|*HEARTBEAT_OK|NADA)       # nothing to report: stay silent
+  echo "$(date '+%F %T') $JOB ok (silent)" >> logs/jobs.log; exit 0;; esac
+if [ "$DELIVERY" = telegram ] && [ -z "${JARVIS_DRY_RUN:-}" ]; then
+  i=0; while [ "$i" -lt "${#TEXT}" ]; do                 # plain text, 3900-char chunks (cap 4096)
+    send_telegram "${TEXT:$i:3900}" || { NO_TG=1; fail "envío a Telegram falló"; }
+    i=$((i+3900)); done
+fi                                                         # file mode: the result stays in $OUT
+echo "$(date '+%F %T') $JOB ok" >> logs/jobs.log
 ```
 
-`claude-p-cron` sets `JARVIS_BOT_TOKEN_FILE=.env` (its own layout, `runtimes/claude-p-cron.md`).
-
 It only ever sends to `OWNER_TELEGRAM_ID`, the owner allowlist (`SEC-01`). Telegram caps a message
-at 4096 characters, so the wrapper truncates to 4000.
+at 4096 characters, so the wrapper sends plain text in 3900-character chunks (`${TEXT:i:n}` slices
+characters only with a UTF-8 `LANG`, so set it in the scheduler entry). `--permission-prompts none`
+needs the Claude Code version listed in `runtimes/claude-p-cron.md` § Pinned versions; remove only that flag
+if a pinned version rejects it (flags table above).
 
 **macOS LaunchAgent** `~/Library/LaunchAgents/com.jarvis.briefing.plist` (user-level, no `sudo`). `{{JARVIS_DIR}}` is the absolute
 path of the Jarvis folder, filled in by the build (launchd does not expand `~` or `$HOME`):
@@ -262,10 +379,19 @@ path of the Jarvis folder, filled in by the build (launchd does not expand `~` o
   </array>
   <key>StandardOutPath</key><string>{{JARVIS_DIR}}/logs/briefing.out</string>
   <key>StandardErrorPath</key><string>{{JARVIS_DIR}}/logs/briefing.err</string>
-  <key>EnvironmentVariables</key><dict><key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>EnvironmentVariables</key><dict>
+    <key>PATH</key><string>/Users/USER/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>LANG</key><string>en_US.UTF-8</string>
+  </dict>
 </dict></plist>
 ```
 
+- `PATH`: prepend the directory of `which claude` (`dirname "$(which claude)"`) to
+  `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`. With the native installer that is
+  `/Users/USER/.local/bin` (`USER` = the macOS short name, `id -un`), as above; with Homebrew it is
+  already `/opt/homebrew/bin`. Same convention as `runtimes/claude-p-cron.md` and the `{{path}}`
+  placeholder in `templates/local/README.md`. launchd doesn't read the shell profile: a missing
+  folder shows up as `rc=127 error=unknown` in `logs/audit.tsv` and an AVISO in `outbox/`.
 - Load: `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jarvis.briefing.plist`.
   Force a test run: `launchctl kickstart -k gui/$(id -u)/com.jarvis.briefing`.
 - launchd "will start the job the next time the computer wakes up. If multiple intervals transpire
@@ -304,9 +430,9 @@ https://hermes-agent.nousresearch.com/docs/user-guide/security/ (fetched 2026-10
 - **"Cron execution is handled by the gateway daemon."** The gateway must be running
   (`hermes gateway install` locally, the container's main process on Railway).
 - Timezone: jobs follow the system timezone where the gateway runs. `runtimes/hermes.md` also
-  sets `HERMES_TIMEZONE` (config docs); which of the two wins for cron is UNVERIFIED. On Railway,
-  set both `TZ` and `HERMES_TIMEZONE` (e.g. `America/Mexico_City`) and verify with a one-shot
-  `"in 2m"` job. That `TZ` is honoured inside the official image is UNVERIFIED.
+  sets `HERMES_TIMEZONE` (config docs); so set both to the same zone. On Railway,
+  set both `TZ` and `HERMES_TIMEZONE` (e.g. `America/Mexico_City`), then prove the zone with a
+  one-shot `"in 2m"` job and `railway run date`; if the time is off, fix `TZ` before adding jobs.
 - **Silence:** a response containing `[SILENT]` suppresses delivery on success, and failed jobs
   always deliver. `[CRON_FAILURE]` at the start marks a failed run. A pre-run script can emit
   `{"wakeAgent": false}` to skip the model on that tick (§ Cheap heartbeats).
@@ -315,7 +441,7 @@ https://hermes-agent.nousresearch.com/docs/user-guide/security/ (fetched 2026-10
   `cron_mode: approve`. Also keep `unattended_mode: deny`. `cron_mode` gates dangerous **terminal
   commands**, not MCP tool calls (`runtimes/hermes.md`), so cron jobs may only reach read-only MCP
   tools (MCP `tools.include` without send tools).
-- Hermes has no native HEARTBEAT.md reader (UNVERIFIED). The heartbeat is a cron job: `hermes cron
+- The heartbeat on Hermes is a cron job (the Hermes cron docs describe no HEARTBEAT.md reader): `hermes cron
   create "17 9-18 * * 1-5" "Lee HEARTBEAT.md y sigue sus instrucciones. Si nada requiere atención,
   responde solo [SILENT]." --deliver "telegram:123456789"` (fake ID; use the owner's). Delivery
   flag syntax: `--deliver telegram`, `--deliver "telegram:<chat_id>"`, `origin`, `local`, `all`.
@@ -362,9 +488,9 @@ https://docs.openclaw.ai/automation/cron-jobs/managing-jobs, https://docs.opencl
   legacy token: a reply with it at the start or end is still dropped if what remains is at most
   300 characters (fixed budget). In the middle of a message it is plain text. Prefer `NO_REPLY`
   for new installs.
-- Approvals in isolated automation runs: the exact tool-policy keys for denying send/exec in
-  cron sessions are UNVERIFIED here. Take them from `runtimes/openclaw.md` § Security hardening
-  and test with a forced run that tries a send (it must be refused).
+- Approvals in isolated automation runs: take the tool-policy keys that deny send/exec in
+  cron sessions from `runtimes/openclaw.md` § Security hardening (or the live OpenClaw docs), then
+  prove them with a forced run that tries a send: it must be refused.
 
 ### Railway cron services
 
@@ -381,7 +507,7 @@ Source: https://docs.railway.com/cron-jobs (fetched 2026-10-06). Deploy details:
   `{"deploy": {"cronSchedule": "17 8 * * *"}}` ([config-as-code](https://docs.railway.com/reference/config-as-code)).
   The build prefers the committed `railway.json` field so the schedule is reviewable.
 - A cron service is a separate service. It can't read the core service's volume (Railway volumes
-  attach to one service; UNVERIFIED that no sharing mechanism exists as of 2026-10-06). That's
+  attach to one service, per the Railway volumes docs as of 2026-10-06). That's
   another reason the briefing, which needs MEMORY.md, belongs inside the core.
 - **Jarvis use:** `backup-cron` (e.g. `pg_dump` to a bucket) and other exit-and-done jobs. For
   `claude-code-server`, a cron service running `claude -p` against a repo clone is possible, with
@@ -407,7 +533,7 @@ cron.schedule('3 7 * * 1-5', () => runJob('briefing'), {
 - node-cron also accepts an optional seconds field (6 fields). Don't use it; keep 5 fields so the
   spec reads the same everywhere.
 - Python cores: APScheduler with `CronTrigger(..., timezone=...)`, `max_instances=1`,
-  `coalesce=True` (UNVERIFIED wording; check the APScheduler docs at build time).
+  `coalesce=True` (match the option names to the APScheduler version you pin; its docs list them).
 - No catch-up: if the container was redeploying at 07:03, that briefing is lost. Acceptable. The
   next day's briefing says "ayer no te llegó el briefing" if the job log shows a gap.
 
@@ -449,7 +575,7 @@ Contract by runtime:
 
 | Runtime | "Nothing to report" token | Who suppresses it |
 |---|---|---|
-| `claude -p` wrapper (`claude-code-local`, `claude-p-cron`, `claude-code-server`), `codex exec` | `HEARTBEAT_OK` | `jobs/run-job.sh` (`case` match → exit 0, no message) |
+| `claude -p` wrapper (`claude-code-local`, `claude-p-cron`, `claude-code-server`), `codex exec` | `HEARTBEAT_OK` (`claude-p-cron` skills may answer `NADA`; the wrapper treats both as silence) | `jobs/run-job.sh` (`case` match → exit 0, no message) |
 | Desktop scheduled task / Cloud Routine | `HEARTBEAT_OK` | Nobody needs to: the run stays in the sidebar; no push |
 | `hermes` | `[SILENT]` (the Hermes job prompt maps "HEARTBEAT_OK" → `[SILENT]`) | Hermes cron delivery |
 | `openclaw` | `NO_REPLY` (legacy `HEARTBEAT_OK` at the start or end still works) | OpenClaw heartbeat (drops `HEARTBEAT_OK` if the rest is under 300 chars) |
@@ -482,8 +608,7 @@ a check fires:
   `knowledge/countries/<cc>.md` § Timezones & currency.
 - Always use IANA names (`America/Mexico_City`, `America/Bogota`, `America/Argentina/Buenos_Aires`,
   `Europe/Madrid`), never "GMT-6".
-- Containers on Railway default to UTC unless `TZ` is set (UNVERIFIED for every image; verify
-  with `date` in the service shell).
+- Containers on Railway run in UTC unless `TZ` is set. Set `TZ` and confirm with `railway run date`.
 
 ## Setup notes per runtime
 
@@ -492,7 +617,7 @@ What the BUILD phase writes into `tasks.json` (at least one scheduled-job task i
 
 | Runtime | Task(s) | Verify (exits 0 when healthy) |
 |---|---|---|
-| `claude-code-local` / `claude-p-cron` (macOS) | Write `jobs/<job>.md`, `.tools`, `.model`, `jobs/run-job.sh` (`chmod 700`), one LaunchAgent per job; `launchctl bootstrap`; forced run | `launchctl print gui/$(id -u)/com.jarvis.briefing >/dev/null` and `grep -q "briefing ok" logs/jobs.log` after `launchctl kickstart -k gui/$(id -u)/com.jarvis.briefing` |
+| `claude-code-local` / `claude-p-cron` (macOS) | Write `jobs/<job>.md` (or the job's skill), `.tools`, `.model`, `mcp.jobs.json`, the canonical `jobs/run-job.sh` (`chmod 700`), one LaunchAgent per job; `launchctl bootstrap`; forced run | `launchctl print gui/$(id -u)/com.jarvis.briefing >/dev/null` and `grep -q "briefing ok" logs/jobs.log` after `launchctl kickstart -k gui/$(id -u)/com.jarvis.briefing` |
 | same (Linux) | `.service` + `.timer` under `~/.config/systemd/user/` | `systemctl --user is-enabled jarvis-briefing.timer && systemctl --user list-timers \| grep -q jarvis-briefing` |
 | Desktop scheduled task | user_action: create in Desktop (click path above) with the exact name `jarvis-briefing` (ASCII, so the folder name is predictable), **Run now** once, approve only read tools with "always allow" | Postcondition: `test -f ~/.claude/scheduled-tasks/jarvis-briefing/SKILL.md` (the name is converted to lowercase kebab-case for the folder) |
 | Cloud Routine | user_action: `/schedule` or claude.ai/code/routines; remove non-needed connectors; **Run now** | Person confirms the run session exists and opens it. A green status "does not mean the task in your prompt succeeded" |
@@ -526,7 +651,7 @@ untrusted input (email, web, documents), and they repeat. Map to `knowledge/secu
   - Hermes: `approvals.cron_mode: deny` and `unattended_mode: deny` (defaults; never change).
   - Agent SDK: a `PreToolUse` hook that denies send/delete tools for cron-triggered runs.
   - OpenClaw: isolated sessions + tool policy that denies send/exec in automations (keys
-    UNVERIFIED, see above). Prove it with a forced run.
+    from `runtimes/openclaw.md`, see above). Prove it with a forced run.
   - Cowork: approval mode that asks; tasks only produce drafts (`runtimes/cowork.md`).
 - **SEC-11 Rule of two ([A]/[B]/[C]) and SEC-12 untrusted content as data.** A heartbeat reads untrusted content [A] and private data [B], so it must
   not also act externally [C]. Its only output is a message to the owner on the allowlisted
@@ -542,30 +667,34 @@ untrusted input (email, web, documents), and they repeat. Map to `knowledge/secu
   the right one.
 - **SEC-17 / SEC-18 Secrets.** Tokens live in `.env` (mode 600) or Railway sealed variables. Never in a
   plist, crontab line, routine prompt, Hermes job prompt or a repo a Routine clones.
-- **SEC-29 Audit.** Every run appends one line to `logs/jobs.log` (or the runtime's run history).
+- **SEC-29 Audit.** Every run appends one line to `logs/audit.tsv` and one to `logs/jobs.log` from `jobs/run-job.sh` (or the runtime's run history).
   The weekly review lists which jobs ran and which tools they used.
 - **Loops.** No job schedules other jobs. A job that wants to reschedule itself (Desktop
   `update_scheduled_task`, OpenClaw automations tool) only does so when the owner asks in chat.
 
-## UNVERIFIED items
+## Build-time checks
 
-- Whether a macOS LaunchAgent can read the `claude` subscription login from the keychain with no
-  terminal open (the build verifies with a forced run; fallback is `CLAUDE_CODE_OAUTH_TOKEN`, in
-  `jobs/.env.jobs` for `claude-code-local`).
-- Whether Hermes runs a cron job that fell due while the gateway was down (local while-on hosts).
-  **TEST** with a one-shot job across a gateway stop. Until verified, a deadline check on a
-  while-on host runs several times a day (e.g. `17 9,13,18 * * *`) and the prompt says "si ya
-  avisaste hoy, responde [SILENT]".
-- Whether a Cloud Routine can run with no repository attached.
-- The OpenClaw tool-policy keys that deny send/exec inside isolated automation runs, and
-  OpenClaw's default automation timezone.
-- Whether Hermes reads a workspace HEARTBEAT.md natively (assumed no; heartbeat is a cron job).
-- Whether `TZ` is honoured by the official Hermes and OpenClaw images on Railway, and the Railway
-  container default timezone.
-- Whether volumes can be shared with a Railway cron service.
-- APScheduler option names for Python cores.
-- The older Routines daily-cap figures (5/15/25 per day, makerkit.dev). Superseded by the hourly
-  limits on the official page; treated as stale.
+The build runs these checks so every job behaves as designed on the person's machine.
+
+- **Keychain login under launchd:** forced run with `launchctl kickstart`; on an auth error, switch
+  to `CLAUDE_CODE_OAUTH_TOKEN` (in `jobs/.env.jobs` for `claude-code-local`, mode 600).
+- **`claude` on the launchd PATH:** the directory of `which claude` is prepended to the plist `PATH`;
+  `rc=127` in `logs/audit.tsv` means it is missing.
+- **Hermes jobs missed while the gateway was down (while-on hosts):** a deadline check runs several
+  times a day (e.g. `17 9,13,18 * * *`) and the prompt says "si ya avisaste hoy, responde [SILENT]",
+  so a missed tick never loses a reminder.
+- **Cloud Routine without a repo:** use one only if the routine form allows it; otherwise attach the
+  workspace repo.
+- **OpenClaw automations:** deny keys from `runtimes/openclaw.md`, proven by a forced run that tries a
+  send; always pass `--tz` explicitly instead of relying on a default.
+- **Hermes heartbeat:** always a cron job that reads HEARTBEAT.md.
+- **Timezone on Railway:** set `TZ` (and `HERMES_TIMEZONE` for Hermes), confirm with `railway run date`
+  and a one-shot `"in 2m"` job.
+- **Railway cron service:** keep jobs that need MEMORY.md inside the core; a cron service gets no
+  access to the core's volume.
+- **APScheduler (Python cores):** option names from the docs of the pinned version.
+- **Routines limits:** use the hourly limits on the official page; the older 5/15/25-per-day figure
+  (makerkit.dev) is stale.
 
 ## Sources
 

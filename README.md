@@ -102,9 +102,9 @@ Después clona el repo y abre Claude Code adentro:
 git clone https://github.com/Hainrixz/jarvis-architect && cd jarvis-architect && claude
 ```
 
-1. Claude Code te pregunta si confías en la carpeta. Acepta: así se activan el arranque automático y los permisos del proyecto. Ábrelo siempre desde la carpeta `jarvis-architect`, no desde tu carpeta personal.
+1. Claude Code te pregunta si confías en la carpeta. La opción marcada al inicio es «No, exit»: baja con la flecha a «Yes, I trust this folder» y pulsa Enter. Así se activan el arranque automático y los permisos del proyecto. El aviso dice que la carpeta trae permisos preaprobados: son solo revisiones de lectura (versiones instaladas, RAM, sistema operativo, si una llave está puesta sin mostrarla); nada instala ni borra sin preguntarte. Ábrelo siempre desde la carpeta `jarvis-architect`, no desde tu carpeta personal.
 2. El arquitecto arranca solo y te saluda.
-3. Si no arranca, escribe `/jarvis-start`.
+3. Si a los pocos segundos no ha arrancado, escribe `/jarvis-start`.
 
 > [!TIP]
 > Puedes ahorrarte la primera pregunta escribiendo de una vez a qué te dedicas, por ejemplo: `/jarvis-start soy nutrióloga, quiero que me recuerde citas y me resuma mis correos cada mañana`. Si tienes prisa, `/jarvis-quick` hace solo tres preguntas y decide el resto con valores por defecto (mismas reglas de seguridad).
@@ -221,7 +221,7 @@ Uso ligero = unas 20 conversaciones al día. Uso medio = unas 100 al día más t
 | Combinación | Ligero | Medio |
 |---|---|---|
 | Claude Code en tu compu con Claude Pro / Max | $20 (Pro) | $100 (Max 5x) |
-| Codex en tu compu con ChatGPT Plus / Pro (precios UNVERIFIED) | $20 | $100 |
+| Codex en tu compu con ChatGPT Plus / Pro (precio confirmado en vivo antes de cotizarte) | $20 | $100 |
 | Hermes en Railway, modelos de OpenAI (barato + principal) | $9–13 | $18–22 |
 | Hermes en Railway, modelos de Claude (barato + principal) | $12–16 | $42–46 |
 | OpenClaw en Railway, modelos de OpenAI | $11–15 | $20–24 |
@@ -356,7 +356,7 @@ Las contribuciones en español o inglés son bienvenidas, sobre todo:
 - correcciones de versiones, precios o políticas, siempre con la URL de la fuente;
 - pruebas reales: cuéntanos qué te armó el arquitecto y dónde se trabó.
 
-Antes de abrir un PR lee [`CONTRIBUTING.md`](CONTRIBUTING.md) y el formato de [`knowledge/README.md`](knowledge/README.md). Las versiones solo van en `knowledge/runtimes/*.md` y `knowledge/models.json`, lo que no esté confirmado se marca `UNVERIFIED`, y nunca subas tu Jarvis generado ni ningún secreto.
+Antes de abrir un PR lee [`CONTRIBUTING.md`](CONTRIBUTING.md) y el formato de [`knowledge/README.md`](knowledge/README.md). Las versiones solo van en `knowledge/runtimes/*.md` y `knowledge/models.json`, cada dato lleva su fuente oficial (lo que la fuente no confirme se marca `UNVERIFIED` para que `/jarvis-refresh` lo vuelva a revisar), y nunca subas tu Jarvis generado ni ningún secreto.
 
 ## Licencia
 

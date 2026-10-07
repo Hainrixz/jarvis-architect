@@ -24,9 +24,9 @@ Two sub-tracks. The Architect picks one and records it in `jarvis-spec.md`:
 
 - Codex docs: "Use API key authentication for programmatic Codex CLI workflows, such as CI/CD jobs." Headless login: `codex login --device-auth` (device-code login must first be enabled in ChatGPT security settings). Copying `~/.codex/auth.json` is a documented fallback, but treat it "like a password: it contains access tokens". https://learn.chatgpt.com/docs/auth
 - `codex exec` reads `CODEX_API_KEY` from the environment for one run: `CODEX_API_KEY=<key> codex exec "task"`. https://learn.chatgpt.com/docs/non-interactive-mode
-- Scheduled `codex exec` jobs on the owner's own machine under their ChatGPT login: the official client, one owner, small volume. Allowed by the Codex login itself. How many plan credits that uses, and whether heavy unattended use fits plan limits, is **UNVERIFIED**. For more than a few jobs a day, or for anything on a server, use an API key.
+- Scheduled `codex exec` jobs on the owner's own machine under their ChatGPT login: the official client, one owner, small volume. Allowed by the Codex login itself. OpenAI doesn't publish how many plan credits each run uses, so after the first week the owner checks their Codex usage page; for more than a few jobs a day, or for anything on a server, use an API key.
 - SIWC preview limits: `store:false` + `stream:true` are required, with no hosted MCP, file search, Code Interpreter or audio. Paid or hosted apps need an interest form. https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations
-- ChatGPT plan prices are **UNVERIFIED** (secondary sources only). See `capabilities/costs.md`.
+- ChatGPT plan prices are re-checked live by `stack-researcher` (https://openai.com/chatgpt/pricing) before quoting. See `capabilities/costs.md`.
 
 ## Pinned versions
 
@@ -59,7 +59,7 @@ Two sub-tracks. The Architect picks one and records it in `jarvis-spec.md`:
 | Keys present (never values) | `[ -n "$OPENAI_API_KEY" ] && echo set` | same | `if ($env:OPENAI_API_KEY) {'set'}` |
 
 Sources: https://github.com/openai/codex/blob/rust-v0.160.1/docs/install.md, https://learn.chatgpt.com/docs/windows/windows-sandbox.
-Conflict: the repo's `install.md` still says "Windows 11 **via WSL2**". The current docs say native Windows works with a native sandbox and WSL2 is optional. Follow the current docs. Use WSL2 if the native sandbox fails (see *Known issues*).
+Note: the repo's `install.md` still says "Windows 11 **via WSL2**". The current docs say native Windows works with a native sandbox and WSL2 is optional. Follow the current docs. Use WSL2 if the native sandbox fails (see *Known issues*).
 
 ## Install
 
@@ -263,7 +263,7 @@ done
 - `codex exec` defaults to a **read-only sandbox**, streams progress to stderr and prints only the final message to stdout. Other flags: `--json` (JSONL events), `-o/--output-last-message <file>`, `--output-schema <schema.json>` (structured output), `--sandbox workspace-write` (only for jobs that must write `MEMORY.md`/files), `--ephemeral`, `--skip-git-repo-check`, `resume`. https://learn.chatgpt.com/docs/non-interactive-mode
 - **Never** `--sandbox danger-full-access` or the bypass flag (`--dangerously-bypass-approvals-and-sandbox` / `--yolo`) in a job. `--full-auto` is **deprecated**; use `--sandbox workspace-write`. https://learn.chatgpt.com/docs/agent-approvals-security
 - Scheduled jobs produce **drafts and summaries only**. Sending, paying, deleting or posting is never done unattended (SEC-15).
-- macOS: a launchd `~/Library/LaunchAgents/com.jarvis.<name>.morning.plist` with `StartCalendarInterval` (Hour 7, Minute 30), `ProgramArguments` = `/bin/bash`, path to `morning.sh`, and `StandardErrorPath` in `logs/`. launchd uses local time, and it runs a missed job on wake if the Mac was asleep at 7:30 (not if it was powered off). Linux/WSL2: a `systemd --user` timer `OnCalendar=*-*-* 07:30:00` with `Persistent=true`, or `crontab -e` with `CRON_TZ=America/Mexico_City` (cron implementation dependent, **UNVERIFIED** on every distro). Windows: `schtasks /Create /SC DAILY /ST 07:30 /TN "Jarvis\morning" /TR "wsl.exe -e bash -lc ~/jarvis-<name>/jobs/morning.sh"` or a PowerShell port of the script.
+- macOS: a launchd `~/Library/LaunchAgents/com.jarvis.<name>.morning.plist` with `StartCalendarInterval` (Hour 7, Minute 30), `ProgramArguments` = `/bin/bash`, path to `morning.sh`, and `StandardErrorPath` in `logs/`. launchd uses local time, and it runs a missed job on wake if the Mac was asleep at 7:30 (not if it was powered off). Linux/WSL2: a `systemd --user` timer `OnCalendar=*-*-* 07:30:00` with `Persistent=true`, or `crontab -e` with `CRON_TZ=America/Mexico_City` (not every cron supports `CRON_TZ`: add a one-off line for the next minute and confirm it fires in local time; if not, use the systemd timer). Windows: `schtasks /Create /SC DAILY /ST 07:30 /TN "Jarvis\morning" /TR "wsl.exe -e bash -lc ~/jarvis-<name>/jobs/morning.sh"` or a PowerShell port of the script.
 - Track B: an in-process scheduler (e.g. a `setInterval` minute tick against cron expressions in the owner's `JARVIS_TZ`) or a separate Railway cron service. **Railway cron schedules are UTC**: convert from the owner's timezone and write both in `RUNBOOK.md`.
 
 **Tools/MCP** (→ `capabilities/tools-mcp.md`, trust tiers there). Codex:
@@ -308,10 +308,10 @@ Agents SDK: `MCPServerStdio` for local servers (same pinning and env rules). `ho
 | Volume | `/data` (1 GB), holding `JARVIS_DIR=/data/jarvis` (workspace + MEMORY.md + audit log) |
 | Networking | **Worker, no public domain** with long polling (default). Webhook mode only if a domain is needed: `POST /telegram/webhook` checks `X-Telegram-Bot-Api-Secret-Token`, answers 200 at once and processes in the background |
 | Healthcheck | `/health` → 200 (webhook mode only; workers have no HTTP) |
-| Restart | `Always` (set in dashboard or MCP `update-service`; IaC field name **UNVERIFIED**) |
+| Restart | `Always` (set in dashboard or MCP `update-service`; for IaC, `stack-researcher` looks up the field in https://docs.railway.com/reference/config-as-code) |
 | Serverless/sleep | Off |
 | Variables | `OPENAI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` as **Sealed** service variables. Never shared variables |
-| Codex jobs on Railway | Separate cron service: same image + `npm i -g @openai/codex@0.160.1`, `CODEX_API_KEY` sealed, `CODEX_HOME=/data/jarvis/.codex`, start = `bash jobs/morning.sh`, schedule in **UTC**. The Railway copy of the script uses `cd "$JARVIS_DIR"` and drops the `. ./.env` line, because Railway injects the variables. `ignore_default_excludes = false` then keeps the `*TOKEN*`/`*KEY*` variables out of Codex shell commands. The job must exit. The Linux sandbox (`bwrap` + seccomp) inside Railway's container is **UNVERIFIED**: test it, and if it fails keep the job `read-only` with no MCP write tools rather than turning the sandbox off |
+| Codex jobs on Railway | Separate cron service: same image + `npm i -g @openai/codex@0.160.1`, `CODEX_API_KEY` sealed, `CODEX_HOME=/data/jarvis/.codex`, start = `bash jobs/morning.sh`, schedule in **UTC**. The Railway copy of the script uses `cd "$JARVIS_DIR"` and drops the `. ./.env` line, because Railway injects the variables. `ignore_default_excludes = false` then keeps the `*TOKEN*`/`*KEY*` variables out of Codex shell commands. The job must exit. Check the Linux sandbox (`bwrap` + seccomp) inside Railway's container on the first run: if `railway logs` shows a sandbox or namespace error, keep the job `read-only` with no MCP write tools rather than turning the sandbox off |
 
 ## Security hardening
 
@@ -392,9 +392,9 @@ printf 'header = "Authorization: Bearer %s"\n' "$OPENAI_API_KEY" | curl -fsS -K 
 
 → `capabilities/costs.md` (all prices live there and in `models.json`). Runtime-specific notes:
 
-- **Track A with ChatGPT plan:** flat monthly plan, no per-token bill. Plan prices and how many `codex exec` runs a plan covers are **UNVERIFIED**.
+- **Track A with ChatGPT plan:** flat monthly plan, no per-token bill. Plan prices are re-checked live by `stack-researcher` before quoting; OpenAI doesn't publish how many `codex exec` runs a plan covers, so the owner checks usage after the first week.
 - **Track A/B with API key:** pay per token. Route heartbeats, triage and summaries to the `openai.cheap` slot and conversation to `openai.main`. `openai.max` only on explicit request. Reasoning effort raises cost: keep `medium` for chat and `low` for heartbeats.
-- **Railway:** the Track B worker is the "lean custom worker" footprint in `costs.md` (Hobby-plan minimum; footprint estimate **UNVERIFIED**). A Codex cron service adds a few minutes of compute per run.
+- **Railway:** the Track B worker is the "lean custom worker" footprint in `costs.md` (Hobby-plan minimum; the footprint is an estimate, so read the real usage in the Railway dashboard after the first week and update the quote). A Codex cron service adds a few minutes of compute per run.
 - Realtime voice is billed per audio token and is the most expensive path. Set a separate cap.
 
 ## Known issues & fallbacks
@@ -408,13 +408,13 @@ printf 'header = "Authorization: Bearer %s"\n' "$OPENAI_API_KEY" | curl -fsS -K 
 | Global npm install needs root on Linux | Use nvm or a user npm prefix (`npm config set prefix ~/.local`). Never `sudo npm` |
 | `codex login` can't open a browser (SSH/WSL/server) | `codex login --device-auth` after enabling device codes in ChatGPT security settings. On servers prefer `CODEX_API_KEY` |
 | Windows native sandbox setup fails (managed PC blocks local users/firewall rules) | `[windows] sandbox = "unelevated"` temporarily, or run Codex inside WSL2 (keep the Jarvis in `~`, not `/mnt/c`) |
-| Linux sandbox (`bwrap`) fails inside Docker/Railway (user namespaces) | **UNVERIFIED** behaviour: keep jobs `read-only`, no write-capable MCP tools, and treat the container as the boundary. Never switch to `danger-full-access` |
+| Linux sandbox (`bwrap`) fails inside Docker/Railway (user namespaces) | Check on the first run (see the Railway row above). If it fails: keep jobs `read-only`, no write-capable MCP tools, and treat the container as the boundary. Never switch to `danger-full-access` |
 | "Unknown model" / tools ignored | Use the Responses API (SDK default) and confirm the ID with `GET /v1/models/<id>` on the owner's key. Staged rollouts can hide a model for some keys (https://www.callmissed.com/blog/gpt-sol-launch-pricing-model-id-availability, secondary) |
 | `gpt-5.5` leaves ChatGPT/Codex on 2026-10-14 | Never default to it. Use the `models.json` slots |
 | Owner wants to *chat* on Telegram using only their ChatGPT plan | Not possible here without SIWC (preview, not for Jarvis). Switch to `openclaw` (Codex OAuth login) or accept an API key for Track B |
 | Missed scheduled jobs while the laptop sleeps | launchd runs a missed calendar job on wake; systemd `Persistent=true`. Otherwise move the job to Railway cron (API key) |
 | `AGENTS.md` silently truncated | Keep it ≤32 KiB (verify checks it). Move detail to files read on demand |
-| `codex login status` output format | Exists in the auth docs. The exact output and exit code when logged out are **UNVERIFIED**, so verify also runs the one-call `codex exec` smoke check |
+| `codex login status` output format | Exists in the auth docs. The output and exit code when logged out aren't documented, so verify also runs the one-call `codex exec` smoke check |
 
 ## Sources
 

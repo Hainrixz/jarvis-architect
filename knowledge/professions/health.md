@@ -32,7 +32,7 @@ owner who mainly asks about sales, inventory and staff fits `smb-restaurant` as 
 Job 4 is deliberately not an autonomous Jarvis job: sending to patients is `IRR-01`/`IRR-09` and
 `SEC-15` forbids it unattended. A booking tool that already holds consent and sends reminders is
 the compliant shortcut. Which of those tools send WhatsApp reminders officially, and in which
-country, is UNVERIFIED — check at install.
+country, is checked at install in the tool's own docs.
 
 ## Channels
 
@@ -66,9 +66,9 @@ community · T3 alpha/generated wrapper · T4 Zapier). All start **read-only** (
 |---|---|---|---|
 | Google Calendar (Workspace MCP) | T1 | read | Agenda; events by initials/code. Creating/moving patient appointments = `IRR-06` |
 | Gmail (Workspace MCP) | T1 | read | Admin mail only (suppliers, insurers' general notices). Mail with patient data → don't route through a cloud model |
-| Literature search (built-in web search/fetch on PubMed, guidelines) | built-in | read | No patient data in queries. A PubMed MCP is optional (T2, pin it); first-party PubMed connectors for Claude: UNVERIFIED |
+| Literature search (built-in web search/fetch on PubMed, guidelines) | built-in | read | No patient data in queries. A PubMed MCP is optional (T2, pin it); check the Claude connector directory for a first-party PubMed connector at install |
 | Local STT (whisper-family) + local model (`ollama-local`) | local | local files | For dictation. Hardware rule from `questions/0-preflight.md`; below it, dictation stays manual |
-| Booking tool (Cal.com, Google appointment schedules, Doctoralia, AgendaPro…) | varies | read (counts, confirmation status) | Most have no MCP (UNVERIFIED); read via calendar sync or Zapier (T4). Never give Jarvis delete rights over appointments (`IRR-04`) |
+| Booking tool (Cal.com, Google appointment schedules, Doctoralia, AgendaPro…) | varies | read (counts, confirmation status) | Most have no MCP (check the vendor docs at install); read via calendar sync or Zapier (T4). Never give Jarvis delete rights over appointments (`IRR-04`) |
 | EHR / expediente clínico electrónico | **none** | — | Jarvis does not read or write the EHR in v1. Copy-paste by the professional |
 | Payments (Stripe / Mercado Pago links) | T1 | read | Optional. Creating a payment link with an amount = `IRR-03` |
 
@@ -162,6 +162,6 @@ Pack skills (week one = at most 3):
 - Mexico LFPDPPP 2025: https://www.ey.com/es_mx/technical/tax/boletines-fiscales/nueva-ley-federal-proteccion-datos-personal-posesion-particulares
 - EU AI Act Art. 50 timing: https://www.ropesgray.com/en/insights/viewpoints/2026/08/102nfqm/you-talkin-to-me-operationalising-the-eu-ai-acts-transparency-obligations
 
-UNVERIFIED in this file: which booking tools
+`stack-researcher` re-checks these live at install time: which booking tools
 send official WhatsApp reminders per country and whether they expose an API/MCP; first-party
 PubMed connectors for Claude; local STT accuracy on medical Spanish vocabulary.

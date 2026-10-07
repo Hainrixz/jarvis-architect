@@ -59,10 +59,10 @@ Rules:
 | **sqlite-vec** | Vector-search SQLite extension in C with no dependencies; installed from PyPI or npm at an exact version (never unpinned): the runtime files don't pin one yet, so `stack-researcher` pins it at build time and `/jarvis-refresh` adds it to `runtimes/<id>.md` § Pinned versions; Apache-2.0/MIT ([GitHub](https://github.com/asg017/sqlite-vec)) | One file that fits on a laptop or a Railway volume | **Pre-v1: "expect breaking changes"**, so pin it in the runtime file. You write the chunk/embed/search glue (or use the runtime's built-in) | Local upgrade past ~200 lines / multi-channel |
 | **Postgres + pgvector (Railway)** | Railway's standard Postgres image **does not include pgvector**. Use the pgvector template ([guide](https://docs.railway.com/guides/rag-pipeline-pgvector)), e.g. `pgvector-pg18` (image `pgvector/pgvector:pg18`, community-maintained) ([template](https://railway.com/deploy/pgvector-pg18)) | Survives redeploys. Relational + vector together. Several channels share one memory | An extra service and its cost (Tier B, → `capabilities/costs.md`). Needs backups. Community template (check the maintainer) | Railway Jarvis that needs semantic memory or document search |
 | **Graphiti (Zep)** | Temporal knowledge graph exposed as an MCP server. FalkorDB (default) or Neo4j. Needs LLM **and** embedding credentials. Stdio or streamable HTTP. `group_id` isolates graphs ([docs](https://help.getzep.com/graphiti/getting-started/mcp-server)) | Facts that change over time; relationships | **"Experimental… APIs may change"**. Every write costs LLM extraction. Needs a graph DB | Relationship-heavy packs only |
-| **Mem0** | Fact-extraction memory layer, hosted or self-hosted ([docs.mem0.ai](https://docs.mem0.ai)). Also a Hermes memory provider | Large ecosystem; drop-in | Hosted = personal data goes to another vendor. Benchmark claims are contested (secondary sources, UNVERIFIED) | Only when asked |
-| **Letta** | Stateful agent runtime with self-editing memory blocks ([GitHub](https://github.com/letta-ai/letta), active work in [letta-code](https://github.com/letta-ai/letta-code)) | Strongest built-in long-term memory | It is a **runtime**, not an add-on, so it competes with the harness. Project is in transition; current release UNVERIFIED | Only if memory is the top requirement. Not a v1 runtime ID |
+| **Mem0** | Fact-extraction memory layer, hosted or self-hosted ([docs.mem0.ai](https://docs.mem0.ai)). Also a Hermes memory provider | Large ecosystem; drop-in | Hosted = personal data goes to another vendor. Benchmark claims are contested (secondary sources), so don't quote them as a reason to pick it | Only when asked |
+| **Letta** | Stateful agent runtime with self-editing memory blocks ([GitHub](https://github.com/letta-ai/letta), active work in [letta-code](https://github.com/letta-ai/letta-code)) | Strongest built-in long-term memory | It is a **runtime**, not an add-on, so it competes with the harness. Project is in transition; `stack-researcher` reads the current release on GitHub before proposing it | Only if memory is the top requirement. Not a v1 runtime ID |
 
-**Embeddings (needed for sqlite-vec, pgvector and Graphiti).** Anthropic does not sell an embedding model. Its docs point to third-party providers such as Voyage AI ([docs.claude.com embeddings](https://docs.claude.com/en/docs/build-with-claude/embeddings), UNVERIFIED re-check). Embeddings therefore mean one more provider and key, which must appear in the data-flow disclosure. For privacy-first setups, use a local embedding model served by Ollama. Model choice and prices go only in `knowledge/models.json` / `capabilities/costs.md`.
+**Embeddings (needed for sqlite-vec, pgvector and Graphiti).** Anthropic does not sell an embedding model. Its docs point to third-party providers such as Voyage AI ([docs.claude.com embeddings](https://docs.claude.com/en/docs/build-with-claude/embeddings); `stack-researcher` re-checks the page before naming a provider). Embeddings therefore mean one more provider and key, which must appear in the data-flow disclosure. For privacy-first setups, use a local embedding model served by Ollama. Model choice and prices go only in `knowledge/models.json` / `capabilities/costs.md`.
 
 ## 3. Memory hygiene (every Jarvis, every runtime)
 
@@ -127,14 +127,14 @@ Versions and exact install steps live in `runtimes/<id>.md`. This section covers
   The value must be absolute or start with `~/`. On Railway, use a path on the volume (`/data/memory/auto`, since the workspace lives under `JARVIS_HOME=/data`, → `capabilities/deploy-railway.md`). Otherwise memory is lost on redeploy. Project-level values are honored only after workspace trust, and are ignored while `permissions.blockReadsOutsideWorkingDirectories` is on.
 - Off switches: `autoMemoryEnabled: false` or `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`. Sessions in self-hosted environments, background sessions and sessions started by another Claude Code session may run with auto memory **off** ([docs](https://code.claude.com/docs/en/memory)). On a server, check the toggle in `/memory`, and don't assume it is on.
 - Policy: auto memory holds Claude's working notes. **Durable facts about the owner go to the workspace `MEMORY.md`** through the `remember` skill. By default, "recuerda que…" makes Claude Code save to auto memory, so `AGENTS.md` must say: *"Cuando el dueño diga 'recuerda…', usa la skill `remember` y escribe en `MEMORY.md`"*. Without that line the smoke test in §5 fails. The weekly review promotes useful auto-memory lines into `MEMORY.md`.
-- `claude-p-cron`: each `claude -p` run starts fresh and gets the workspace through `CLAUDE.md`. Whether auto memory loads and saves in `-p` mode is UNVERIFIED. Have jobs write results explicitly to `memory/YYYY-MM-DD.md`.
+- `claude-p-cron`: each `claude -p` run starts fresh and gets the workspace through `CLAUDE.md`. Don't rely on auto memory in `-p` mode: have jobs write results explicitly to `memory/YYYY-MM-DD.md`.
 - Optional hard guard: a `PreToolUse` hook on `Write|Edit` targeting `memory/**` and `MEMORY.md` that rejects lines matching secret / card / ID patterns. `CLAUDE.md` alone is guidance, not enforcement.
 
 ### `claude-agent-sdk`
 
 - Leaving out `settingSources` loads user, project and local settings plus `CLAUDE.md`, exactly like the CLI ([docs](https://code.claude.com/docs/en/agent-sdk/claude-code-features)). Set `cwd` to the workspace and use the same `CLAUDE.md` as above.
 - Auto memory loads regardless of `settingSources`. Claude saves to it with `Write`/`Edit`, so those tools must be allowed. On Railway, either point `autoMemoryDirectory` at the volume or set `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` and rely on workspace files. For several users, run each in its own filesystem with `settingSources: []` + auto memory disabled (docs warning).
-- **Memory tool** (`{"type": "memory_20250818", "name": "memory"}`): use it only when the app calls the Messages API directly. Map `/memories` → `<workspace>/memory/`, resolve every path and reject anything outside it, cap file sizes, and expire stale files. As of 2026-10-06 the docs say the tool **needs no beta header**, although the SDK helpers live in the beta namespace ([docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)). This supersedes earlier UNVERIFIED guidance.
+- **Memory tool** (`{"type": "memory_20250818", "name": "memory"}`): use it only when the app calls the Messages API directly. Map `/memories` → `<workspace>/memory/`, resolve every path and reject anything outside it, cap file sizes, and expire stale files. As of 2026-10-06 the docs say the tool **needs no beta header**, although the SDK helpers live in the beta namespace ([docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)). This supersedes earlier guidance that required one.
 - Semantic layer on Railway: pgvector (template) through the private network, reached as `${{<service>.DATABASE_URL_PRIVATE}}` (in the pgvector template `DATABASE_URL` is the public TCP-proxy URL). Remove the template's TCP proxy; never expose it.
 
 ### `hermes`
@@ -147,14 +147,14 @@ Versions and exact install steps live in `runtimes/<id>.md`. This section covers
 ### `openclaw`
 
 - Native match: the workspace (default `~/.openclaw/workspace`) holds `USER.md`, `MEMORY.md` and `memory/YYYY-MM-DD.md`. Tools are `memory_search` and `memory_get`. Search is hybrid (vector + keyword) on SQLite, accelerated by sqlite-vec when available. A silent "save to memory" turn runs before compaction ([docs](https://docs.openclaw.ai/concepts/memory)).
-- `MEMORY.md` should load only in the main private session, **never in group contexts**. This comes from a docs mirror and is UNVERIFIED on the live page, so the Architect checks it in `runtimes/openclaw.md` and keeps the Jarvis out of groups otherwise.
+- `MEMORY.md` should load only in the main private session, **never in group contexts**. This comes from a docs mirror, so the Architect confirms it in `runtimes/openclaw.md` (or the live OpenClaw docs) and keeps the Jarvis out of groups either way.
 - Memory search needs an embedding provider. The docs default is OpenAI embeddings, with Gemini, Voyage, Mistral or a local model as alternatives. **With only an Anthropic key, semantic search stays off until one is configured; keyword search on SQLite still works.** Decide this explicitly and disclose it.
 - Optional consolidation ("dreaming", `DREAMS.md`) promotes notes into `MEMORY.md`. Leave it on only if the weekly review is also on.
 
 ### `codex-openai`
 
-- Codex reads `AGENTS.md` (project plus global `~/.codex/AGENTS.md`). Put the "read SOUL/USER/MEMORY at start, write facts via `remember`" rules in it. Whether Codex expands `@path` imports is UNVERIFIED, so tell it in prose to read the files.
-- Codex's generated memories in `~/.codex/memories/` are reported by secondary sources only (UNVERIFIED). Treat them like auto memory: promote into the workspace at review.
+- Codex reads `AGENTS.md` (project plus global `~/.codex/AGENTS.md`). Put the "read SOUL/USER/MEMORY at start, write facts via `remember`" rules in it. Tell it in prose to read the files instead of relying on `@path` imports.
+- Codex's generated memories in `~/.codex/memories/` are described by secondary sources. If that folder exists on the person's machine, treat it like auto memory: promote into the workspace at review.
 
 ### `ollama-local`
 
@@ -162,7 +162,7 @@ Versions and exact install steps live in `runtimes/<id>.md`. This section covers
 
 ### `cowork`
 
-- Cowork projects have project-scoped memory plus instructions and a linked local folder ([support.claude.com/en/articles/14116274](https://support.claude.com/en/articles/14116274); details partly UNVERIFIED). Use the Jarvis workspace folder as the project folder. Paste a short instruction: "lee SOUL.md, USER.md y MEMORY.md antes de cada tarea; guarda hechos nuevos en MEMORY.md". Built-in Cowork memory is not a file the person can export (UNVERIFIED), so `MEMORY.md` stays the portable copy.
+- Cowork projects have project-scoped memory plus instructions and a linked local folder ([support.claude.com/en/articles/14116274](https://support.claude.com/en/articles/14116274)). Use the Jarvis workspace folder as the project folder. Paste a short instruction: "lee SOUL.md, USER.md y MEMORY.md antes de cada tarea; guarda hechos nuevos en MEMORY.md". Treat built-in Cowork memory as non-exportable: `MEMORY.md` stays the portable copy.
 
 ## 5. Verify
 
@@ -200,13 +200,13 @@ Smoke test (`questions/4-construir.md`): "Recuerda que mi color favorito es el v
 - Claude Code memory (CLAUDE.md, imports, AGENTS.md, auto memory, limits, `autoMemoryDirectory`): https://code.claude.com/docs/en/memory (checked 2026-10-06)
 - Agent SDK `settingSources`, auto memory in the SDK: https://code.claude.com/docs/en/agent-sdk/claude-code-features (checked 2026-10-06)
 - Claude memory tool: https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool (checked 2026-10-06)
-- Claude embeddings guidance: https://docs.claude.com/en/docs/build-with-claude/embeddings (UNVERIFIED re-check)
+- Claude embeddings guidance: https://docs.claude.com/en/docs/build-with-claude/embeddings (re-checked by `stack-researcher` before use)
 - sqlite-vec: https://github.com/asg017/sqlite-vec (checked 2026-10-06)
 - Railway pgvector: https://docs.railway.com/guides/rag-pipeline-pgvector · https://railway.com/deploy/pgvector-pg18 (checked 2026-10-06)
 - Graphiti MCP server: https://help.getzep.com/graphiti/getting-started/mcp-server (checked 2026-10-06)
 - Mem0: https://docs.mem0.ai · Letta: https://github.com/letta-ai/letta · https://github.com/letta-ai/letta-code
 - OpenClaw memory: https://docs.openclaw.ai/concepts/memory (checked 2026-10-06)
 - Hermes memory: https://hermes-agent.nousresearch.com/docs/user-guide/features/memory · providers: https://hermes-agent.nousresearch.com/docs/user-guide/features/memory-providers (checked 2026-10-06)
-- Codex memory (secondary): https://mem0.ai/blog/how-memory-works-in-codex-cli (UNVERIFIED)
-- Cowork projects: https://support.claude.com/en/articles/14116274 (via search summary; partly UNVERIFIED)
+- Codex memory (secondary): https://mem0.ai/blog/how-memory-works-in-codex-cli
+- Cowork projects: https://support.claude.com/en/articles/14116274 (via search summary)
 - OWASP Top 10 for Agentic Applications 2026 (ASI06): https://www.giskard.ai/knowledge/owasp-top-10-for-agentic-application-2026

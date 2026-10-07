@@ -53,8 +53,8 @@ Usage draws from the subscription's usage limits ([support 15036540](https://sup
 **Functional floor: 2.1.259** — `--permission-prompts none` "requires Claude Code v2.1.259 or later.
 Earlier versions reject it with an unknown-option error" ([headless](https://code.claude.com/docs/en/headless#turn-off-permission-prompts-in-unattended-runs)). Other version-gated behaviour this file relies on:
 `--max-budget-usd` cap enforcement ≥ 2.1.217; `--mcp-config` connect-wait in `-p` ≥ 2.1.221; `mcp_server_errors` in JSON ≥ 2.1.219 ([cli-reference](https://code.claude.com/docs/en/cli-reference), [headless](https://code.claude.com/docs/en/headless)).
-**Security floor:** no Claude Code CVE list was reviewed for this file — **UNVERIFIED**; `stack-researcher`
-must check GitHub security advisories for `anthropics/claude-code` before install. Stay on the current stable.
+**Security floor:** `stack-researcher` checks the GitHub security advisories for `anthropics/claude-code`
+(https://github.com/anthropics/claude-code/security/advisories) before install and raises the pin above any affected version. Stay on the current stable.
 
 ## Prerequisites
 
@@ -106,7 +106,7 @@ gpg --show-keys /etc/apt/keyrings/claude-code.asc   # fingerprint MUST be 31DDDE
 ```
 (The key download writes a file, it does not pipe into a shell.) Fedora/RHEL: the `dnf` repo block from
 the same page, `gpgcheck=1`, confirm the same fingerprint, `sudo dnf install claude-code-2.1.285 jq`.
-Exact apt/dnf version-string format for pinning is **UNVERIFIED** — if the pinned form fails, install
+For the exact pin string, run `apt-cache madison claude-code` (or `dnf list --showduplicates claude-code`) and use what it prints; if the pinned form still fails, install
 `claude-code` from the stable repo and verify `claude --version` = 2.1.285.
 
 **Fallback (any OS): npm, pinned, no sudo**
@@ -133,7 +133,10 @@ Pro/Max account, exits. Then the preflight auth check above must print `ok`.
 │       ├── briefing/SKILL.md    # one skill per scheduled job; prompt = "/briefing"
 │       └── heartbeat/SKILL.md
 ├── mcp.jobs.json                # the ONLY MCP servers jobs may use; starts as {"mcpServers": {}}
-├── bin/run-job.sh               # wrapper (macOS/Linux/WSL)   bin/run-job.ps1 (native Windows)
+├── jobs/
+│   ├── run-job.sh               # canonical wrapper, verbatim from capabilities/scheduling.md (macOS/Linux/WSL)
+│   ├── run-job.ps1              # native Windows only (below)
+│   └── <job>.tools / <job>.model  # optional per job: tool list, cheap|main
 ├── outbox/                      # one JSON result per run (gitignored)
 ├── logs/                        # audit.tsv + per-job stderr (gitignored)
 ├── .env  (chmod 600, gitignored)   .env.example (committed)
@@ -148,19 +151,24 @@ JARVIS_DELIVERY=telegram
 TELEGRAM_BOT_TOKEN=123456789:AA...replace-me
 # The owner's numeric Telegram chat ID (the ONLY destination; see Channels)
 OWNER_TELEGRAM_ID=123456789
+# The wrapper reads the bot token from this file at send time only (never into claude's environment)
+JARVIS_BOT_TOKEN_FILE=.env
 # Model for jobs: alias or ID from the "main" (or "cheap" for heartbeat) slot in knowledge/models.json
-JARVIS_MODEL=sonnet
+JARVIS_MODEL_MAIN=sonnet
 JARVIS_MODEL_CHEAP=haiku
 # Per-run limits (client-side estimate; also guards an API-key fallback)
 JARVIS_MAX_TURNS=12
 JARVIS_MAX_BUDGET_USD=0.50
 # Auth mode: "subscription" (default; wrapper unsets ANTHROPIC_API_KEY) or "api_key"
 JARVIS_AUTH=subscription
+# Names (not values) of MCP secrets in this file that mcp.jobs.json needs, space-separated. Empty = none
+JARVIS_JOB_ENV=
 # Only if the scheduler cannot reach the stored /login (see Known issues). From `claude setup-token`.
 # CLAUDE_CODE_OAUTH_TOKEN=
 # Only if JARVIS_AUTH=api_key. Dedicated Console workspace key with a spend limit.
 # ANTHROPIC_API_KEY=sk-ant-...
 ```
+Keep values unquoted, one `KEY=VALUE` per line: the wrappers parse this file, they never source it.
 The person fills `.env` themselves, then `chmod 600 .env`. The agent only checks presence:
 `grep -q '^TELEGRAM_BOT_TOKEN=.\+' .env && echo set`.
 
@@ -200,97 +208,74 @@ model fills each slot comes from `knowledge/models.json`, never from this file.
 - **Native Windows:** remove the `sandbox` block (no sandbox there; `failIfUnavailable: true` would fail every run). The job has no shell tool, so nothing would run in it anyway.
 - The `sandbox` block only covers Bash/PowerShell; Read/WebFetch/MCP are governed by permission rules ([sandboxing](https://code.claude.com/docs/en/sandboxing)).
 
-### `bin/run-job.sh` (macOS / Linux / WSL)
-```bash
-#!/usr/bin/env bash
-# One scheduled Jarvis job: claude -p "/<job>" → outbox/<stamp>-<job>.json → owner (Telegram or file).
-set -euo pipefail
-JOB="${1:?usage: run-job.sh <job>}"
-case "$JOB" in (*[!a-z0-9-]*|"") echo "bad job name" >&2; exit 2;; esac
-cd "$(dirname "$0")/.."
-[ -f "STOP" ] && { echo "kill switch: STOP file present" >&2; exit 0; }
-[ -f ".claude/skills/$JOB/SKILL.md" ] || { echo "no skill for $JOB" >&2; exit 2; }
-set -a; . ./.env; set +a
-[ "${JARVIS_AUTH:-subscription}" = "api_key" ] || unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
-mkdir -p outbox logs
-LOCK="logs/.$JOB.lock"; mkdir "$LOCK" 2>/dev/null || { echo "$JOB already running" >&2; exit 0; }
-trap 'rmdir "$LOCK"' EXIT
+### `jobs/run-job.sh` (macOS / Linux / WSL)
+Install the **canonical wrapper** from `knowledge/capabilities/scheduling.md` § `claude -p` under
+launchd / systemd / Task Scheduler, verbatim, as `jobs/run-job.sh` (`chmod 700`). Do not keep a
+local variant. For this runtime it runs with `JARVIS_BOT_TOKEN_FILE=.env`, no
+`.claude/headless-settings.json` (so `--setting-sources project` applies), the job prompt `/<job>`
+from `.claude/skills/<job>/SKILL.md`, and `JARVIS_DELIVERY=telegram|file` from `.env`. It never
+exports the bot token to `claude`, runs `--permission-mode dontAsk --permission-prompts none` with
+an explicit tool list, `--strict-mcp-config --mcp-config ./mcp.jobs.json`, `--max-turns` and
+`--max-budget-usd`, writes `outbox/<stamp>-<job>.json`, one complete line in `logs/audit.tsv` per run
+(`error=unknown cost_est=0 denied=0` when the JSON is empty), and on failure writes
+`outbox/<stamp>-<job>-AVISO.txt`, sends the AVISO in telegram mode and exits 1. `STOP` is the kill
+switch; heartbeat answers `NADA` (or `HEARTBEAT_OK`) stay silent.
 
-MODEL="${JARVIS_MODEL:?set JARVIS_MODEL in .env}"; [ "$JOB" = "heartbeat" ] && MODEL="${JARVIS_MODEL_CHEAP:-$JARVIS_MODEL}"
-TOOLS="Read,Grep,Glob"                       # add WebSearch per job only if the job needs it
-STAMP="$(date +%Y-%m-%dT%H%M)"; OUT="outbox/$STAMP-$JOB.json"
-
-set +e
-claude -p "/$JOB" \
-  --model "$MODEL" \
-  --output-format json \
-  --permission-mode dontAsk --permission-prompts none \
-  --tools "$TOOLS" --allowedTools "$TOOLS" \
-  --setting-sources project \
-  --strict-mcp-config --mcp-config ./mcp.jobs.json \
-  --max-turns "${JARVIS_MAX_TURNS:-12}" \
-  --max-budget-usd "${JARVIS_MAX_BUDGET_USD:-0.50}" \
-  < /dev/null > "$OUT" 2> "logs/$JOB.stderr"
-RC=$?
-set -e
-
-TEXT="$(jq -r '.result // empty' "$OUT" 2>/dev/null || true)"
-ISERR="$(jq -r '.is_error // false' "$OUT" 2>/dev/null || echo true)"
-COST="$(jq -r '.total_cost_usd // 0' "$OUT" 2>/dev/null || echo 0)"
-DENIED="$(jq -r '(.permission_denials // []) | length' "$OUT" 2>/dev/null || echo 0)"
-printf '%s\t%s\trc=%s\terror=%s\tcost_est=%s\tdenied=%s\n' "$STAMP" "$JOB" "$RC" "$ISERR" "$COST" "$DENIED" >> logs/audit.tsv
-
-if [ "$RC" -ne 0 ] || [ "$ISERR" = "true" ] || [ -z "$TEXT" ]; then
-  TEXT="AVISO Jarvis: el trabajo '$JOB' fallo (rc=$RC). Revisa logs/$JOB.stderr. Si dice 'Login expired': abre la terminal, ejecuta claude y escribe /login."
-fi
-[ "$TEXT" = "NADA" ] && exit 0                 # heartbeat with nothing to report stays silent
-
-send_telegram() {  # token travels via curl's stdin config: never in argv, logs or output
-  printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TELEGRAM_BOT_TOKEN" |
-    curl -sS --fail --max-time 20 -o /dev/null -K - \
-      --data-urlencode "chat_id=$OWNER_TELEGRAM_ID" --data-urlencode "text=$1" 2>/dev/null
-}
-if [ "${JARVIS_DELIVERY:-file}" = "telegram" ] && [ -z "${JARVIS_DRY_RUN:-}" ]; then
-  i=0; while [ $i -lt ${#TEXT} ]; do
-    send_telegram "${TEXT:$i:3900}" || { echo "telegram send failed" >> "logs/$JOB.stderr"; exit 1; }
-    i=$((i+3900)); done
-fi
-```
 Notes: `claude -p` exits non-zero on failure and, for failures inside the run such as missing auth,
 "prints the failure as the result on stdout" ([headless](https://code.claude.com/docs/en/headless#basic-usage)). JSON output carries `result`,
 `session_id`, `total_cost_usd` (client-side estimate) and `permission_denials` ([headless](https://code.claude.com/docs/en/headless#get-structured-output)). The `is_error`
-field name is taken from the Agent SDK result message — **UNVERIFIED** in the CLI page; the wrapper
+field comes from the Agent SDK result message and appears in the CLI's JSON output too; the wrapper
 also checks the exit code, so a missing field cannot hide a failure. `${TEXT:i:n}` slices characters
 only with a UTF-8 locale (set `LANG` in the scheduler entry).
 
-### `bin/run-job.ps1` (native Windows only)
+### `jobs/run-job.ps1` (native Windows only)
+Same contract as the canonical wrapper: the bot token is never put in the process environment that
+`claude` inherits, failures write an AVISO file and exit 1, and the audit line is complete.
 ```powershell
-param([Parameter(Mandatory)][ValidatePattern('^[a-z0-9-]+$')][string]$Job)
+param([Parameter(Mandatory)][ValidatePattern('^[a-z0-9][a-z0-9-]*$')][string]$Job)
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
-if (Test-Path STOP) { exit 0 }
-Get-Content .env | Where-Object { $_ -match '^\s*([A-Z_][A-Z0-9_]*)=(.*)$' } |
-  ForEach-Object { [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process') }
-if ($env:JARVIS_AUTH -ne 'api_key') { Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue }
 New-Item -ItemType Directory -Force outbox, logs | Out-Null
+if (Test-Path STOP) { exit 0 }                                  # kill switch
+function Get-Cfg($k) { $l = Get-Content .env | Where-Object { $_ -match "^$k=" } | Select-Object -Last 1; if ($l) { $l.Substring($k.Length + 1) } }
+# KEY=VALUE parser; only non-secret JARVIS_*/OWNER_* settings and the model credential reach the environment
+Get-Content .env | ForEach-Object {
+  if ($_ -match '^([A-Z_][A-Z0-9_]*)=(.*)$') { $k = $Matches[1]; $v = $Matches[2]
+    if ($k -match '^(JARVIS_[A-Z0-9_]*|OWNER_[A-Z0-9_]*|CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)$') { [Environment]::SetEnvironmentVariable($k, $v, 'Process') } } }
+Remove-Item Env:TELEGRAM_BOT_TOKEN -ErrorAction SilentlyContinue
+if ($env:JARVIS_AUTH -ne 'api_key') { Remove-Item Env:ANTHROPIC_API_KEY -ErrorAction SilentlyContinue }
 $stamp = Get-Date -Format 'yyyy-MM-ddTHHmm'; $out = "outbox\$stamp-$Job.json"
-& claude -p "/$Job" --model $env:JARVIS_MODEL --output-format json --permission-mode dontAsk `
-  --permission-prompts none --tools "Read,Grep,Glob" --allowedTools "Read,Grep,Glob" `
-  --setting-sources project --strict-mcp-config --mcp-config .\mcp.jobs.json `
-  --max-turns $env:JARVIS_MAX_TURNS --max-budget-usd $env:JARVIS_MAX_BUDGET_USD 2> "logs\$Job.stderr" |
-  Set-Content -Encoding utf8 $out
-$rc = $LASTEXITCODE
-$r = try { Get-Content $out -Raw | ConvertFrom-Json } catch { $null }
-"$stamp`t$Job`trc=$rc`tcost_est=$($r.total_cost_usd)" | Add-Content logs\audit.tsv
-$text = if ($rc -eq 0 -and $r -and -not $r.is_error -and $r.result) { $r.result } else { "AVISO Jarvis: el trabajo '$Job' fallo (rc=$rc). Revisa logs\$Job.stderr." }
-if ($text -eq 'NADA' -or $env:JARVIS_DELIVERY -ne 'telegram') { exit 0 }
+$model = if ($Job -eq 'heartbeat' -and $env:JARVIS_MODEL_CHEAP) { $env:JARVIS_MODEL_CHEAP } else { $env:JARVIS_MODEL_MAIN }
+$turns = if ($env:JARVIS_MAX_TURNS) { $env:JARVIS_MAX_TURNS } else { '12' }
+$budget = if ($env:JARVIS_MAX_BUDGET_USD) { $env:JARVIS_MAX_BUDGET_USD } else { '0.50' }
+$rc = 127; $ErrorActionPreference = 'Continue'
 try {
-  $uri = "https://api.telegram.org/bot$($env:TELEGRAM_BOT_TOKEN)/sendMessage"
-  for ($i = 0; $i -lt $text.Length; $i += 3900) {
-    $part = $text.Substring($i, [Math]::Min(3900, $text.Length - $i))
-    Invoke-RestMethod -Method Post -Uri $uri -Body @{ chat_id = $env:OWNER_TELEGRAM_ID; text = $part } | Out-Null
-  }
-} catch { "telegram send failed" | Add-Content "logs\$Job.stderr"; exit 1 }   # never log the exception (it can contain the URI)
+  & claude -p "/$Job" --model $model --output-format json --permission-mode dontAsk `
+    --permission-prompts none --tools "Read,Grep,Glob" --allowedTools "Read,Grep,Glob" `
+    --setting-sources project --strict-mcp-config --mcp-config .\mcp.jobs.json `
+    --max-turns $turns --max-budget-usd $budget 2> "logs\$Job.stderr" | Set-Content -Encoding utf8 $out
+  $rc = $LASTEXITCODE
+} catch { $_.Exception.Message | Add-Content "logs\$Job.stderr" }   # claude missing: rc stays 127
+$ErrorActionPreference = 'Stop'
+$r = try { Get-Content $out -Raw | ConvertFrom-Json } catch { $null }
+$isErr = if ($r) { ([bool]$r.is_error).ToString().ToLower() } else { 'unknown' }
+$cost = if ($r -and $r.total_cost_usd) { $r.total_cost_usd } else { 0 }
+$denied = if ($r -and $r.permission_denials) { @($r.permission_denials).Count } else { 0 }
+"$stamp`t$Job`trc=$rc`terror=$isErr`tcost_est=$cost`tdenied=$denied" | Add-Content logs\audit.tsv
+$ok = ($rc -eq 0) -and ($isErr -eq 'false') -and $r.result
+$text = if ($ok) { $r.result } else { "AVISO Jarvis: el trabajo '$Job' fallo (rc=$rc). Revisa logs\$Job.stderr y logs\audit.tsv." }
+if (-not $ok) { $text | Set-Content -Encoding utf8 "outbox\$stamp-$Job-AVISO.txt" }
+if ($ok -and ($text -eq 'NADA' -or $text -like 'HEARTBEAT_OK*')) { exit 0 }
+if ($env:JARVIS_DELIVERY -eq 'telegram' -and -not $env:JARVIS_DRY_RUN) {
+  try {
+    $uri = "https://api.telegram.org/bot$(Get-Cfg TELEGRAM_BOT_TOKEN)/sendMessage"   # read at send time, never in env
+    for ($i = 0; $i -lt $text.Length; $i += 3900) {
+      $part = $text.Substring($i, [Math]::Min(3900, $text.Length - $i))
+      Invoke-RestMethod -Method Post -Uri $uri -Body @{ chat_id = $env:OWNER_TELEGRAM_ID; text = $part } | Out-Null
+    }
+  } catch { "telegram send failed" | Add-Content "logs\$Job.stderr"; exit 1 }   # never log the exception (it can contain the URI)
+}
+if (-not $ok) { exit 1 }
 ```
 Keep `.env` values unquoted for this parser.
 
@@ -328,7 +313,7 @@ narrows settings to the project scope with `--setting-sources project`.
 
 | Channel | Native? | Setup | Allowlist |
 |---|---|---|---|
-| Telegram (send-only) | Via Bot API from the wrapper, not via Claude | 1) 👤 @BotFather → `/newbot` → token into `.env`. 2) 👤 Owner opens the bot and sends `/start`. 3) Owner runs once: `! printf 'url = "https://api.telegram.org/bot%s/getUpdates"\n' "$(grep '^TELEGRAM_BOT_TOKEN=' .env \| cut -d= -f2-)" \| curl -sS -K - \| jq '[.result[].message.from \| {id, username}]'` → copies **their own** numeric `id` into `OWNER_TELEGRAM_ID`. | The destination is one hard-coded numeric chat ID. The wrapper **never** polls `getUpdates` and has no webhook, so there is **no inbound surface**: messages other people send to the bot are never read. Proven by `! grep -q getUpdates bin/run-job.sh`. |
+| Telegram (send-only) | Via Bot API from the wrapper, not via Claude | 1) 👤 @BotFather → `/newbot` → token into `.env`. 2) 👤 Owner opens the bot and sends `/start`. 3) Owner runs once: `! printf 'url = "https://api.telegram.org/bot%s/getUpdates"\n' "$(grep '^TELEGRAM_BOT_TOKEN=' .env \| cut -d= -f2-)" \| curl -sS -K - \| jq '[.result[].message.from \| {id, username}]'` → copies **their own** numeric `id` into `OWNER_TELEGRAM_ID`. | The destination is one hard-coded numeric chat ID. The wrapper **never** polls `getUpdates` and has no webhook, so there is **no inbound surface**: messages other people send to the bot are never read. Proven by `! grep -q getUpdates jobs/run-job.sh`. |
 | File | Yes | `JARVIS_DELIVERY=file`; results in `outbox/*.json` (`jq -r .result`). Point it at an Obsidian vault folder if wanted. | n/a (local disk) |
 | Chat (two-way), WhatsApp, voice | **No** | Not this runtime → `claude-code-local` (Telegram/Discord/iMessage Channels) or `knowledge/capabilities/channels.md` | — |
 
@@ -348,7 +333,7 @@ are stateless; each run reads CLAUDE.md + imports fresh. Sessions persist on dis
 | macOS | LaunchAgent with `StartCalendarInterval` (local time) | Runs on wake; multiple missed intervals are coalesced into one run (launchd.plist(5), `man launchd.plist`) |
 | Linux / WSL2 with systemd | user timer, `Persistent=true` | Runs at next boot/login if missed (`man systemd.timer`) |
 | Linux without systemd | crontab | Skipped (no catch-up) |
-| Windows | Task Scheduler → `wsl.exe` (preferred) or `powershell.exe -File run-job.ps1` | Only if "Run task as soon as possible after a scheduled start is missed" is ticked (`StartWhenAvailable`) |
+| Windows | Task Scheduler → `wsl.exe` (preferred) or `powershell.exe -File jobs\run-job.ps1` | Only if "Run task as soon as possible after a scheduled start is missed" is ticked (`StartWhenAvailable`) |
 
 macOS — `~/Library/LaunchAgents/com.jarvis.<name>.briefing.plist`:
 ```xml
@@ -357,11 +342,11 @@ macOS — `~/Library/LaunchAgents/com.jarvis.<name>.briefing.plist`:
 <plist version="1.0"><dict>
   <key>Label</key><string>com.jarvis.NAME.briefing</string>
   <key>ProgramArguments</key><array>
-    <string>/bin/bash</string><string>/Users/USER/jarvis-NAME/bin/run-job.sh</string><string>briefing</string>
+    <string>/bin/bash</string><string>/Users/USER/jarvis-NAME/jobs/run-job.sh</string><string>briefing</string>
   </array>
   <key>StartCalendarInterval</key><dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>3</integer></dict>
   <key>EnvironmentVariables</key><dict>
-    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>PATH</key><string>/Users/USER/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>LANG</key><string>en_US.UTF-8</string>
   </dict>
   <key>StandardOutPath</key><string>/Users/USER/jarvis-NAME/logs/launchd.out</string>
@@ -369,6 +354,8 @@ macOS — `~/Library/LaunchAgents/com.jarvis.<name>.briefing.plist`:
   <key>ProcessType</key><string>Background</string>
 </dict></plist>
 ```
+`PATH`: prepend the directory of `which claude` (native installer `/Users/USER/.local/bin`, `USER` =
+`id -un`; Homebrew `/opt/homebrew/bin`), same convention as `knowledge/capabilities/scheduling.md`.
 ```bash
 plutil -lint ~/Library/LaunchAgents/com.jarvis.NAME.briefing.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.jarvis.NAME.briefing.plist
@@ -386,7 +373,7 @@ Description=Jarvis job %i
 Type=oneshot
 WorkingDirectory=%h/jarvis-NAME
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin LANG=C.UTF-8
-ExecStart=/usr/bin/env bash %h/jarvis-NAME/bin/run-job.sh %i
+ExecStart=/usr/bin/env bash %h/jarvis-NAME/jobs/run-job.sh %i
 TimeoutStartSec=15min
 MemoryMax=2G
 NoNewPrivileges=yes
@@ -406,20 +393,21 @@ systemctl --user daemon-reload && systemctl --user enable --now jarvis-briefing.
 ! loginctl enable-linger "$USER"      # person runs it; lets timers fire without an open login session
 ```
 Timezone: the timer uses the machine's local zone; `OnCalendar=*-*-* 07:03:00 America/Mexico_City`
-pins it explicitly (`man systemd.time`). Cron fallback: `3 7 * * * /usr/bin/env bash $HOME/jarvis-NAME/bin/run-job.sh briefing`.
+pins it explicitly (`man systemd.time`). Cron fallback: `3 7 * * * /usr/bin/env bash $HOME/jarvis-NAME/jobs/run-job.sh briefing`.
 
 Windows (person runs in PowerShell; WSL2 path preferred):
 ```powershell
-schtasks /Create /TN "Jarvis\briefing" /SC DAILY /ST 07:03 /TR "wsl.exe -d Ubuntu -e bash /home/USER/jarvis-NAME/bin/run-job.sh briefing"
+schtasks /Create /TN "Jarvis\briefing" /SC DAILY /ST 07:03 /TR "wsl.exe -d Ubuntu -e bash /home/USER/jarvis-NAME/jobs/run-job.sh briefing"
 # native alternative:
-schtasks /Create /TN "Jarvis\briefing" /SC DAILY /ST 07:03 /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\USER\jarvis-NAME\bin\run-job.ps1 -Job briefing"
+schtasks /Create /TN "Jarvis\briefing" /SC DAILY /ST 07:03 /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\USER\jarvis-NAME\jobs\run-job.ps1 -Job briefing"
 schtasks /Run /TN "Jarvis\briefing"
 ```
 Then in Task Scheduler → task → Settings, tick "Run task as soon as possible after a scheduled start
-is missed". Whether `wsl.exe` from a scheduled task keeps the user's WSL login and Claude credential
-reachable is **UNVERIFIED — TEST** on a clean Windows 11 + WSL2 VM.
+is missed". Then run the task once with `schtasks /Run /TN "Jarvis\briefing"` and check that `outbox/` got a new file with
+`"is_error":false`. If it failed with an auth error, set the task to "Run only when user is logged on"; if it still
+fails, use the `CLAUDE_CODE_OAUTH_TOKEN` fallback from *Risks*.
 
-**Tools/MCP** (→ `knowledge/capabilities/tools-mcp.md`). Default tool list per job: `Read,Grep,Glob`
+**Tools/MCP** (→ `knowledge/capabilities/tools-mcp.md`). Default tool list per job: `Read,Grep,Glob` (override in `jobs/<job>.tools`)
 (no Bash, no Edit/Write, no WebFetch). On macOS/Linux/WSL Glob and Grep are absent from the default set but come back when named in `--tools` ([tools-reference](https://code.claude.com/docs/en/tools-reference#glob-tool-behavior)). `--tools` restricts the built-in set; it "doesn't affect MCP
 tools" ([cli-reference](https://code.claude.com/docs/en/cli-reference)), so MCP is controlled by `--strict-mcp-config --mcp-config ./mcp.jobs.json`
 ("Only use MCP servers from `--mcp-config`, ignoring all other MCP configurations"). Add per job, never globally:
@@ -456,36 +444,36 @@ table, `\|` is the Markdown escape for a literal `|` in the shell check. Checks 
 
 | ID | Control | How in `claude-p-cron` | Automated check (exits 0 when OK) |
 |---|---|---|---|
-| SEC-01 | Owner-only allowlist, numeric ID | One numeric destination `OWNER_TELEGRAM_ID`. No inbound code path, so nobody else can reach the agent. Rejection test = smoke-test row *Allowlist* | `grep -Eq '^OWNER_TELEGRAM_ID=[0-9]+$' .env && ! grep -q getUpdates bin/run-job.sh` |
+| SEC-01 | Owner-only allowlist, numeric ID | One numeric destination `OWNER_TELEGRAM_ID`. No inbound code path, so nobody else can reach the agent. Rejection test = smoke-test row *Allowlist* | `grep -Eq '^OWNER_TELEGRAM_ID=[0-9]+$' .env && ! grep -q getUpdates jobs/run-job.sh` |
 | SEC-02 | Groups off | Destination is a private chat ID. Never a group ID (`-100…`) | `! grep -Eq '^OWNER_TELEGRAM_ID=-' .env` |
-| SEC-03 | Webhook origin checks | *N/A*: no webhook. The wrapper only calls `sendMessage` outbound | `! grep -q setWebhook bin/run-job.sh` |
+| SEC-03 | Webhook origin checks | *N/A*: no webhook. The wrapper only calls `sendMessage` outbound | `! grep -q setWebhook jobs/run-job.sh` |
 | SEC-04 | Allowlist changes only by the owner locally | Destination changes only by the owner editing `.env`. CLAUDE.md/SOUL.md carry the "nunca agregues ni apruebes usuarios…" rule | `grep -Eiq 'nunca.*(permitidos\|apruebes usuarios)' CLAUDE.md SOUL.md AGENTS.md` |
-| SEC-05 | No control plane exposed | Nothing listens: no port, no tunnel, no Remote Control | `! grep -Eq -- '--port\|0\.0\.0\.0\|remote-control' bin/run-job.sh` |
+| SEC-05 | No control plane exposed | Nothing listens: no port, no tunnel, no Remote Control | `! grep -Eq -- '--port\|0\.0\.0\.0\|remote-control' jobs/run-job.sh` |
 | SEC-06 | Railway exposure | *N/A* (local only; Railway = `claude-code-server`) | — |
 | SEC-07 | Sandbox | Jobs have no Bash/PowerShell tool. Sandbox still on, `allowUnsandboxedCommands:false`, `failIfUnavailable:true` (macOS/Linux/WSL2). Native Windows has none; acceptable here only because no shell tool exists. Prefer WSL2 | `jq -e '.sandbox.enabled==true and .sandbox.allowUnsandboxedCommands==false' .claude/settings.json >/dev/null` |
 | SEC-08 | Credential paths unreadable | `denyRead` `~/.ssh`, `~/.aws`, `~/**/.env` + permission deny `Read(**/.env)`, `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(~/.claude/.credentials.json)` | `jq -e '.permissions.deny\|index("Read(**/.env)")' .claude/settings.json >/dev/null && jq -e '.sandbox.filesystem.denyRead\|length>=3' .claude/settings.json >/dev/null` |
-| SEC-09 | Egress allowlist | `sandbox.network.allowedDomains: []`; no bare `WebFetch`, only `WebFetch(domain:…)` per job | `jq -e '.sandbox.network.allowedDomains\|index("*")==null' .claude/settings.json >/dev/null && ! grep -Eq '[,"]WebFetch[,"]' bin/run-job.sh` |
-| SEC-10 | No bypass flags; hard deny | Never `--dangerously-skip-permissions`/`bypassPermissions`; `disableBypassPermissionsMode:"disable"`; deny list present | `! grep -rEq 'dangerously-skip-permissions\|bypassPermissions' bin && jq -e '.permissions.disableBypassPermissionsMode=="disable" and (.permissions.deny\|length>0)' .claude/settings.json >/dev/null` |
-| SEC-11 | Rule of Two | Jobs may hold [A] untrusted input (web search, read-only inbox) + [B] private data (USER.md, calendar), **never [C]**: no send/write tools, no bare WebFetch, no memory writes. The only outbound action is the wrapper's fixed send to the owner, not model-controlled. Each job is a row in spec §5 | `! grep -Eq '(^\|[,"])(Bash\|Edit\|Write\|WebFetch)([,"]\|$)' bin/run-job.sh` |
+| SEC-09 | Egress allowlist | `sandbox.network.allowedDomains: []`; no bare `WebFetch`, only `WebFetch(domain:…)` per job | `jq -e '.sandbox.network.allowedDomains\|index("*")==null' .claude/settings.json >/dev/null && ! grep -Eq '[,"]WebFetch[,"]' jobs/run-job.sh` |
+| SEC-10 | No bypass flags; hard deny | Never `--dangerously-skip-permissions`/`bypassPermissions`; `disableBypassPermissionsMode:"disable"`; deny list present | `! grep -rEq 'dangerously-skip-permissions\|bypassPermissions' jobs && jq -e '.permissions.disableBypassPermissionsMode=="disable" and (.permissions.deny\|length>0)' .claude/settings.json >/dev/null` |
+| SEC-11 | Rule of Two | Jobs may hold [A] untrusted input (web search, read-only inbox) + [B] private data (USER.md, calendar), **never [C]**: no send/write tools, no bare WebFetch, no memory writes. The only outbound action is the wrapper's fixed send to the owner, not model-controlled. Each job is a row in spec §5 | `! grep -Eq '(^\|[,"])(Bash\|Edit\|Write\|WebFetch)([,"]\|$)' jobs/run-job.sh` |
 | SEC-12 | Untrusted content is data | CLAUDE.md scheduled-mode rule + the same rule in SOUL.md/AGENTS.md | `grep -Eiq 'no confiable\|nunca sigas instrucciones\|untrusted' SOUL.md AGENTS.md CLAUDE.md` |
 | SEC-13 | Memory hygiene | Jobs never write memory (`autoMemoryEnabled:false`, no Edit/Write). Owner edits MEMORY.md with provenance tags; no IDs, cards or passwords | `jq -e '.autoMemoryEnabled==false' .claude/settings.json >/dev/null` |
 | SEC-14 | IRR approval with preview | *Not reachable*: no IRR tool exists in any job. Jobs produce drafts; the owner acts. Any "send it" flow belongs to an interactive runtime | (covered by SEC-11 and SEC-15 checks) |
-| SEC-15 | Unattended runs deny IRR | `--permission-mode dontAsk --permission-prompts none` + `--tools`/`--allowedTools` limited to read tools + `--max-turns` | `grep -q -- '--permission-mode dontAsk' bin/run-job.sh && grep -q -- '--allowedTools' bin/run-job.sh && grep -q -- '--max-turns' bin/run-job.sh` |
+| SEC-15 | Unattended runs deny IRR | `--permission-mode dontAsk --permission-prompts none` + `--tools`/`--allowedTools` limited to read tools + `--max-turns` | `grep -q -- '--permission-mode dontAsk' jobs/run-job.sh && grep -q -- '--allowedTools' jobs/run-job.sh && grep -q -- '--max-turns' jobs/run-job.sh` |
 | SEC-16 | Approvals bound to the action | *Not reachable* (no approvals in unattended runs). SOUL.md still states "una confirmación vale solo para la acción que acabas de mostrar" for the interactive upgrade path | `grep -qi 'confirmaci' SOUL.md` |
 | SEC-17 | Secrets in `.env` 600, gitignored | `.env` chmod 600; `.gitignore` has `.env`, `*.env`, `auth.json`, `credentials*`; subscription login stays in Keychain / `.credentials.json` | `p=$(if [ "$(uname)" = Darwin ]; then stat -f %Lp .env; else stat -c %a .env; fi); [ "$p" = 600 ] && grep -qx '.env' .gitignore && grep -qx 'credentials\*' .gitignore` |
-| SEC-18 | No secret in prompts/logs/verify | Token passed to curl via stdin config, never argv; presence-only checks; wrapper never echoes env | `! grep -Eq 'cat +[^\|]*\.env\|printenv\|echo +"?\$\{?[A-Z_]*(KEY\|TOKEN)' bin/run-job.sh` |
+| SEC-18 | No secret in prompts/logs/verify | `.env` parsed, never sourced; token read in a subshell at send time and passed to curl via stdin config, never argv or `claude`'s env (`env -i`); presence-only checks; wrapper never echoes env | `! grep -Eq 'cat +[^\|]*\.env\|printenv\|echo +"?\$\{?[A-Z_]*(KEY\|TOKEN)' jobs/run-job.sh` |
 | SEC-19 | Minimal env for MCP | `mcp.jobs.json` entries carry only their own `env` vars; never `ANTHROPIC_API_KEY`/`TELEGRAM_BOT_TOKEN` | `! grep -Eq 'ANTHROPIC_API_KEY\|TELEGRAM_BOT_TOKEN\|CLAUDE_CODE_OAUTH_TOKEN' mcp.jobs.json` |
 | SEC-20 | Redacted logs; no credential copies | `audit.tsv` holds no message text and no secrets; `~/.claude` never copied anywhere | `! grep -Eq 'sk-ant-\|[0-9]{8,10}:[A-Za-z0-9_-]{30,}' logs/audit.tsv` |
 | SEC-21 | Rotation runbook | `SECURITY.md` lists `TELEGRAM_BOT_TOKEN` (@BotFather `/revoke`), `CLAUDE_CODE_OAUTH_TOKEN` (re-run `setup-token`), `ANTHROPIC_API_KEY` (Console), `/login` (`claude auth logout`) | `for v in TELEGRAM_BOT_TOKEN CLAUDE_CODE_OAUTH_TOKEN; do grep -q "$v" SECURITY.md \|\| exit 1; done` |
 | SEC-22 | Integrations read-only | MCP servers in `mcp.jobs.json` start read-only (`knowledge/capabilities/tools-mcp.md`) | spec §3 scopes (validator) |
-| SEC-23 | Per-job tool list | `--tools` + `--allowedTools` per job; MCP only via `--strict-mcp-config --mcp-config ./mcp.jobs.json` with explicit tool names, no `mcp__*` wildcard | `grep -q -- '--strict-mcp-config' bin/run-job.sh && [ ! -e .mcp.json ] && ! grep -q 'mcp__\*' bin/run-job.sh` |
+| SEC-23 | Per-job tool list | `--tools` + `--allowedTools` per job; MCP only via `--strict-mcp-config --mcp-config ./mcp.jobs.json` with explicit tool names, no `mcp__*` wildcard | `grep -q -- '--strict-mcp-config' jobs/run-job.sh && [ ! -e .mcp.json ] && ! grep -q 'mcp__\*' jobs/run-job.sh` |
 | SEC-24 | No auto-install | No plugins, no community skills/MCP; skills are files the Architect wrote; no third-party hooks | `jq -e '.hooks == null' .claude/settings.json >/dev/null && ! grep -Eq '@latest\|npx -y [^@ ]+( \|$)' mcp.jobs.json` |
-| SEC-25 | At/above floor, pinned | Pinned stable (see *Pinned versions*); functional floor 2.1.259; security floor UNVERIFIED | `claude --version \| grep -q '2.1.285'` |
+| SEC-25 | At/above floor, pinned | Pinned stable (see *Pinned versions*); functional floor 2.1.259; security floor checked by `stack-researcher` against GitHub advisories before install | `claude --version \| grep -q '2.1.285'` |
 | SEC-26 | Safe install | brew/winget/apt/npm pinned; `sudo` steps run by the person with `!`; no `curl \| sh` | (validator greps tasks.json) |
-| SEC-27 | Spend cap | Subscription: no API spend; keep claude.ai *extra usage* off or capped (menu path UNVERIFIED). If `JARVIS_AUTH=api_key`: Console workspace spend limit set first (👤) | `grep -q 'unset ANTHROPIC_API_KEY' bin/run-job.sh` |
-| SEC-28 | Turn/budget limits + kill switch | `--max-turns`, `--max-budget-usd` (documented flag, cap enforcement ≥ 2.1.217), `STOP` file, per-job lock | `grep -q -- '--max-turns' bin/run-job.sh && grep -q -- '--max-budget-usd' bin/run-job.sh && grep -q STOP bin/run-job.sh` |
+| SEC-27 | Spend cap | Subscription: no API spend; keep claude.ai *extra usage* off or capped (`stack-researcher` looks up the current menu path; the owner confirms, logged in spec §7). If `JARVIS_AUTH=api_key`: Console workspace spend limit set first (👤) | `grep -q 'unset ANTHROPIC_API_KEY' jobs/run-job.sh` |
+| SEC-28 | Turn/budget limits + kill switch | `--max-turns`, `--max-budget-usd` (documented flag, cap enforcement ≥ 2.1.217), `STOP` file, per-job lock | `grep -q -- '--max-turns' jobs/run-job.sh && grep -q -- '--max-budget-usd' jobs/run-job.sh && grep -q STOP jobs/run-job.sh` |
 | SEC-29 | Audit log | `logs/audit.tsv` per run (job, rc, error, cost estimate, `permission_denials` count); `outbox/*.json` keeps `permission_denials`. No PostToolUse hook (MINOR, accepted: read-only tools) | `test -f logs/audit.tsv` |
-| SEC-30 | Credential = auth-matrix cell | Owner's `/login` in the unmodified `claude` on the owner's machine; `CLAUDE_CODE_OAUTH_TOKEN` only with consent; never `--bare` with a subscription; never copied elsewhere ([legal](https://code.claude.com/docs/en/legal-and-compliance)) | `! grep -q -- '--bare' bin/run-job.sh \|\| grep -q '^JARVIS_AUTH=api_key' .env` |
+| SEC-30 | Credential = auth-matrix cell | Owner's `/login` in the unmodified `claude` on the owner's machine; `CLAUDE_CODE_OAUTH_TOKEN` only with consent; never `--bare` with a subscription; never copied elsewhere ([legal](https://code.claude.com/docs/en/legal-and-compliance)) | `! grep -q -- '--bare' jobs/run-job.sh \|\| grep -q '^JARVIS_AUTH=api_key' .env` |
 | SEC-31 | WhatsApp | *N/A*: no WhatsApp in this runtime | — |
 | SEC-32 | Data flows disclosed | Data-flow table at the ARCHITECTURE gate: Anthropic sees prompts + workspace files; Telegram sees the delivered text. No customer-facing channel | spec §9 (validator) |
 | SEC-33 | Panic button + weekly check | `SECURITY.md` panic button: `touch STOP`, `launchctl bootout` / `systemctl --user disable --now`, @BotFather `/revoke`, `claude auth logout`, rotate setup-token. Weekly read-only job: `claude --version` vs this file + `claude doctor`; never auto-updates (`DISABLE_AUTOUPDATER=1`) | `test -f SECURITY.md && grep -Eqi 'p[aá]nico\|panic' SECURITY.md && grep -q STOP SECURITY.md` |
@@ -497,7 +485,7 @@ All commands run from `~/jarvis-NAME`, exit 0 when healthy, and never print a se
 ```bash
 claude --version | grep -q '2.1.285'                                                   # pinned binary
 claude auth status >/dev/null 2>&1 && claude auth status | jq -e '.authMethod=="claude.ai" or .authMethod=="oauth_token"' >/dev/null
-claude doctor >/dev/null                                                               # install + settings validation (exit-code semantics UNVERIFIED; read its output if it fails)
+claude doctor >/dev/null                                                               # install + settings validation (may exit non-zero on warnings alone; read its output if it fails)
 jq -e . .claude/settings.json mcp.jobs.json >/dev/null                                 # valid JSON
 for f in SOUL USER MEMORY HEARTBEAT AGENTS TOOLS; do test -s "$f.md" || exit 1; done
 grep -q '@SOUL.md' CLAUDE.md && test -f .claude/skills/briefing/SKILL.md
@@ -507,7 +495,7 @@ launchctl print gui/$(id -u)/com.jarvis.NAME.briefing >/dev/null                
 systemctl --user is-enabled jarvis-briefing.timer >/dev/null                           # Linux/WSL2
 # schtasks /Query /TN "Jarvis\briefing" >NUL                                           # Windows
 # dry run: real model call, no Telegram send
-JARVIS_DRY_RUN=1 bash bin/run-job.sh briefing && jq -e '.result|length>0' "$(ls -t outbox/*-briefing.json | head -1)" >/dev/null
+JARVIS_DRY_RUN=1 bash jobs/run-job.sh briefing && jq -e '.result|length>0' "$(ls -t outbox/*-briefing.json | head -1)" >/dev/null
 # token check without printing it (getMe returns ok:true)
 printf 'url = "https://api.telegram.org/bot%s/getMe"\n' "$(grep '^TELEGRAM_BOT_TOKEN=' .env | cut -d= -f2-)" | curl -sS -K - | jq -e '.ok==true' >/dev/null
 ```
@@ -518,11 +506,11 @@ Plus every SEC check in the table above.
 | Check | Pass |
 |---|---|
 | Round trip | `launchctl kickstart …` / `systemctl --user start jarvis-job@briefing` / `schtasks /Run` → briefing arrives in the owner's Telegram within 3 min |
-| Allowlist | Someone else messages the bot → nothing happens and nothing is read (no inbound code path); `grep -c getUpdates bin/run-job.sh` = 0 |
+| Allowlist | Someone else messages the bot → nothing happens and nothing is read (no inbound code path); `grep -c getUpdates jobs/run-job.sh` = 0 |
 | Memory | Owner adds "Mi color favorito es el verde" to MEMORY.md → a one-off job `/ask-memory` ("¿cuál es mi color favorito?") answers "verde" |
 | Approval gate | A test skill that asks Claude to write a file or run a command → run succeeds, `permission_denials` ≥ 1 in the JSON, nothing written |
 | Scheduled job | Set the plist/timer to now+2 min once → message arrives; restore 07:03 |
-| Failure path | `touch STOP` → run exits 0 silently; remove it. Temporarily set `JARVIS_MODEL=does-not-exist` → owner receives the AVISO message |
+| Failure path | `touch STOP` → run exits 0 silently; remove it. Temporarily set `JARVIS_MODEL_MAIN=does-not-exist` → run exits 1, `outbox/*-briefing-AVISO.txt` exists, owner receives the AVISO message (telegram mode) |
 | Health | `claude doctor` exits 0 |
 
 ## Cost
@@ -540,15 +528,15 @@ Plus every SEC check in the table above.
 | Issue | Symptom | Fallback |
 |---|---|---|
 | `/login` expires | Runs fail with `Login expired · Please run /login` ([auth](https://code.claude.com/docs/en/authentication#renew-an-expiring-login)); owner gets the AVISO message | Owner runs `claude` → `/login`. Interactive sessions warn 3 days before expiry. If it recurs, switch to `claude setup-token` (1-year token) in `.env` with consent |
-| macOS scheduler can't read the Keychain login | Runs fail with "not logged in" only when launched by launchd | Whether a LaunchAgent in the logged-in GUI session reaches the login Keychain is **UNVERIFIED — TEST**. Fallback: `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` in `.env`, and make sure no `ANTHROPIC_API_KEY` is set |
-| setup-token returns 401 with `claude -p` | Issue #65320 (2026-06-04, v2.1.162), closed; how it was fixed **UNVERIFIED** ([#65320](https://github.com/anthropics/claude-code/issues/65320)) | Re-test on the pinned version; fall back to `/login` |
-| macOS privacy (TCC) blocks the folder | `Operation not permitted` when the job's folder is under Desktop/Documents/Downloads | Keep the Jarvis in `~/jarvis-NAME`. (Standard macOS behaviour; no Anthropic doc — **UNVERIFIED** source.) |
+| macOS scheduler can't read the Keychain login | Runs fail with "not logged in" only when launched by launchd | After loading the agent, run `launchctl kickstart gui/$(id -u)/com.jarvis.NAME.briefing` once and check `logs/audit.tsv` shows `rc=0`. If it shows an auth error, use the fallback: `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` in `.env`, and make sure no `ANTHROPIC_API_KEY` is set |
+| setup-token returns 401 with `claude -p` | Issue #65320 (2026-06-04, v2.1.162), closed ([#65320](https://github.com/anthropics/claude-code/issues/65320)) | Run one forced job on the pinned version; if it returns 401, fall back to `/login` |
+| macOS privacy (TCC) blocks the folder | `Operation not permitted` when the job's folder is under Desktop/Documents/Downloads | Keep the Jarvis in `~/jarvis-NAME`. (Standard macOS privacy protection for those folders, not specific to Claude Code.) |
 | Mac asleep / off at job time | Briefing late or missing | launchd coalesces missed intervals into one run on wake; for "always on time", enable wake schedule in System Settings or move to a Railway runtime |
 | `ANTHROPIC_API_KEY` present in the environment | Bills the API instead of the subscription | Wrapper unsets it unless `JARVIS_AUTH=api_key`; preflight checks it is unset |
 | `--permission-prompts` unknown option | Claude Code older than 2.1.259 | Upgrade to the pin; never replace it with `--dangerously-skip-permissions` |
 | Telegram message too long / Markdown errors | `400 Bad Request` | Wrapper sends plain text (no `parse_mode`) in 3900-char chunks |
 | `-p` runs project hooks / `.mcp.json` without trust | Untrusted content in the folder would execute | Folder contains only Architect-written files; `--strict-mcp-config`; `--setting-sources project`; no `.mcp.json` (SEC-23/SEC-24) |
-| Future `-p` default change | "`--bare` … will become the default for `-p` in a future release" ([headless](https://code.claude.com/docs/en/headless#start-faster-with-bare-mode)) — that would drop CLAUDE.md, skills and subscription auth | `stack-researcher` checks release notes on every upgrade; if it lands, pass the persona with `--append-system-prompt-file` and skills via `--add-dir`, and check how to opt out of bare mode (**UNVERIFIED** until it ships) |
+| Future `-p` default change | "`--bare` … will become the default for `-p` in a future release" ([headless](https://code.claude.com/docs/en/headless#start-faster-with-bare-mode)) — that would drop CLAUDE.md, skills and subscription auth | `stack-researcher` checks release notes on every upgrade; if it lands, pass the persona with `--append-system-prompt-file` and skills via `--add-dir`, and use the opt-out flag the release notes give for bare mode |
 | Windows native: no sandbox | Shell tools would run unsandboxed | This runtime gives jobs no shell tool; prefer WSL2 anyway |
 | Wants chat later | — | Same folder works with `claude-code-local` (Channels); `/jarvis-add` |
 

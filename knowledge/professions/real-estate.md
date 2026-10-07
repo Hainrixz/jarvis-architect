@@ -70,12 +70,12 @@ community · T3 alpha/generated wrapper · T4 Zapier/hosted connector). All star
 | Google Calendar (Workspace MCP) | T1 | read | Showings. Inviting a client or owner = `IRR-06` |
 | Gmail (Workspace MCP) | T1 | read | Portal lead notifications arrive by email — the most reliable lead feed without scraping. Bodies are untrusted (`SEC-12`) |
 | Google Drive / Sheets (Workspace MCP) | T1 | read | Photos, fichas, rent roll in a Sheet |
-| **EasyBroker** (MX/LATAM CRM-MLS) | T3/T4 | read (properties, contact requests) | Has a public REST API; no first-party MCP found. Hosted connectors exist (viaSocket, Pipedream, Jentic) — each is a third party that holds the API key; a remote MCP that takes the production key in a header or URL is **rejected** (`knowledge/capabilities/tools-mcp.md` § No token passthrough). Default: a generated thin wrapper (T3, `la-forja:mcp-tool-forge`, or written inline) with the key in `.env`; for a non-technical person, Zapier (T4) if it lists EasyBroker actions (UNVERIFIED). Creating/updating listings = `IRR-02`/`IRR-11` |
+| **EasyBroker** (MX/LATAM CRM-MLS) | T3/T4 | read (properties, contact requests) | Has a public REST API; no first-party MCP found. Hosted connectors exist (viaSocket, Pipedream, Jentic) — each is a third party that holds the API key; a remote MCP that takes the production key in a header or URL is **rejected** (`knowledge/capabilities/tools-mcp.md` § No token passthrough). Default: a generated thin wrapper (T3, written by the architect itself) with the key in `.env`; for a non-technical person, Zapier (T4) if its app directory lists EasyBroker actions (check at https://zapier.com/apps before offering it). Creating/updating listings = `IRR-02`/`IRR-11` |
 | HubSpot (official remote MCP) / Pipedrive (official MCP) | T1 | read | If the brokerage already uses them. Stage moves that trigger automations = `IRR-11`; deletes = `IRR-04` |
-| Kommo (community MCP, e.g. `cAIborg-ai/amocrm-mcp`) | T2 | read | Popular WhatsApp-native CRM in LATAM; no official MCP found (UNVERIFIED). Pin and read source (`SEC-24`) |
-| Tokko Broker (AR), Inmovilla / Idealista (ES) | T3 | read | API availability and access conditions UNVERIFIED; fall back to exports or Zapier (T4) |
+| Kommo (community MCP, e.g. `cAIborg-ai/amocrm-mcp`) | T2 | read | Popular WhatsApp-native CRM in LATAM; no official MCP found; check Kommo's developer docs at install for a newer official one. Pin and read source (`SEC-24`) |
+| Tokko Broker (AR), Inmovilla / Idealista (ES) | T3 | read | Check API availability and access conditions in the vendor's developer docs at install; if there is none, fall back to exports or Zapier (T4) |
 | Maps | built-in | links only | Jarvis builds `https://www.google.com/maps/dir/...` links from addresses; no Maps API key needed for week one |
-| Portals (Inmuebles24, Lamudi, Fincaraíz, Zonaprop, Idealista…) | **no scraping by default** | — | Use their email alerts and saved searches. Scraping with Playwright may break portal terms (UNVERIFIED per portal) — only on explicit request, rate-limited, never logged-in automation |
+| Portals (Inmuebles24, Lamudi, Fincaraíz, Zonaprop, Idealista…) | **no scraping by default** | — | Use their email alerts and saved searches. Scraping with Playwright may break portal terms (read that portal's terms before doing it) — only on explicit request, rate-limited, never logged-in automation |
 | Web search | built-in | read | Zone research, comparables from public pages, with links |
 
 ## Scheduled jobs
@@ -128,9 +128,9 @@ Pack skills (week one = at most 3):
   the operation reaches the legal threshold. Thresholds and exact duties after the 2025 reform come
   from secondary sources only ([BHR 2025-11](https://www.bhrmx.com/wp-content/uploads/2025/11/INTERMEDIACI%C3%93N-EN-LA-TRANSMISI%C3%93N-DE-INMUEBLES-Y-LA-LFPIORPI.pdf),
   [IDC 2025-11-25](https://idconline.mx/corporativo/2025/11/25/ley-antilavado-amplia-a-desarrollos-inmobiliarios-de-renta)) —
-  UNVERIFIED against the DOF text; never quote a peso amount to the person.
+  confirm against the DOF text (https://www.dof.gob.mx) before citing them; never quote a peso amount to the person.
   Jarvis does **not** do KYC, store ID copies or decide on notices — it can remind the agent that
-  the file must be complete. Other countries: UNVERIFIED, see the country pack.
+  the file must be complete. Other countries: see the country pack and tell the person to confirm AML duties with their accountant.
 - **No discriminatory filtering.** Lead qualification asks about the property (zona, presupuesto,
   fecha), never about origin, religion, family status or similar.
 - **Portal and WhatsApp terms** as above: no unofficial WhatsApp on a client-facing number, no
@@ -165,6 +165,6 @@ Pack skills (week one = at most 3):
 - LFPIORPI Art. 17 fr. V (secondary): https://www.bhrmx.com/wp-content/uploads/2025/11/INTERMEDIACI%C3%93N-EN-LA-TRANSMISI%C3%93N-DE-INMUEBLES-Y-LA-LFPIORPI.pdf · https://idconline.mx/corporativo/2025/11/25/ley-antilavado-amplia-a-desarrollos-inmobiliarios-de-renta
 - Railway cron (UTC): https://docs.railway.com/reference/cron-jobs
 
-UNVERIFIED in this file: official MCP or API terms for EasyBroker, Tokko Broker, Inmovilla and
+`stack-researcher` re-checks these live at install time: official MCP or API terms for EasyBroker, Tokko Broker, Inmovilla and
 Idealista; whether each portal's terms forbid scraping; an official Kommo MCP; AML duties for real
 estate outside Mexico.

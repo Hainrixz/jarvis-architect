@@ -18,7 +18,7 @@ No versions are pinned here. Runtimes: `knowledge/runtimes/<id>.md`. Models: `kn
 | Business answering its own customers | **WhatsApp Cloud API** or a BSP | Allowed: AI is ancillary to the business |
 | Wants WhatsApp without a Meta account | Baileys only after the consent gate in `knowledge/capabilities/whatsapp.md`, **secondary SIM** | Breaks WhatsApp ToS; number can be banned |
 
-- BSPs active in LATAM including Colombia: YCloud, Twilio, Gupshup, Zenvia, Leadsales, Kommo, Wati, respond.io, Infobip ([YCloud LATAM list](https://www.ycloud.com/blog/whatsapp-api-businesses-latin-america)). Colombian presence of each is UNVERIFIED; check Spanish support and COP billing before recommending one.
+- BSPs active in LATAM including Colombia: YCloud, Twilio, Gupshup, Zenvia, Leadsales, Kommo, Wati, respond.io, Infobip ([YCloud LATAM list](https://www.ycloud.com/blog/whatsapp-api-businesses-latin-america)). Before recommending one, check its Colombian presence, Spanish support and COP billing before recommending one.
 
 ## WhatsApp rates & policy notes
 
@@ -29,15 +29,15 @@ No versions are pinned here. Runtimes: `knowledge/runtimes/<id>.md`. Models: `kn
 | Category | Rate |
 |---|---|
 | Marketing | **$0.0125** |
-| Utility / Authentication | **$0.0008** (utility free inside an open 24 h service window; authentication figure from the [flowcall](https://www.flowcall.co/blog/whatsapp-business-api-pricing) table as checked 2026-09-28, UNVERIFIED in the re-check) |
+| Utility / Authentication | **$0.0008** (utility free inside an open 24 h service window; authentication figure from the [flowcall](https://www.flowcall.co/blog/whatsapp-business-api-pricing) table as checked 2026-09-28; `stack-researcher` re-checks it live on Meta's pricing page before quoting) |
 
 Source: [flowcall rate table](https://www.flowcall.co/blog/whatsapp-business-api-pricing) (secondary, mirrors Meta's rate card; re-fetched 2026-10-06). Authoritative rate card: download from Meta's [pricing page](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing); `stack-researcher` re-checks before quoting.
 
-**Service-message CONFLICT.** Meta's official pricing doc (re-fetched 2026-10-06) still says all non-template messages are free and in-window utility templates are free. flowcall and [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md) say service messages are charged from 2026-10-01 after 1,000 free per number per month. The official doc wins until Meta changes it; a personal Jarvis stays well under 1,000 replies either way.
+**Service messages: sources disagree; `stack-researcher` re-checks Meta's pricing page live before quoting.** Meta's official pricing doc (re-fetched 2026-10-06) still says all non-template messages are free and in-window utility templates are free. flowcall and [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md) say service messages are charged from 2026-10-01 after 1,000 free per number per month. The official doc wins until Meta changes it; a personal Jarvis stays well under 1,000 replies either way.
 
 **What a personal Jarvis costs on WhatsApp in Colombia.** Replies: $0. A daily briefing sent first by Jarvis: 30 × $0.0008 ≈ **$0.02 USD/month** as utility, 30 × $0.0125 ≈ $0.38 as marketing. Colombia is the cheapest of the four packs.
 
-**Billing currency.** Meta's pricing doc lists **COP** among eight billing currencies introduced **2026-04-01** (confirmed in the official doc on 2026-10-06; this resolves the earlier UNVERIFIED note).
+**Billing currency.** Meta's pricing doc lists **COP** among eight billing currencies introduced **2026-04-01** (confirmed in the official doc on 2026-10-06).
 
 ## Fiscal / invoicing tools
 
@@ -45,15 +45,15 @@ Colombia uses DIAN electronic invoicing: each invoice is validated by DIAN befor
 
 | Tool | Default? | Integration | Trust tier |
 |---|---|---|---|
-| **Alegra** (CO) | **Default when starting from zero** (official MCP, simplest setup) | **OFFICIAL MCP** (launched 2026-06-08), one-click authorisation, no API key; dev docs list bills, items, contacts, invoices, payments, journals, reports, banking. Endpoint, write scope and plan gating UNVERIFIED ([PR Newswire](https://www.prnewswire.com/mx/comunicados-de-prensa/alegra-revoluciona-la-gestion-contable-en-mexico-contadores-y-empresarios-ya-pueden-consultar-sus-finanzas-en-tiempo-real-usando-su-ia-favorita-302794164.html), [developer.alegra.com/llms.txt](https://developer.alegra.com/llms.txt)) | 1 |
+| **Alegra** (CO) | **Default when starting from zero** (official MCP, simplest setup) | **OFFICIAL MCP** (launched 2026-06-08), one-click authorisation, no API key; dev docs list bills, items, contacts, invoices, payments, journals, reports, banking. After connecting, list its tools to see write scope and plan gating; keep it read-only ([PR Newswire](https://www.prnewswire.com/mx/comunicados-de-prensa/alegra-revoluciona-la-gestion-contable-en-mexico-contadores-y-empresarios-ya-pueden-consultar-sus-finanzas-en-tiempo-real-usando-su-ia-favorita-302794164.html), [developer.alegra.com/llms.txt](https://developer.alegra.com/llms.txt)) | 1 |
 | **Siigo** | **Default when they already use it** (very common; described as a leading DIAN-authorised provider by [Alegra's own comparison](https://blog.alegra.com/colombia/alegra-vs-siigo-colombia/), a competitor source) | **No official MCP.** COMMUNITY: `jdlar1/siigo-mcp` (npx, 40+ tools, **read-only by default**), `dsfaccini/siigo-mcp`, `codespar/mcp-siigo`. Needs `SIIGO_USERNAME`, `SIIGO_ACCESS_KEY`, `SIIGO_PARTNER_ID` from Siigo Nube → Alianzas → "Mi credencial API" ([glama jdlar1](https://glama.ai/mcp/servers/jdlar1/siigo-mcp), [glama dsfaccini](https://glama.ai/mcp/servers/dsfaccini/siigo-mcp)) | 2, **keep read-only** |
 | **DIAN free service** | Very small volume | No API for agents | Jarvis prepares the data; the person issues it in the DIAN portal |
 | Anything else | — | Zapier MCP fallback | 4 |
 
-Prices for Alegra and Siigo plans: not verified in this pass (UNVERIFIED); have `stack-researcher` check the person's plan includes API/MCP access.
+Prices for Alegra and Siigo plans are re-checked live by `stack-researcher` before quoting; have `stack-researcher` check the person's plan includes API/MCP access.
 
 **Guardrails:**
-- **Issuing an electronic invoice is irreversible once DIAN validates it**; correcting it needs a credit note (nota crédito) (UNVERIFIED in this pass; standard practice). Always preview (NIT, items, IVA, totals) and wait for an explicit "sí".
+- **Issuing an electronic invoice is irreversible once DIAN validates it**; correcting it needs a credit note (nota crédito) (standard practice; the person's accountant confirms). Always preview (NIT, items, IVA, totals) and wait for an explicit "sí".
 - Under Res. 000202/2025, Jarvis must not ask the buyer for more than name, ID number and email to issue an invoice (less personal data to store, too).
 - Keep Siigo in **read-only** mode unless the person explicitly asks for writes, and then behind human approval.
 - Never store the company's digital signature certificate or portal passwords in the workspace or memory.
@@ -68,7 +68,7 @@ check), and the build writes it to `memory/reference/calendario-dian-<año>.md` 
 and fetch date. Never type dates from memory.
 
 - Source: DIAN's "Calendario tributario" page on https://www.dian.gov.co (the year's decree number
-  and exact URL: **UNVERIFIED** here, fetched live).
+  and exact URL are fetched live at build time).
 - Obligations an accountant's Jarvis tracks per client: IVA (bimestral or cuatrimestral, per the
   client's regime), retención en la fuente (monthly), renta (personas jurídicas in instalments;
   personas naturales by NIT digits), información exógena, and Régimen Simple advance payments where
@@ -84,13 +84,13 @@ and fetch date. Never type dates from memory.
 | Tool | Status | Tier |
 |---|---|---|
 | **HubSpot** | OFFICIAL remote MCP `https://mcp.hubspot.com`, OAuth 2.1 ([changelog](https://developers.hubspot.com/changelog/remote-hubspot-mcp-server-is-now-generally-available)) | 1 |
-| **Pipedrive** | OFFICIAL MCP (2026-06-30), OAuth; endpoint UNVERIFIED ([newsroom](https://www.pipedrive.com/en/newsroom/pipedrive-launches-native-mcp-server-bringing-crm-workflows-directly-into-ai-assistants)) | 1 |
-| **Kommo** | WhatsApp-native CRM popular in LATAM; community MCPs only (UNVERIFIED that no official one exists) | 2 |
-| **Mercado Libre** | OFFICIAL remote MCP `https://mcp.mercadolibre.com/mcp` ([GitHub](https://github.com/mercadolibre/mercadolibre-mcp-server)); Colombia site coverage UNVERIFIED | 1 |
-| **Mercado Pago** | OFFICIAL MCP; official overview lists **developer tools only** (CONFLICT with directories claiming payment links/refunds) ([MP dev docs](https://www.mercadopago.com.ar/developers/en/docs/mcp-server/overview)) | 1 (dev scope) |
-| **Stripe** | Availability for businesses in Colombia UNVERIFIED (check stripe.com/global before suggesting it) | — |
+| **Pipedrive** | OFFICIAL MCP (2026-06-30), OAuth; `stack-researcher` reads the endpoint from Pipedrive's docs at install ([newsroom](https://www.pipedrive.com/en/newsroom/pipedrive-launches-native-mcp-server-bringing-crm-workflows-directly-into-ai-assistants)) | 1 |
+| **Kommo** | WhatsApp-native CRM popular in LATAM; community MCPs only (`stack-researcher` checks for an official one at install) | 2 |
+| **Mercado Libre** | OFFICIAL remote MCP `https://mcp.mercadolibre.com/mcp` ([GitHub](https://github.com/mercadolibre/mercadolibre-mcp-server)); confirm Colombia site coverage by listing its tools after connecting | 1 |
+| **Mercado Pago** | OFFICIAL MCP; official overview lists **developer tools only** (some directories claim payment links/refunds; use them only if its tool list shows them after connecting) ([MP dev docs](https://www.mercadopago.com.ar/developers/en/docs/mcp-server/overview)) | 1 (dev scope) |
+| **Stripe** | Check availability for businesses in Colombia at stripe.com/global before suggesting it | — |
 | **Shopify** | Official Dev/Storefront MCPs; Admin is community only | 2 |
-| Local gateways (Wompi, Bold, ePayco, PSE) | No MCP verified (UNVERIFIED); Zapier fallback or generated wrapper | 3–4 |
+| Local gateways (Wompi, Bold, ePayco, PSE) | No official MCP listed (`stack-researcher` checks at install); Zapier fallback or a wrapper the architect writes | 3–4 |
 
 Irreversible actions (always human approval): issuing invoices, refunds, payouts, outbound marketing templates, CRM deletes, marketplace price changes.
 
@@ -104,7 +104,7 @@ Irreversible actions (always human approval): issuing invoices, refunds, payouts
 1. **Personal-only Jarvis:** say plainly the obligations mostly start when other people's data is processed.
 2. **Customer data sent to Anthropic/OpenAI (US)** is an international transmission or transfer: use the SIC model clauses or the provider's DPA, and name processors (LLM, BSP, Railway) in the **política de tratamiento de datos** and the authorisation text. Draft from template, marked "revísalo con un abogado".
 3. **Customer-facing bot:** run the impact assessment the circular asks for, and disclose AI in the first message ("Soy un asistente con IA de <negocio>").
-4. **RNBD** (national database registry): required above size thresholds; the 2026 thresholds are UNVERIFIED, so tell the person to check with their accountant.
+4. **RNBD** (national database registry): required above size thresholds; the current thresholds change, so tell the person to check with their accountant.
 5. Minimise: no cédula numbers, health or card data in long-term memory; redact before embedding. Record processors in `compliance.md`.
 
 **Draft templates (Spanish, always marked "Borrador — revísalo con un abogado").** The build fills
@@ -135,9 +135,9 @@ Irreversible actions (always human approval): issuing invoices, refunds, payouts
 
 | Tier | STT | TTS | Notes |
 |---|---|---|---|
-| Premium | Deepgram Nova-3 multilingual | ElevenLabs Flash v2.5 or v4 Turbo with a **Colombian or neutral LatAm** library voice | v4 Turbo is described as "Spanish, LatAm" ([ElevenLabs models](https://elevenlabs.io/docs/overview/models)); Colombian voice availability in the library UNVERIFIED, let the person listen |
+| Premium | Deepgram Nova-3 multilingual | ElevenLabs Flash v2.5 or v4 Turbo with a **Colombian or neutral LatAm** library voice | v4 Turbo is described as "Spanish, LatAm" ([ElevenLabs models](https://elevenlabs.io/docs/overview/models)); search the library for a Colombian voice and let the person listen |
 | Budget cloud | Deepgram Nova-3 | Deepgram Aura-2: one of the ten Spanish voices covers a Colombian accent; which one is undocumented ([Deepgram TTS](https://developers.deepgram.com/docs/tts-models-languages-overview)) | Play samples |
-| Fully local | whisper.cpp (`medium`/`large`) | Piper: no Colombian voice verified (UNVERIFIED); fall back to `es_MX-claude-high` (closest neutral LatAm) | |
+| Fully local | whisper.cpp (`medium`/`large`) | Piper: check the voice list for a Colombian voice; otherwise fall back to `es_MX-claude-high` (closest neutral LatAm) | |
 | Avoid | — | Kokoro | Weak Spanish |
 
 Text register: Colombian Spanish. Default **tú** for a personal Jarvis; for customer-facing business bots ask once whether the business uses **usted** (very common in Colombian service contexts). Money `$1.234.567 COP` (dot thousands separator; always write "COP" next to USD prices).

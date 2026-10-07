@@ -62,8 +62,8 @@ Written the way the person says them. Pick 3, turn each into a skill or a schedu
   a job or skill loads only the folder of the client it is working on; a summary for client A
   never quotes another client's folder. Tools follow the same split: **one credential per client
   company** (e.g. one Siigo API credential per company, named `SIIGO_<ALIAS>_*`, each read-only)
-  unless the provider offers a documented multi-company accountant access (Siigo's: **UNVERIFIED**,
-  `stack-researcher` checks). Whether each client's plan includes API access, and its price, goes
+  unless the provider offers a documented multi-company accountant access (for Siigo,
+  `stack-researcher` checks this in Siigo's docs at install). Whether each client's plan includes API access, and its price, goes
   in the quote as a separate line (`countries/co.md` § Fiscal / invoicing tools).
 - **Fiscal calendar per client**: the country pack's § Fiscal calendar says what may be stored
   (e.g. CO: last 1–2 NIT digits + obligations per alias, never the full NIT).
@@ -71,14 +71,14 @@ Written the way the person says them. Pick 3, turn each into a skill or a schedu
   changing over time, local host only, flagged experimental. Not week one.
 - **No memory SaaS** (Mem0 hosted, Zep cloud) without written consent. Professional secrecy
   (secreto profesional) is a legal duty in every target country; how it maps onto LLM processing is
-  **UNVERIFIED per jurisdiction** — say so plainly and recommend the person check with their
+  not settled the same way in every jurisdiction — say so plainly and recommend the person check with their
   colegio/bar association.
 
 ## Tools / MCP
 
 Trust tiers (from `knowledge/capabilities/tools-mcp.md`): **T1** official remote OAuth MCP · **T2**
 maintained community MCP pinned to a version · **T3** alpha or generated thin wrapper
-(`la-forja:mcp-tool-forge`) · **T4** Zapier MCP fallback. Everything starts **read-only**
+(written by the architect itself) · **T4** Zapier MCP fallback. Everything starts **read-only**
 (`SEC-22`).
 
 | Tool | Tier | Default scope | Notes |
@@ -87,13 +87,13 @@ maintained community MCP pinned to a version · **T3** alpha or generated thin w
 | Gmail (Workspace MCP) | T1 | read | Inbox triage; email bodies are untrusted data (`SEC-12`). Send = `IRR-01` |
 | Google Drive (Workspace MCP) | T1 | read | Client folders, templates. Overwrite/delete = `IRR-04` |
 | PDF / docx / xlsx handling | built-in (Claude Code) or own skill | local files | Prefer working on local copies inside the Jarvis workspace. Vendor document skills only through `knowledge/capabilities/skills.md` § 6 |
-| **Alegra** official MCP (MX, CO, ES and others) | T1 | read | Launched 2026-06-08. Write scope and plan gating **UNVERIFIED** — keep read-only regardless |
+| **Alegra** official MCP (MX, CO, ES and others) | T1 | read | Launched 2026-06-08. List its tools after connecting to see write scope and plan gating — keep read-only regardless |
 | **Siigo** (CO) community MCP (e.g. `jdlar1/siigo-mcp`) | T2 | read (its default) | Pin version; read its source before install (`SEC-24`) |
 | **Facturapi** (MX) via `@codespar/mcp-facturapi` or a generated wrapper | T2/T3 | read (status, download) | Stamp/cancel = `IRR-05`, always preview + yes, output is a draft the accountant reviews. Never route a production key through a third party's remote MCP |
 | Facturapi bulk CFDI download / SAT descarga masiva via a PAC | T3 | read | For `cfdi-reconcile`. Pricing in `knowledge/countries/mx.md` |
 | **CONTPAQi** (MX) | T3 local only | read via XML/Excel exports | No MCP, no cloud API: Windows bridge next to the install or exports. **Never on Railway** (`CMP-20`) |
 | ARCA/AFIP (AR) via `codespar/mcp-afip` | T3 (alpha) | read | Only after reading the source; otherwise work from exported files |
-| Case-law / gazette search (SJF of SCJN in MX, CENDOJ in ES, Rama Judicial in CO) | built-in web search/fetch | read | Public sources; cite every result. Automated scraping of court portals may break their terms (UNVERIFIED) — prefer manual lookups the agent summarizes |
+| Case-law / gazette search (SJF of SCJN in MX, CENDOJ in ES, Rama Judicial in CO) | built-in web search/fetch | read | Public sources; cite every result. Automated scraping of court portals may break their terms (read the portal's terms first) — prefer manual lookups the agent summarizes |
 | Court e-filing (Tribunal Electrónico, LexNET, etc.) | **none** | — | Out of scope. Jarvis never files, signs or submits |
 
 ## Scheduled jobs
@@ -197,7 +197,7 @@ Ask only what changes the design (max 3):
 - Colombia SIC Circular 002/2024 (AI): https://normograma.mintic.gov.co/mintic/compilacion/docs/circular_superindustria_0002_2024.htm
 - EU AI Act Art. 50 timing: https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html
 
-UNVERIFIED in this file: Alegra MCP write scope and plan gating; how professional secrecy rules
+`stack-researcher` re-checks these live at install time: Alegra MCP write scope and plan gating; how professional secrecy rules
 treat LLM processing in each country; whether automated access to court portals breaks their terms;
 fiscal due dates for regimes and countries other than MX monthly ISR provisional payments of
 personas morales.

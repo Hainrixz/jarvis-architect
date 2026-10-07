@@ -77,15 +77,15 @@ An agency Jarvis serves **one owner** and **many clients**. Mixing them is the m
 
 | Need | Tool | Tier | Read-only default | Write only for… |
 |---|---|---|---|---|
-| Meta Ads | **Meta Ads official MCP** `https://mcp.facebook.com/ads` (Meta Business OAuth; **beta** per Meta's developer docs; launch date 2026-04-29 and per-account enablement from secondary sources, UNVERIFIED). It **can create and edit campaigns, ad sets and ads** | T1 (beta) | Insights/reporting only; **deny create/edit tools** | Budget, bid, status or creative changes = IRR-03/IRR-11 |
+| Meta Ads | **Meta Ads official MCP** `https://mcp.facebook.com/ads` (Meta Business OAuth; **beta** per Meta's developer docs; launch date 2026-04-29 and per-account enablement from secondary sources; after connecting, list its tools to confirm the ad account has it enabled). It **can create and edit campaigns, ad sets and ads** | T1 (beta) | Insights/reporting only; **deny create/edit tools** | Budget, bid, status or creative changes = IRR-03/IRR-11 |
 | Google Ads | **Google Ads official MCP** (`googleads/google-ads-mcp`, Python, stdio or HTTP; OAuth 2.0 or service account. Google's page says developer tokens were sunset 2026-09-09 and the latest version no longer needs one; API access is tied to the Google Cloud project) | T1 local | Read-only by design (`search` with GAQL, `list_accessible_customers`, `get_resource_metadata`) | — (cannot write) |
-| TikTok / LinkedIn Ads | No official MCP evaluated in this pass (UNVERIFIED) → exports or Zapier MCP | T4 | Read | — |
+| TikTok / LinkedIn Ads | No official MCP listed; `stack-researcher` checks the vendor docs at install, otherwise exports or Zapier MCP | T4 | Read | — |
 | CRM | HubSpot `https://mcp.hubspot.com` or Pipedrive official MCP (T1); Kommo via `cAIborg-ai/amocrm-mcp` (T2) | T1/T2 | Read leads, activities | Stage moves IRR-11; deletes IRR-04 |
-| Project management | Asana / ClickUp official remote MCPs (secondary sources; endpoints UNVERIFIED) | T1 (confirm) | Read tasks | Task creation after yes |
+| Project management | Asana / ClickUp official remote MCPs (`stack-researcher` reads the endpoint from the vendor's docs at install) | T1 (confirm) | Read tasks | Task creation after yes |
 | Social scheduling | Zernio-type scheduler MCP | T1/T2 by vendor | List posts, queues, analytics | Create/publish = IRR-02, after client + owner approval |
 | Docs / decks | Google Workspace MCP (Drive, Docs, Slides), Notion MCP | T1 | Read | Creating draft docs is fine; sharing externally IRR-01 |
 | Design | Canva official remote MCP (OAuth; Canva docs confirm the server, the URL `https://mcp.canva.com/mcp` comes from secondary listings, confirm on canva.dev at install). It can also create and edit designs; brand kits/templates need Canva Pro | T1 | Search/export | Editing client brand kits after yes |
-| Analytics | GA4 / Looker Studio: no MCP evaluated (UNVERIFIED) → exports | — | — | — |
+| Analytics | GA4 / Looker Studio: no official MCP listed; check Google's docs at install, otherwise exports | — | — | — |
 
 Optional companion skills (e.g. the `claude-ads` audit skills) are **third-party**: install only
 through `knowledge/capabilities/skills.md` § 6 (read source, pin, record) — never auto-install.
@@ -166,6 +166,6 @@ Pack skills (max 3 in week one):
 - EU AI Act Art. 50 timing (secondary): https://www.joneswalker.com/en/insights/blogs/ai-law-blog/yes-august-2-still-matters-the-eu-approved-a-high-risk-ai-delay-but-most-trans.html
 - Railway cron (UTC): https://docs.railway.com/reference/cron-jobs
 
-UNVERIFIED in this file: Meta Ads MCP launch date, tool names and whether a given ad account has
+`stack-researcher` re-checks these live at install time: Meta Ads MCP launch date, tool names and whether a given ad account has
 it enabled; Canva MCP URL (secondary listings only); Asana/ClickUp/Slack official MCP endpoints; TikTok/LinkedIn Ads and GA4 MCPs; Pipedrive
 MCP endpoint URL.

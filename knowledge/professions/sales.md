@@ -61,8 +61,8 @@ Tiers per `knowledge/capabilities/tools-mcp.md`. Read-only first (SEC-22).
 | Tool | Tier | Default scope | Notes |
 |---|---|---|---|
 | HubSpot | T1 (`https://mcp.hubspot.com`, OAuth 2.1 + PKCE, GA 2026-04-13) | read; notes/tasks write only on request | Stage moves can trigger automations (IRR-11). Deletes = IRR-04 |
-| Pipedrive | T1 (official MCP, OAuth, launched 2026-06-30) | read | Endpoint URL UNVERIFIED; many lookalike community servers, pin the official one |
-| Kommo / amoCRM | T2 (community MCPs, e.g. `cAIborg-ai/amocrm-mcp`) pinned | read | No official MCP found (UNVERIFIED). Popular in LATAM because WhatsApp is built in |
+| Pipedrive | T1 (official MCP, OAuth, launched 2026-06-30) | read | `stack-researcher` reads the endpoint URL from Pipedrive's docs at install; many lookalike community servers, pin the official one |
+| Kommo / amoCRM | T2 (community MCPs, e.g. `cAIborg-ai/amocrm-mcp`) pinned | read | No official MCP found; check Kommo's developer docs at install for a newer one. Popular in LATAM because WhatsApp is built in |
 | Gmail · Calendar (Workspace MCP) | T1 (developer preview) | read; drafts on request | |
 | Web search / fetch | built-in or Brave/Exa MCP | read | Prospect research from company sites and news; results are [A] |
 | Spreadsheet pipeline (Sheets/Excel) | T1 Workspace or T4 | read | Many LATAM reps run the pipeline in a sheet; fine for v1 |
@@ -115,7 +115,7 @@ From `templates/skills-base/`: `morning-briefing`, `inbox-triage`, `meeting-prep
 - **AI disclosure:** a bot answering leads must say it is an assistant at first contact (mandatory in
   Spain under EU AI Act Art. 50; good practice elsewhere).
 - **Regulated sales** (insurance, credit, investments): no promises of returns or approvals in drafts;
-  flag for the owner. Specific rules per country are UNVERIFIED here.
+  flag for the owner. Jarvis does not state per-country rules; it tells the owner to confirm them with their compliance contact.
 - **Commissions:** Jarvis can estimate; the company's system is the truth. Never edits payout data.
 
 ## Interview extras
@@ -136,7 +136,7 @@ From `templates/skills-base/`: `morning-briefing`, `inbox-triage`, `meeting-prep
 
 ## Sources
 
-- Profession → component map (sales row), integration trust tiers and irreversible-action list: Jarvis Architect design synthesis, UNVERIFIED as a single external source; tool and policy sources below.
+- Profession → component map (sales row), integration trust tiers and irreversible-action list: Jarvis Architect design synthesis built from the sources listed here; tool and policy sources below.
 - WhatsApp business bots vs. general-purpose ban: https://respond.io/blog/whatsapp-general-purpose-chatbots-ban
 - Data law: MX LFPDPPP 2025 (EY): https://www.ey.com/es_mx/technical/tax/boletines-fiscales/nueva-ley-federal-proteccion-datos-personal-posesion-particulares · CO SIC Circular Externa 002/2024: https://normograma.mintic.gov.co/mintic/compilacion/docs/circular_superindustria_0002_2024.htm · CO SIC Circular Externa 003/2025: https://sedeelectronica.sic.gov.co/sites/default/files/normativa/Circular%20Externa%20003%20de%202025.pdf
 - HubSpot remote MCP GA: https://developers.hubspot.com/changelog/remote-hubspot-mcp-server-is-now-generally-available

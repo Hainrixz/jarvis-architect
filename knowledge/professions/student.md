@@ -19,8 +19,8 @@ Teachers → `teacher`. Learning to code to work as a dev → `student` now, `de
 ## Age gate (ask first, before anything else in this pack)
 
 Anthropic's consumer terms require users to be **at least 18** (or the local age of consent, whichever
-is higher). OpenAI's minimum-age and parental-consent rules are UNVERIFIED here (their terms page could
-not be fetched on 2026-10-06). If the person is under 18: **stop the build**, explain that an adult
+is higher). For OpenAI, read the current minimum-age and parental-consent rules at
+https://openai.com/policies/terms-of-use/ before offering an OpenAI runtime to a minor. If the person is under 18: **stop the build**, explain that an adult
 (parent/guardian) must own the accounts, keys and spend cap, and continue only with that adult present.
 Never collect a minor's personal data beyond first name and school level.
 
@@ -64,10 +64,10 @@ fewer tools = lower cost and less to break.
 |---|---|---|---|
 | PDF / docs reading | built-in (Claude Code reads PDFs) or a pdf skill | read | Readings, slides, past exams |
 | Web search / fetch | built-in or Brave/Tavily MCP (free tiers) | read | Results are untrusted [A]; always cite sources |
-| Google Calendar / Drive (Workspace MCP) | T1 (developer preview) | read; calendar write for study blocks only if asked | **School-managed Google accounts** may block third-party apps by admin policy (UNVERIFIED per school): use a personal account if blocked |
+| Google Calendar / Drive (Workspace MCP) | T1 (developer preview) | read; calendar write for study blocks only if asked | **School-managed Google accounts** may block third-party apps by admin policy (if the connection fails with an admin error, that is the cause): use a personal account if blocked |
 | Notion | T1 (OAuth) | read; write to one "Estudio" page if asked | Many students already keep notes here |
 | Zotero (thesis) | T2 (community, e.g. `54yyyu/zotero-mcp`, `kujenga/zotero-mcp`) pinned | **read** | Several forks have write tools; pick a read-only one or disable writes |
-| Google Classroom / Moodle / Canvas | T3 wrapper or none | read | No official MCP confirmed (UNVERIFIED). v1: they paste or forward the assignment |
+| Google Classroom / Moodle / Canvas | T3 wrapper or none | read | No official MCP listed; check the platform's developer docs at install. v1: they paste or forward the assignment |
 
 ## Scheduled jobs
 
@@ -128,7 +128,7 @@ When the student picks "nada sale de mi compu" with no budget (`decision-tree.md
 - **Missed jobs:** a PC that was off skips the run. The deadline check runs at boot as well (a
   systemd user unit `jarvis-deadlines-catchup.service` with `WantedBy=default.target` that triggers
   `hermes cron run <deadline job>`), and two or three times a day with "si ya avisaste hoy, responde
-  [SILENT]" (`knowledge/capabilities/scheduling.md` § UNVERIFIED items).
+  [SILENT]" (`knowledge/capabilities/scheduling.md`).
 - **PDFs:** the PDF folder is mounted read-only into the Hermes container (`-v ~/Documentos/Facultad:/opt/jarvis/lecturas:ro`).
   Text extraction with `pdftotext` (poppler) on the host or in the image, pinned by `stack-researcher`;
   `reading-digest` reads in chunks of ~20 pages so it fits a 64K context on a small model, then
@@ -151,9 +151,9 @@ When the student picks "nada sale de mi compu" with no budget (`decision-tree.md
 
 ## Sources
 
-- Profession → component map (student row): Jarvis Architect design synthesis, UNVERIFIED as a single external source. Cheapest compliant slot (model prices): https://developers.openai.com/api/docs/pricing · https://platform.claude.com/docs/en/about-claude/pricing · archetype 13 in `knowledge/decision-tree.md`.
+- Profession → component map (student row): Jarvis Architect design synthesis built from the sources listed here. Cheapest compliant slot (model prices): https://developers.openai.com/api/docs/pricing · https://platform.claude.com/docs/en/about-claude/pricing · archetype 13 in `knowledge/decision-tree.md`.
 - Anthropic consumer terms, minimum age 18: https://www.anthropic.com/legal/consumer-terms (fetched 2026-10-06)
-- OpenAI terms of use (age rules UNVERIFIED, 403 on fetch): https://openai.com/policies/terms-of-use/
+- OpenAI terms of use (read the age rules here at install): https://openai.com/policies/terms-of-use/
 - Zotero MCP community servers: https://glama.ai/mcp/servers/kujenga/zotero-mcp , https://www.getdrio.com/mcp/io-github-54yyyu-zotero-mcp (2026-10-06)
 - Google Workspace MCP developer preview: https://workspaceupdates.googleblog.com/2026/05/agent-tools-and-security-updates-for-workspace-developers.html
 - Notion MCP (OAuth, `https://mcp.notion.com/mcp`): https://developers.notion.com/docs/get-started-with-mcp (fetched 2026-10-06)

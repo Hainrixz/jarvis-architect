@@ -56,8 +56,8 @@ T3 alpha/wrapper · T4 Zapier). All read-only first (SEC-22).
 | GitHub MCP (remote) | T1 | **read-only**: `https://api.githubcopilot.com/mcp/readonly` or header `X-MCP-Readonly: true`; limit toolsets (e.g. `repos,issues,pull_requests,actions`) | Issues, PR bodies and comments are untrusted input [A]: prompt injection lands here first (SEC-12) |
 | Sentry MCP | T1 (`https://mcp.sentry.dev/mcp/<org>/<project>`, OAuth) | read; scope the URL to one org/project | For "what broke and why" |
 | Linear MCP | T1 (`https://mcp.linear.app/mcp/readonly`, OAuth 2.1) | **read-only endpoint** first; `/mcp` (read-write) only on request | |
-| Railway MCP / CLI | T1 (vendor) | read: status, logs, metrics | Deploys, restarts, variable changes = IRR-10/IRR-07. Exact remote endpoint UNVERIFIED |
-| Supabase / Vercel / other platform MCPs | T1 if vendor-hosted | read-only mode if offered | Supabase and Vercel read-only options are UNVERIFIED here; check the vendor docs at install |
+| Railway MCP / CLI | T1 (vendor) | read: status, logs, metrics | Deploys, restarts, variable changes = IRR-10/IRR-07. `stack-researcher` reads the current remote endpoint from https://docs.railway.com at install; fallback: the local Railway CLI (`railway status`, `railway logs`) |
+| Supabase / Vercel / other platform MCPs | T1 if vendor-hosted | read-only mode if offered | At install, check the vendor's MCP docs for a read-only flag or scope and turn it on; if none exists, connect with a read-only token |
 | Playwright MCP | T1 (vendor's local package, pinned) | local browser against localhost/staging | Use for smoke tests, not for production admin panels |
 | Filesystem / shell | built-in (Claude Code) | scoped to the Jarvis workspace + named repos, sandboxed (SEC-07) | Never `--dangerously-skip-permissions` outside a disposable container (SEC-10) |
 | Web search | built-in | read | Docs lookups; results are [A] |

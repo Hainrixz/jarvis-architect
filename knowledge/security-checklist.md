@@ -33,8 +33,8 @@ files, `.env.example`, `.gitignore`, skills, `SOUL.md`/`AGENTS.md`, `tasks.json`
 | Incident / standard | What it teaches | Source |
 |---|---|---|
 | **OpenClaw CVE-2026-25253** (CVSS 3.1 8.8). The Control UI took `gatewayUrl` from the query string and sent the gateway token to it, which led to one-click RCE, **even on loopback-only installs**. Later advisories: SSRF (GHSA-56f2-hvwg-5743), file read through `$include` (GHSA-56pc-6hvp-4gv4), setup-code replay (GHSA-63f5-hhc7-cx6p), workspace `.env` injection (GHSA-7wv4-cc7p-jhxc). | Binding to loopback alone is not enough. Pin a version above the floor and never expose the control UI. | https://github.com/advisories/GHSA-g8p2-7wf7-98mq · https://osv.dev/vulnerability/CVE-2026-25253 · https://advisories.gitlab.com/npm/openclaw/ |
-| **Exposed OpenClaw gateways.** Early defaults bound to `0.0.0.0` with no auth. Scans found tens of thousands of exposed instances (the exact counts are UNVERIFIED, secondary sources). | No public admin port, ever. | https://connect.securonix.com/threat-research-intelligence-62/openclaw-threat-intelligence-report-clawdbot-moltbot-and-openclaw-208 |
-| **ClawHavoc** (ClawHub, 2026-01/02). Hundreds of malicious skills (341 out of 2,857 audited on 2026-01-25, and more than 1,184 by 2026-02-16; totals are UNVERIFIED, secondary sources). They used polished READMEs with a "Prerequisites: run this command" section. | Treat any skill or MCP marketplace like malware. Read the source, pin the version and hash, and never "run this helper". | https://www.securemac.com/news/the-clawdbot-moltbot-openclaw-fiasco-part-2 |
+| **Exposed OpenClaw gateways.** Early defaults bound to `0.0.0.0` with no auth. Scans found tens of thousands of exposed instances (counts from secondary sources). | No public admin port, ever. | https://connect.securonix.com/threat-research-intelligence-62/openclaw-threat-intelligence-report-clawdbot-moltbot-and-openclaw-208 |
+| **ClawHavoc** (ClawHub, 2026-01/02). Hundreds of malicious skills (341 out of 2,857 audited on 2026-01-25, and more than 1,184 by 2026-02-16; totals from secondary sources). They used polished READMEs with a "Prerequisites: run this command" section. | Treat any skill or MCP marketplace like malware. Read the source, pin the version and hash, and never "run this helper". | https://www.securemac.com/news/the-clawdbot-moltbot-openclaw-fiasco-part-2 |
 | **Moltbook breach** (2026-01). A Supabase key sat in client JS with RLS off, which exposed about 1.5M agent tokens. | Secrets never go in client code, prompts or repos. Rotate after any exposure. | https://www.govinfosecurity.com/moltbook-gave-everyone-control-every-ai-agent-a-30710 |
 | **Lethal trifecta** (Willison) / **Agents Rule of Two** (Meta, 2025-10-31). Private data + untrusted input + external action means data can be exfiltrated. Prompt injection "may never be totally mitigated" (UK NCSC). | Allow at most 2 of [A][B][C] per session without a human. All three need human approval. | https://www.hiddenlayer.com/research/the-lethal-trifecta-and-how-to-defend-against-it · https://dev.to/gabrielanhaia/metas-agents-rule-of-two-a-practical-defense-against-prompt-injection-55ib |
 | **OWASP Top 10 for Agentic Applications 2026**: ASI01 Goal Hijack · ASI02 Tool Misuse · ASI03 Identity/Privilege Abuse · ASI04 Supply Chain · ASI05 Unexpected Code Exec · ASI06 Memory/Context Poisoning · ASI07 Inter-Agent Comms · ASI08 Cascading Failures · ASI09 Human-Agent Trust Exploitation · ASI10 Rogue Agents | Every control below maps to an ASI ID. | https://www.giskard.ai/knowledge/owasp-top-10-for-agentic-application-2026 |
@@ -61,8 +61,8 @@ list. A profession or country pack may add items but never remove them.
 | IRR-10 | Production deploys | `railway up`, `git push` to a deployed branch, DNS or domain changes |
 | IRR-11 | Business-critical edits | Price or menu changes, stock levels, CRM stage moves that trigger automations |
 
-LATAM-specific additions come from `knowledge/countries/<cc>.md` and are UNVERIFIED per tool.
-Source for the LATAM list: UNVERIFIED as a complete list (a synthesis, no single primary source; refunds and outbound payments per https://docs.stripe.com/mcp) (CFDI stamp/cancel, refunds, payouts,
+LATAM-specific additions come from `knowledge/countries/<cc>.md`; confirm each tool's write actions in its own docs when you wire it.
+Source for the LATAM list: a synthesis, not exhaustive (no single primary source; treat any unlisted write that moves money, deletes or publishes as IRR too; refunds and outbound payments per https://docs.stripe.com/mcp) (CFDI stamp/cancel, refunds, payouts,
 outbound templates, CRM deletes, Mercado Libre price changes).
 
 ---
@@ -123,7 +123,7 @@ Runtime abbreviations:
 - **RW** = Railway host
 
 Exact config keys come from `knowledge/runtimes/<id>.md` § Configure. Where a key below is
-UNVERIFIED, that runtime file must confirm it before use.
+marked *check live*, read it from that runtime file's linked docs at BUILD time and use the documented name.
 
 ### A. Identity & access
 
@@ -160,7 +160,7 @@ UNVERIFIED, that runtime file must confirm it before use.
 **SEC-02 — Groups off by default; if on, mention-gated with a read-only tool profile.**
 - *Why:* In group chats every member can inject instructions (ASI01, Rule of Two [A]).
 - **How:**
-  - OC: `groupPolicy: "allowlist"` plus `requireMention: true` (key names UNVERIFIED).
+  - OC: `groupPolicy: "allowlist"` plus `requireMention: true` (key names: check live in `runtimes/openclaw.md`).
   - HER: do not add group IDs to the allowlist.
   - CC: do not enable group delivery in the channel plugin.
   - All runtimes: if groups are enabled, use a separate agent or profile with no [C] tools.
@@ -211,7 +211,7 @@ UNVERIFIED, that runtime file must confirm it before use.
   - HER: Compose ports as `127.0.0.1:8642:8642` and `127.0.0.1:9119:9119`. Leave
     `API_SERVER_HOST=0.0.0.0` unset unless `API_SERVER_KEY` is set and it sits behind Tailscale.
   - OLL: keep the default loopback bind and never set `OLLAMA_HOST=0.0.0.0` without a firewall
-    (no primary source checked, UNVERIFIED).
+    (verify with `lsof -nP -iTCP:11434 -sTCP:LISTEN` → must show `127.0.0.1`).
   - Remote: `tailscale serve` (tailnet only, https://tailscale.com/kb/1223/funnel). Funnel only
     for webhook paths.
 - **Check:** grep configs, Compose files and `.env.example` for `0\.0\.0\.0`,
@@ -250,7 +250,7 @@ UNVERIFIED, that runtime file must confirm it before use.
     (https://docs.openclaw.ai/gateway/sandboxing).
   - SDK: run the worker in a container as non-root with dropped capabilities and memory/pids
     limits.
-  - CDX: use the Codex sandbox mode set in `runtimes/codex-openai.md` (key UNVERIFIED there).
+  - CDX: use the Codex sandbox mode set in `runtimes/codex-openai.md` (key: check live in its linked docs).
   - CW: managed by Anthropic, so this is not applicable.
 - **Check:**
   - CC: `"sandbox"` → `"enabled": true` is missing on macOS/Linux/WSL2 → MAJOR.
@@ -365,7 +365,7 @@ UNVERIFIED, that runtime file must confirm it before use.
   - SDK: `canUseTool` sends the preview to the owner's channel and awaits approve/deny. IRR tools
     are not in `allowedTools` without the callback.
   - HER: `approvals.mode: manual` for IRR patterns, plus skill instructions.
-  - OC: tool policy requiring approval (key UNVERIFIED, see `runtimes/openclaw.md`).
+  - OC: tool policy requiring approval (key: check live in `runtimes/openclaw.md`).
   - All runtimes: the preview shows the recipient, full text, amount, or path. Not a summary.
 - **Check:**
   - For each IRR-capable tool in spec §3, find an `ask` rule, a `canUseTool` gate, a
@@ -378,7 +378,7 @@ UNVERIFIED, that runtime file must confirm it before use.
 - *Why:* Nobody is there to approve at 3 a.m. (ASI08).
 - **How:**
   - HER: `cron_mode`, `single_query_mode` and `unattended_mode` all `deny` (Hermes security
-    docs; the exact nesting under `approvals` is UNVERIFIED).
+    docs; confirm the nesting under `approvals` in the linked docs at BUILD time).
   - CC `claude -p` cron: `--permission-mode dontAsk` with `--allowedTools` limited to read and
     draft tools, so anything else is denied. Add `--max-turns` and `--max-budget-usd` (SEC-28).
   - SDK: in scheduled jobs, `permissionMode: "dontAsk"` with read and draft `allowedTools`.
@@ -408,7 +408,7 @@ UNVERIFIED, that runtime file must confirm it before use.
   - Local: `.env` with `chmod 600`, listed in `.gitignore` together with `*.env`, `auth.json`
     and `credentials*`. Add a pre-commit secret scan (gitleaks).
   - RW: **Sealed** variables (never shown in the UI or CLI, not copied to PR environments). Seal
-    them in the dashboard; whether the CLI can seal is UNVERIFIED. No secret goes in shared
+    them in the dashboard; do it there even if you set them with the CLI. No secret goes in shared
     variables.
   - CDX: `cli_auth_credentials_store = keyring` (https://learn.chatgpt.com/docs/auth).
 - **Check:**
@@ -469,7 +469,7 @@ UNVERIFIED, that runtime file must confirm it before use.
   - Gmail: a personal Google Cloud OAuth app in **Testing** status with only the owner as test
     user, starting with `gmail.readonly`. `gmail.send` comes later, behind approval
     (https://developers.google.com/workspace/gmail/api/auth/scopes). Testing-status refresh
-    tokens may expire after 7 days (UNVERIFIED for 2026), so note it in `RUNBOOK.md`.
+    tokens may expire after 7 days, so add to `RUNBOOK.md`: "if Gmail stops working, re-run the OAuth sign-in".
   - Calendar: read-only, plus writes to a dedicated calendar.
   - Fiscal tools: read-only by default.
   - Prefer a dedicated assistant mailbox or calendar.
@@ -546,7 +546,7 @@ UNVERIFIED, that runtime file must confirm it before use.
     (Console → Settings → Workspaces → the Jarvis workspace → **Spend limits**; the exact path
     per provider is in `capabilities/costs.md` § 7).
   - OpenAI: project hard limit plus 50/75/90% alerts
-    (https://developers.openai.com/api/docs/guides/spend-limits.md; launch date UNVERIFIED).
+    (https://developers.openai.com/api/docs/guides/spend-limits.md).
   - RW: Hobby plan with a usage limit in Cost Control (https://docs.railway.com/pricing/plans).
   - Claude Pro/Max subscription (`claude-code-local`, `claude-p-cron`, `cowork`): Extra usage off
     or capped in claude.ai settings. No machine can read it, so the task's postcondition is
@@ -618,7 +618,7 @@ UNVERIFIED, that runtime file must confirm it before use.
   Meta bans general-purpose AI assistants as primary functionality
   (https://www.facebook.com/legal/Meta-Terms-for-WhatsApp-Business-Platform;
   https://hermes-agent.nousresearch.com/docs/user-guide/messaging/whatsapp). Whether a
-  single-owner assistant on the Cloud API falls under that ban is UNVERIFIED (grey area, so
+  single-owner assistant on the Cloud API falls under that ban has no official ruling (grey area, so
   disclose it).
 - **How:**
   - HER: its **default** WhatsApp mode is the Baileys bridge (`WHATSAPP_ENABLED`), so pick the
@@ -679,7 +679,7 @@ something the owner does in a browser or terminal. Jarvis never runs them on its
    - Railway: run `railway down` in the linked project. It deletes the service's most recent
      successful deployment and asks for confirmation (https://docs.railway.com/cli/down). Then
      open the service → Deployments in the dashboard and check that nothing is still Active
-     (the exact dashboard label is UNVERIFIED).
+     (if the label differs, `railway status` must show no running deployment).
    - Claude Code session: close it. Cowork: pause the scheduled tasks.
 2. **Revoke the model key** (this also stops the spend):
    - Anthropic: https://platform.claude.com/settings/keys (the old console.anthropic.com
@@ -721,7 +721,7 @@ something the owner does in a browser or terminal. Jarvis never runs them on its
 | Allowlist (01) | `/telegram:access policy allowlist` | `from.id` check in code | `TELEGRAM_ALLOWED_USERS` etc. | `dmPolicy: allowlist` + `allowFrom` | — |
 | Sandbox (07–09) | `sandbox.enabled` + `allowUnsandboxedCommands:false` + `failIfUnavailable:true` + `denyRead` + `allowedDomains` | container, non-root | `terminal.backend: docker`, SSRF block | `agents.defaults.sandbox.mode` + Docker | container per service |
 | Hard deny (10) | `permissions.deny` + PreToolUse hook | PreToolUse hook (wins over bypass) | hardline blocklist + `approvals.deny` | tool policy, no `tools.elevated` | — |
-| Approval (14–15) | `permissions.ask` + channel permission relay; cron: `dontAsk` + `--allowedTools` | `canUseTool`; jobs: `dontAsk` | `approvals.mode: manual`; `cron_mode: deny` | approval policy (UNVERIFIED key) | — |
+| Approval (14–15) | `permissions.ask` + channel permission relay; cron: `dontAsk` + `--allowedTools` | `canUseTool`; jobs: `dontAsk` | `approvals.mode: manual`; `cron_mode: deny` | approval policy (key: check live) | — |
 | Exposure (05–06) | no listener | bind loopback / webhook only | `127.0.0.1:` ports | loopback + `OPENCLAW_GATEWAY_TOKEN`; `openclaw security audit` | domain only for webhooks; `*.railway.internal` |
 | Secrets (17) | `.env` 600 / keychain | `.env` / sealed vars | `~/.hermes/.env` 600 or `/opt/data/.env` | gateway token + `.env` | **Sealed** variables |
 | Cost (27) | provider cap | provider cap + app budget | provider cap | provider cap | usage limit (Cost Control) |

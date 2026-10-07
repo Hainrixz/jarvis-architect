@@ -57,14 +57,14 @@ All read-only at install (SEC-22). Pick the 2–3 that cover the chosen jobs.
 
 | Need | Tool | Tier | Read-only default | Write switched on only for… |
 |---|---|---|---|---|
-| Mercado Libre orders, questions, listings | Official remote MCP `https://mcp.mercadolibre.com/mcp` (OAuth app of the seller) | T1 | Read orders/questions/listings | Answering questions (IRR-02), listing edits as drafts; price changes IRR-11. Tool list UNVERIFIED (docs returned 403) |
+| Mercado Libre orders, questions, listings | Official remote MCP `https://mcp.mercadolibre.com/mcp` (OAuth app of the seller) | T1 | Read orders/questions/listings | Answering questions (IRR-02), listing edits as drafts; price changes IRR-11. After connecting, list its tools (`/mcp` in Claude Code, or the runtime's tool listing) and plan jobs only on tools that appear |
 | Shopify orders, products, inventory | Community Admin MCP (Admin GraphQL), token with `read_orders`, `read_products`, `read_inventory` | T2 | Read scopes only | Inventory/price writes = IRR-11 |
 | Shopify docs / storefront | Official Shopify Dev / Storefront MCP | T1 | — | — |
-| Tiendanube / Nuvemshop | No MCP confirmed (UNVERIFIED) → Zapier MCP with specific actions | T4 | "Find order", "new order" triggers | — |
-| Amazon Seller | No MCP evaluated in this pass (UNVERIFIED) → Zapier MCP or exports | T4 | — | — |
+| Tiendanube / Nuvemshop | No official MCP listed; `stack-researcher` checks the platform's developer docs at install, otherwise Zapier MCP with specific actions | T4 | "Find order", "new order" triggers | — |
+| Amazon Seller | No official MCP listed; `stack-researcher` checks Amazon's SP-API docs at install, otherwise Zapier MCP or exports | T4 | — | — |
 | Stripe | Official `https://mcp.stripe.com`, OAuth or **Agent API key** (full secret keys rejected from 2026-10-31, CMP-37) | T1 | `stripe_api_read`; **deny `stripe_api_write`** | Refunds/payouts: Stripe's own approval + Jarvis approval (IRR-03) |
-| Mercado Pago | Official MCP, but official docs list **developer tools only**; live payments UNVERIFIED | T1 (dev scope) | Do not plan week-one jobs on it | Fallback: T3 wrapper over MP REST, read-only |
-| Shipping (Envia, Skydropx, Mercado Envíos) | No MCP confirmed (UNVERIFIED) | T3 / T4 | Tracking lookups | Buying a label = IRR-03 |
+| Mercado Pago | Official MCP, but official docs list **developer tools only**; after connecting, use payment tools only if its tool list shows them | T1 (dev scope) | Do not plan week-one jobs on it | Fallback: T3 wrapper over MP REST, read-only |
+| Shipping (Envia, Skydropx, Mercado Envíos) | No official MCP listed; `stack-researcher` checks each carrier's developer docs at install | T3 / T4 | Tracking lookups | Buying a label = IRR-03 |
 | Invoicing MX | Facturapi via `@codespar/mcp-facturapi` (T2) or a T3 wrapper; Alegra official MCP (T1) — details in `knowledge/countries/mx.md` | T1–T3 | Read status, build previews | Stamp/cancel = IRR-05, never in cron |
 | Invoicing CO / AR / ES | See `knowledge/countries/co.md`, `ar.md`, `es.md` | — | Read | IRR-05 |
 | Inventory spreadsheet | Google Workspace MCP (Sheets), developer preview | T1 | `spreadsheets.readonly` | Writing stock = IRR-11 |
@@ -151,5 +151,5 @@ Pack skills (max 3 in week one, written by `workspace-writer`):
 - WhatsApp business vs. AI-provider use: https://www.facebook.com/legal/Meta-Terms-for-WhatsApp-Business-Platform
 - Data law summaries: MX LFPDPPP 2025 (EY): https://www.ey.com/es_mx/technical/tax/boletines-fiscales/nueva-ley-federal-proteccion-datos-personal-posesion-particulares · MX (Hogan Lovells): https://www.hoganlovells.com/es/publications/mexicos-new-federal-data-protection-law-what-it-means-for-companies · CO SIC Circular Externa 002/2024: https://normograma.mintic.gov.co/mintic/compilacion/docs/circular_superindustria_0002_2024.htm · CO SIC Circular Externa 003/2025: https://sedeelectronica.sic.gov.co/sites/default/files/normativa/Circular%20Externa%20003%20de%202025.pdf
 
-UNVERIFIED in this file: Mercado Libre MCP tool list; Mercado Pago live-payment tools; MCPs for
+`stack-researcher` re-checks these live at install time: Mercado Libre MCP tool list; Mercado Pago live-payment tools; MCPs for
 Tiendanube, Amazon Seller, Envia, Skydropx; scope of the Claude.ai Shopify connector.

@@ -49,9 +49,9 @@ Rules that apply to every row:
 | WhatsApp | — (no official channel) | — | — | B (Cloud API webhook) | N (Baileys default; Cloud API option) | P (**Baileys only**) | — | via Hermes | — |
 | Discord | P (research preview) | P (research preview) | send-only (webhook URL) | B | N | P | — | via Hermes/OpenClaw | — |
 | Slack | — (Claude in Slack is a separate product, see below) | — | send-only (incoming webhook) | B (Bolt, Socket Mode) | N (Socket Mode) | P (Socket Mode default) | — | via Hermes/OpenClaw | — |
-| iMessage | P (macOS only) | — | — | — | — UNVERIFIED | P (`imsg`, macOS host) | — | via OpenClaw | — |
+| iMessage | P (macOS only) | — | — | — | — (none documented) | P (`imsg`, macOS host) | — | via OpenClaw | — |
 | Email | — (Gmail MCP is a tool, not a channel) | — | send-only | B (AgentMail API) | N (IMAP/SMTP) | — (not in channel docs) | — | via Hermes | — |
-| Web UI | fakechat demo (localhost) | — | — | B (your own UI) | dashboard templates (community) UNVERIFIED | N (WebChat, bundled) | — | **Jarvis Panel via the harness** | Claude app |
+| Web UI | fakechat demo (localhost) | — | — | B (your own UI) | dashboard templates (community; review source before use) | N (WebChat, bundled) | — | **Jarvis Panel via the harness** | Claude app |
 | Remote Control | N (needs claude.ai `/login`) | only with `/login` on the server; never with API key or setup-token | — | — | — | — | — | — | Dispatch (Claude app) |
 | Signal / Teams / Matrix / others | — | — | — | B | N | P | — | via Hermes/OpenClaw | — |
 
@@ -60,9 +60,9 @@ Sources: [Claude Code channels](https://code.claude.com/docs/en/channels),
 [Hermes messaging](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/),
 [OpenClaw channels](https://docs.openclaw.ai/channels),
 [Hermes WhatsApp](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/whatsapp),
-[OpenClaw WhatsApp](https://docs.openclaw.ai/channels/whatsapp). Codex has no built-in chat
-channels (UNVERIFIED); Cowork has no Telegram/WhatsApp ([Claude release notes](https://support.claude.com/en/articles/12138966),
-secondary sources, partly UNVERIFIED).
+[OpenClaw WhatsApp](https://docs.openclaw.ai/channels/whatsapp). Codex documents no built-in chat
+channels, so it gets a send-only channel from the wrapper; Cowork has no Telegram/WhatsApp ([Claude release notes](https://support.claude.com/en/articles/12138966)).
+`stack-researcher` re-checks both before the design is shown, and uses a native channel if one has shipped.
 
 Matrix consequences the Architect must apply:
 
@@ -75,7 +75,7 @@ Matrix consequences the Architect must apply:
   Pro/Max users without an organization skip that check. ([channels](https://code.claude.com/docs/en/channels))
 - **Remote Control never works with an API key or a setup-token** ("API keys are not supported").
   On a server with `ANTHROPIC_API_KEY`, offer Telegram instead. ([remote-control](https://code.claude.com/docs/en/remote-control), `knowledge/auth-matrix.md`)
-- Native Windows + Claude Code channels: UNVERIFIED (Bun-based plugins). Prefer WSL2.
+- Windows + Claude Code channels: run them inside WSL2 (Bun-based plugins; the sandbox needs WSL2).
 
 ## Options and tradeoffs
 
@@ -92,7 +92,7 @@ Matrix consequences the Architect must apply:
 Read `knowledge/capabilities/whatsapp.md` and `knowledge/countries/<cc>.md`. Summary only:
 official Cloud API is the default path (needs a public HTTPS webhook — fits Railway); Meta's
 Business Solution Terms ban AI providers whose primary functionality is a general assistant, and a
-personal "ask me anything" Jarvis is a grey zone (UNVERIFIED legal reading); Baileys-type bridges
+personal "ask me anything" Jarvis is a grey zone (the Architect's reading, not legal advice: say so and let the person decide); Baileys-type bridges
 break WhatsApp ToS and risk a number ban → explicit logged consent + secondary number only.
 
 ### Discord
@@ -116,7 +116,7 @@ break WhatsApp ToS and risk a number ban → explicit logged consent + secondary
   to install it; company data then flows to the model provider.
 - **Claude in Slack** (official, `@Claude` mention spawns a *cloud* session) is a different thing:
   it does not reach the person's local Jarvis, files or memory. Docs: <https://code.claude.com/docs/en/slack>.
-  Plan requirements: UNVERIFIED — check the page before recommending.
+  Before recommending it, open that page and confirm which plans include it.
 
 ### iMessage (macOS only)
 
@@ -141,8 +141,9 @@ Two different things; do not mix them up:
 
 - Hermes docs: "Don't use your personal email — the agent stores the password in `.env` and has
   full inbox access via IMAP." Use an app password, file mode 0600.
-- AgentMail MCP / inbound webhooks / sender allowlists: UNVERIFIED (not shown on the docs index
-  fetched 2026-10-06). If it uses webhooks, verify their signature (§ Polling vs webhook).
+- AgentMail MCP / inbound webhooks / sender allowlists: before relying on them, `stack-researcher` checks
+  the current AgentMail docs; if a sender allowlist isn't offered, Jarvis filters senders in code. If it
+  uses webhooks, verify their signature (§ Polling vs webhook).
 - Every email body and attachment is **untrusted input** (prompt injection); wrap it as data
   (`knowledge/security-checklist.md` SEC-12).
 
@@ -184,7 +185,7 @@ store them as numbers or strings, never as 32-bit ints.
 | Platform | Preferred | Fallback |
 |---|---|---|
 | Telegram | **Pairing**: DM the bot, it replies with a code (Claude Code, Hermes) or "Your Telegram user id" (OpenClaw) | Read `senderUserId` in local logs (`openclaw logs --follow`) or the official Bot API `getUpdates` ([OpenClaw access control](https://docs.openclaw.ai/channels/telegram/access-control)); third-party bots like @userinfobot work but are a third party — mention, don't default |
-| Discord | Pairing (Claude Code) | Discord Settings → Advanced → Developer Mode → right-click yourself → *Copy User ID* (UNVERIFIED menu path) |
+| Discord | Pairing (Claude Code) | Discord Settings → Advanced → Developer Mode → right-click yourself → *Copy User ID* (if the menu moved, search "Developer Mode" in Discord settings) |
 | Slack | Profile → ⋯ → *Copy member ID* | — |
 | iMessage | Self-chat (no setup) | Handle in `+<country><number>` or Apple ID email |
 | Email | The owner's address + sender authentication check | — |
@@ -289,7 +290,7 @@ If the person explicitly wants Jarvis in a group:
 4. Never put a personal Jarvis in a group with clients or the public. A customer-facing bot is a
    different product (and on WhatsApp, a different policy — `whatsapp.md`).
 5. Claude Code channel plugins: group/server-channel behaviour is not documented on the channels
-   page (UNVERIFIED) → use DMs only.
+   page → use DMs only.
 
 ## Setup notes per runtime
 
@@ -347,7 +348,7 @@ All of these map to `knowledge/security-checklist.md`; `jarvis-validator` checks
 
 - Claude Code channels (Telegram/Discord/iMessage/fakechat, pairing, allowlist, enterprise controls, research preview) — https://code.claude.com/docs/en/channels (fetched 2026-10-06)
 - Claude Code Remote Control — https://code.claude.com/docs/en/remote-control (fetched 2026-10-06)
-- Claude in Slack — https://code.claude.com/docs/en/slack (not fetched; plan requirements UNVERIFIED)
+- Claude in Slack — https://code.claude.com/docs/en/slack (open it to confirm plan requirements before recommending)
 - Claude Code auth / setup-token limits — https://code.claude.com/docs/en/authentication
 - Channels + OAuth token issues — https://github.com/anthropics/claude-code/issues/80091 · https://github.com/anthropics/claude-code/issues/44945
 - Telegram Bot API (`setWebhook` `secret_token`, getUpdates conflict, user ID size) — https://core.telegram.org/bots/api#setwebhook (fetched 2026-10-06)

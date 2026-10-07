@@ -47,7 +47,7 @@ Hard lines:
 
 The exceptions are moving targets (appeals pending). Have `stack-researcher` re-check them before quoting.
 
-**How the Architect classifies a use.** This is an interpretation, not legal advice (UNVERIFIED: no lawyer has reviewed it).
+**How the Architect classifies a use.** This is the Architect's interpretation, not legal advice; no lawyer has reviewed it, and the person hears that before choosing.
 
 | Class | Example | Verdict | What the Architect says |
 |---|---|---|---|
@@ -69,7 +69,7 @@ Never let a generated Jarvis or this repo be positioned as an AI provider on Wha
 
 BSPs active in LATAM ([YCloud LATAM list](https://www.ycloud.com/blog/whatsapp-api-businesses-latin-america), secondary):
 - **Leadsales**: Meta-appointed WhatsApp solution partner for LATAM SMEs ([Contxto](https://www.contxto.com/en/news/meta-chooses-leadsales-as-whatsapp-solution-partner-for-latin-america/)).
-- **Kommo** (ex amoCRM): CRM with WhatsApp built in, very common in LATAM sales teams. No official MCP found (UNVERIFIED); community MCPs exist, see `knowledge/capabilities/tools-mcp.md`.
+- **Kommo** (ex amoCRM): CRM with WhatsApp built in, very common in LATAM sales teams. No official MCP found as of 2026-10-06 (`stack-researcher` re-checks); community MCPs exist, see `knowledge/capabilities/tools-mcp.md`.
 - **Zenvia**: offices in Mexico and Argentina. **Twilio**, **Gupshup**, **YCloud**, **Wati**, **respond.io**, **Infobip**: regional coverage.
 - Rule: if the business already pays a BSP, connect Jarvis to that BSP rather than registering the number a second time. One number can only sit on one Cloud API setup at a time.
 
@@ -77,7 +77,7 @@ BSPs active in LATAM ([YCloud LATAM list](https://www.ycloud.com/blog/whatsapp-a
 
 - Rates per country and category (marketing, utility, authentication) are in `knowledge/countries/mx.md`, `co.md`, `ar.md`, `es.md`, `other.md`. Do not quote them from here.
 - **24-hour window.** Free-form replies are only possible within 24 h of the person's last message. Anything Jarvis sends **first** after that (a morning brief, a reminder) must be an approved **template**, billed at the utility or marketing rate of the recipient's country. Tell the person: "Si tú le escribes primero a Jarvis cada día, casi no cuesta; si Jarvis te escribe primero, cada mensaje es una plantilla con costo."
-- **CONFLICT on service replies:** Meta's pricing doc (fetched 2026-10-06) still says non-template messages are free; respond.io and flowcall say that from 2026-10-01 service replies are charged after the first 1,000 per number per month. Either way a personal Jarvis stays well under 1,000 replies, so its reply cost is about $0. Re-check the official rate card at install time ([Meta pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing), [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md)).
+- **Service replies — sources differ:** Meta's pricing doc (fetched 2026-10-06) still says non-template messages are free; respond.io and flowcall say that from 2026-10-01 service replies are charged after the first 1,000 per number per month. Either way a personal Jarvis stays well under 1,000 replies, so its reply cost is about $0. `stack-researcher` re-checks the official rate card at install time; for a business bot that may pass 1,000 replies a month, quote with the charged reading ([Meta pricing](https://developers.facebook.com/documentation/business-messaging/whatsapp/pricing), [respond.io](https://respond.io/blog/whatsapp-pricing-change-2026.md)).
 - Proactive templates cost money, so they are on the human-approval list for business bots (see `knowledge/security-checklist.md`).
 
 ## Setup: Cloud API, step by step (for a non-technical person)
@@ -95,16 +95,16 @@ Mark each human step as a `kind: "user_action"` task in `tasks.json`, with a pos
 **Step 2. Use the free test number first.**
 1. In *API Setup*, Meta gives a test business number (usually a +1 555 number).
 2. Under **To**, add the owner's own WhatsApp number and confirm the code WhatsApp sends.
-3. The test number can only message numbers on that list; the commonly cited limit is **5 recipients** ([Wati](https://www.wati.io/en/blog/test-whatsapp-message-sends-safely/), [WANotifier help](https://help.wanotifier.com/en/article/test-phone-number-limitations-kt0ly2/); Meta's page does not state the number, so the limit is UNVERIFIED). That is enough for a personal Jarvis.
+3. The test number can only message numbers on that list; the commonly cited limit is **5 recipients** ([Wati](https://www.wati.io/en/blog/test-whatsapp-message-sends-safely/), [WANotifier help](https://help.wanotifier.com/en/article/test-phone-number-limitations-kt0ly2/); Meta's page does not state the number; if adding a recipient fails, that is the limit). That is enough for a personal Jarvis.
 4. Press *Send message* to get the "hello_world" template on the phone. Post-condition: the person confirms they received it.
 
 **Step 3. (Optional) Move to a real number.** Only for a business, or if the test number feels odd.
-- Use a **new number** (new SIM or eSIM). A number registered on the Cloud API stops working in the regular WhatsApp / WhatsApp Business app unless Meta's "coexistence" onboarding is used (coexistence availability per country is UNVERIFIED; check with Meta or the BSP).
-- Add the number, verify by SMS or call, and set the display name; Meta reviews the display name. Business verification is required to raise messaging limits (exact thresholds UNVERIFIED; re-check at install).
+- Use a **new number** (new SIM or eSIM). A number registered on the Cloud API stops working in the regular WhatsApp / WhatsApp Business app unless Meta's "coexistence" onboarding is used (before using coexistence, check in WhatsApp Manager or with the BSP that it is offered in the person's country; if not, use a new number).
+- Add the number, verify by SMS or call, and set the display name; Meta reviews the display name. Business verification is required to raise messaging limits (`stack-researcher` reads the current thresholds from Meta's messaging-limits page at install).
 
 **Step 4. Create a permanent token.** The token shown in *API Setup* is temporary; Meta says it "expires quickly" ([Meta get started](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started)).
 1. In Meta Business settings → *Users → System users*, create a system user and assign it the app and the WABA.
-2. Generate a token with `whatsapp_business_messaging` and `whatsapp_business_management` permissions (UNVERIFIED wording of the permission names in the current UI; re-check).
+2. Generate a token with `whatsapp_business_messaging` and `whatsapp_business_management` permissions (if the UI labels differ, pick the two permissions whose names contain `whatsapp_business`).
 3. The person pastes it **straight into Railway variables**, not into the chat.
 4. Also copy (not secret): the **Phone number ID** and the **WABA ID** from *API Setup*. Copy the **App secret** from *App settings → Basic* into Railway variables (it is secret).
 
@@ -161,7 +161,7 @@ is built and validated, the customer bot is a Non-Goal (`/jarvis-add` v2), and i
 
 | Control | What the customer profile must have | SEC |
 |---|---|---|
-| Separation | Its own process and state: a second Hermes gateway with its own `HERMES_HOME` (on Railway, a second service with its own volume), or a separate route in a `claude-agent-sdk` core. Never the owner's gateway with a wider allowlist. Hermes multi-profile flags: see [multi-profile gateways](https://hermes-agent.nousresearch.com/docs/user-guide/multi-profile-gateways) (exact flags **UNVERIFIED**, pin them in `runtimes/hermes.md` before use) | SEC-01, SEC-23 |
+| Separation | Its own process and state: a second Hermes gateway with its own `HERMES_HOME` (on Railway, a second service with its own volume), or a separate route in a `claude-agent-sdk` core. Never the owner's gateway with a wider allowlist. Hermes multi-profile flags: see [multi-profile gateways](https://hermes-agent.nousresearch.com/docs/user-guide/multi-profile-gateways) (read the exact flags from that page and pin them in `runtimes/hermes.md` before use) | SEC-01, SEC-23 |
 | Who may write | **Known customers** (an accountant's 30 clients, a coach's students): an explicit list of E.164 numbers in `WHATSAPP_CLOUD_ALLOWED_USERS`, edited only by the owner in a terminal or the Railway dashboard, never by a chat message. **Unknown public** (restaurant bookings): an open sender list is allowed **only** on a profile with no private data and no actions beyond replying to that sender (Rule of Two: [A] only), and the validator checks that profile's toolset | SEC-01, SEC-04, SEC-11 |
 | Tools | No [C] tools (no send-to-others, pay, delete, invoice). Read access only to a public `faq.md` / menu / price list. Anything else ("¿qué documentos me faltan?") becomes a **request to the owner**: the owner's Jarvis drafts the answer, the owner approves, then it is sent | SEC-11, SEC-14, SEC-22 |
 | Per-client data | **None in the customer profile.** A model can't be trusted to keep client A's data from client B. Per-sender answers need code that maps the sender's number to one client alias **outside the model** and loads only that alias's folder (`claude-agent-sdk`, `dev` only), with a cross-client leak test | SEC-12, SEC-13 |
@@ -183,7 +183,7 @@ refusal plus an owner notification.
 | NanoClaw (Agent SDK based; API key) | No | Yes, only path (`/add-whatsapp`-style channel skill) | Same consent gate ([NanoClaw README](https://github.com/qwibitai/nanoclaw)) |
 | n8n (automation layer, no runtime file) | **Yes**: official WhatsApp Business Cloud node + WhatsApp Trigger node | No | One webhook per Meta app; test vs production URL overwrite each other ([n8n docs](https://docs.n8n.io/integrations/builtin/trigger-nodes/n8n-nodes-base.whatsapptrigger/)). Good for SMB bots with a visual flow |
 | `claude-agent-sdk` | Build it: a small webhook adapter (Steps 5–6) or Twilio's WhatsApp API | Possible but don't | Developer path; API key per `knowledge/auth-matrix.md` |
-| `claude-code-local` · `claude-code-server` · `claude-p-cron` | **No official channel** ([Claude Code channels](https://code.claude.com/docs/en/channels)) | Community bridges only (UNVERIFIED quality) | Pick `hermes` or n8n for WhatsApp instead |
+| `claude-code-local` · `claude-code-server` · `claude-p-cron` | **No official channel** ([Claude Code channels](https://code.claude.com/docs/en/channels)) | Community bridges only (unreviewed; full source review before any use) | Pick `hermes` or n8n for WhatsApp instead |
 | `codex-openai` | No native channel | No | Pair with `hermes` or n8n |
 | `ollama-local` | Via `hermes` (Ollama as model provider) | Via `hermes` or `openclaw` | Cloud API still needs a public webhook (Railway or Tailscale Funnel) even if the model is local |
 | `cowork` | No | No | No WhatsApp or Telegram channel. If WhatsApp is a must, pick `hermes` instead |
@@ -201,12 +201,14 @@ Each line maps to a control in `knowledge/security-checklist.md`:
 - **Unofficial bridges** (`SEC-31`): Baileys only with the logged consent above and a secondary number.
 - **Health, legal, accounting packs**: Cloud API only, never Baileys; keep sensitive data out of long-term memory.
 
-## UNVERIFIED items
+## Re-checked at install
 
-- Whether a single-person, self-hosted assistant on the Cloud API counts as "primary functionality" AI under Meta's clause (interpretation only).
-- Test-number recipient limit of 5 (secondary sources; not stated on Meta's page).
-- Coexistence (same number in the app and the API) availability per country; business-verification thresholds; exact system-user permission names.
-- Whether service replies are charged from 2026-10-01 (CONFLICT, see § Pricing).
+`stack-researcher` checks these against Meta's live pages before quoting; the live answer wins.
+
+- Policy grey zone: whether a single-person, self-hosted assistant on the Cloud API counts as "primary functionality" AI under Meta's clause. This is an interpretation: explain the risk and let the person decide (§ Policy).
+- Test-number recipient limit (5 per secondary sources; Meta's page states no number).
+- Coexistence (same number in the app and the API) per country; business-verification thresholds; system-user permission labels.
+- Service-reply charges from 2026-10-01 (sources differ, see § Pricing).
 - Status of the EU and Brazil measures after Meta's appeals.
 
 ## Sources

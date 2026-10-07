@@ -102,9 +102,9 @@ Then clone the repo and open Claude Code inside it:
 git clone https://github.com/Hainrixz/jarvis-architect && cd jarvis-architect && claude
 ```
 
-1. Claude Code asks whether you trust the folder. Say yes: that turns on the auto-start and the project's permissions. Always open it from the `jarvis-architect` folder, not from your home folder.
+1. Claude Code asks whether you trust the folder. The highlighted option starts on "No, exit": use the down arrow to pick "Yes, I trust this folder", then press Enter. That turns on the auto-start and the project's permissions. The prompt mentions pre-approved permissions: they are read-only checks (installed versions, RAM, OS, whether a key is set without printing it); nothing installs or deletes anything without asking you. Always open it from the `jarvis-architect` folder, not from your home folder.
 2. The architect starts on its own and greets you.
-3. If it doesn't, type `/jarvis-start`.
+3. If it hasn't started after a few seconds, type `/jarvis-start`.
 
 > [!TIP]
 > You can skip the first question by saying what you do right away, for example: `/jarvis-start I'm a nutritionist, I want it to remind me of appointments and summarize my email every morning`. In a hurry? `/jarvis-quick` asks only three questions and fills in the rest with defaults (same security rules).
@@ -221,7 +221,7 @@ Light use = about 20 conversations a day. Medium use = about 100 a day plus sche
 | Combination | Light | Medium |
 |---|---|---|
 | Claude Code on your computer with Claude Pro / Max | $20 (Pro) | $100 (Max 5x) |
-| Codex on your computer with ChatGPT Plus / Pro (prices UNVERIFIED) | $20 | $100 |
+| Codex on your computer with ChatGPT Plus / Pro (price confirmed live before quoting you) | $20 | $100 |
 | Hermes on Railway, OpenAI models (cheap + main) | $9–13 | $18–22 |
 | Hermes on Railway, Claude models (cheap + main) | $12–16 | $42–46 |
 | OpenClaw on Railway, OpenAI models | $11–15 | $20–24 |
@@ -356,7 +356,7 @@ Contributions in Spanish or English are welcome, especially:
 - fixes to versions, prices or policies, always with the source URL;
 - real-world tests: tell us what the architect built for you and where it got stuck.
 
-Before opening a PR, read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the format in [`knowledge/README.md`](knowledge/README.md). Versions only go in `knowledge/runtimes/*.md` and `knowledge/models.json`, anything unconfirmed is marked `UNVERIFIED`, and never commit your generated Jarvis or any secret.
+Before opening a PR, read [`CONTRIBUTING.md`](CONTRIBUTING.md) and the format in [`knowledge/README.md`](knowledge/README.md). Versions only go in `knowledge/runtimes/*.md` and `knowledge/models.json`, every fact carries its official source (anything the source doesn't confirm is marked `UNVERIFIED` so `/jarvis-refresh` re-checks it), and never commit your generated Jarvis or any secret.
 
 ## License
 

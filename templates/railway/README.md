@@ -30,7 +30,7 @@ What was checked live on 2026-10-06 in the [IaC reference](https://docs.railway.
 | `postgres()`, `redis()` | Verified, but **not used**: Railway's standard Postgres has no pgvector |
 | Cron schedule, restart policy, serverless toggle, memory limit, volume backups, sealed flag | **Not in the reference.** Set in the dashboard or with the Railway MCP `update-service` tool (`cronSchedule`, `restartPolicyType`, `sleepApplication`, `limits`) and record it in `RUNBOOK.md` |
 | A template (e.g. pgvector) declared inside the file | **Not supported.** Deploy it separately (below) |
-| Bucket credential accessors (`bucket.env.*`) | **UNVERIFIED** (not in the reference). Templates use `preserve()` plus the bucket's Credentials-tab presets |
+| Bucket credential accessors (`bucket.env.*`) | **Not in the reference.** Templates use `preserve()` plus the bucket's Credentials-tab presets. `/jarvis-refresh` re-checks the IaC reference ([docs.railway.com](https://docs.railway.com)) and switches to an accessor once one is documented |
 | `service().tracing` | Documented as dropped by the SDKs today. Not used |
 
 ## Tier A or Tier B
@@ -129,9 +129,9 @@ Steps 1–3 apply only with flags `pgvector` / `backups`.
    `pgvector` → `DATABASE_URL_PRIVATE` (dashboard: Variables → New → Reference, or MCP
    `set-variables` with the reference expression). On `backup-cron`, add the bucket's credential
    presets from its Credentials tab. The file keeps all of these with `preserve()`.
-   **UNVERIFIED:** how `preserve()` behaves on the very first apply if a variable does not exist yet.
-   So apply once, add the references and sealed secrets, then plan again. The plan must show no
-   variable deletions.
+   **First apply order (always):** apply once, add the references and sealed secrets, then plan
+   again. The second plan must show no variable deletions; if it lists any, stop, re-add them in the
+   dashboard and plan again before applying.
 3. **Cron.** `backup-cron` → MCP `update-service` `cronSchedule`, e.g. `0 8 * * *`. The schedule is
    **UTC**, so say the person's local time too. Runs are at least 5 minutes apart, overlapping runs
    are skipped, and the process must exit ([cron jobs](https://docs.railway.com/cron-jobs)).

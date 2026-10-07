@@ -103,7 +103,7 @@ Package manager only, version per `stack-researcher` at install time
 |---|---|
 | macOS / Linux with Homebrew | `brew install railway` |
 | Any OS with Node | `npm install -g @railway/cli@<version>` |
-| Windows | npm, after Node LTS is installed as a `user_action`: `winget install --id OpenJS.NodeJS.LTS -e` (UAC prompt, then reopen the terminal). Node is needed anyway for the IaC SDK in § 3.6. `scoop install railway` only if Scoop already exists: its installer is `irm … \| iex`, which rule 9 forbids, so if they want Scoop, download `get.scoop.sh` to `.jarvis/cache/`, show `Get-FileHash` and the first lines, and the person runs it. The docs list no winget method for Railway (UNVERIFIED) |
+| Windows | npm, after Node LTS is installed as a `user_action`: `winget install --id OpenJS.NodeJS.LTS -e` (UAC prompt, then reopen the terminal). Node is needed anyway for the IaC SDK in § 3.6. `scoop install railway` only if Scoop already exists: its installer is `irm … \| iex`, which rule 9 forbids, so if they want Scoop, download `get.scoop.sh` to `.jarvis/cache/`, show `Get-FileHash` and the first lines, and the person runs it. The Railway install docs list no winget method; if `winget search railway` shows an official Railway package at install time, it may be used instead |
 | No CLI at all (non-technical, Windows) | The **Railway MCP** (§ 3.3, needs only the browser login) or the dashboard for every step, with the IaC file applied later by `/jarvis-add` or skipped: record each dashboard setting in `RUNBOOK.md` |
 
 Never `bash <(curl … install.sh)` and never `curl -fsSL agents.railway.com | sh` from the agent.
@@ -183,15 +183,15 @@ Architect only checks that the variable *exists*.
 CLI alternative (person, in **their own separate terminal**, not through `!` and not through the
 agent, so the value never enters the conversation or shell history):
 `railway variable set ANTHROPIC_API_KEY --stdin` → paste → Enter → Ctrl-D (Windows PowerShell: Ctrl-Z, then Enter)
-([railway variable](https://docs.railway.com/cli/variable)). Then seal it in the dashboard (whether
-the CLI or IaC can seal is UNVERIFIED — assume dashboard only).
+([railway variable](https://docs.railway.com/cli/variable)). Then seal it in the dashboard (sealing is
+done in the dashboard; if `railway variable --help` shows a seal option, it may be used instead).
 
 Do **not** use `railway variable set KEY=value` for secrets: the value ends up in shell history.
 
 Verify (presence only, never values): `railway variable list --json | jq -e 'has("TELEGRAM_BOT_TOKEN")'`
 — sealed variables are omitted from CLI output, so for sealed ones the postcondition is the person
-confirming they see the lock icon. UNVERIFIED: whether sealed keys appear with a blank value or not
-at all in `--json`; prefer the person's confirmation.
+confirming they see the lock icon. A sealed key may show with a blank value or not at all in `--json`,
+so the person's confirmation is the check.
 
 Non-secret settings (`TZ`, `JARVIS_HOME`, model slot IDs from `models.json`) may be literal values
 in `.railway/railway.ts`. Railway also injects `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
@@ -263,7 +263,7 @@ serves HTTP ([IaC reference](https://docs.railway.com/infrastructure-as-code/ref
 
 **Not in the IaC reference** (set in the dashboard or with the MCP `update-service` tool, then
 record it in `RUNBOOK.md`): restart policy, serverless toggle, replica limits (memory cap), volume
-backup schedule. UNVERIFIED whether IaC gains these later; `/jarvis-refresh` re-checks.
+backup schedule. `/jarvis-refresh` re-checks the IaC reference and moves them into code when IaC supports them.
 
 ### 3.7 Restart policy, serverless, replicas
 

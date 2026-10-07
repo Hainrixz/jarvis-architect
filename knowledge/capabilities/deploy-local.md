@@ -27,7 +27,7 @@ Defaults to say out loud in `/jarvis-quick` (local host): *"Corre en tu compu co
 Hard constraints the Architect checks before choosing local (see `knowledge/compatibility.md`):
 
 - `CMP-04`: an OpenClaw gateway or Control UI is never reachable from the internet. Loopback + token, remote only via Tailscale/SSH.
-- `CMP-14`: Claude Code Channels on native Windows is UNVERIFIED → WSL2.
+- `CMP-14`: Claude Code Channels on Windows run inside WSL2 (the supported sandboxed path).
 - `CMP-22`: Claude Code kept alive 24/7 needs a memory cap **and** a restart policy **and** a supervisor.
 - `CMP-01`: local models (`runtimes/ollama-local.md`) are the main reason to stay local; privacy + 24/7 = always-on home machine + Tailscale.
 
@@ -44,7 +44,7 @@ Hard constraints the Architect checks before choosing local (see `knowledge/comp
 ```
 
 - **One entry point.** The supervisor runs `bin/run.sh` (or the runtime's own binary). `run.sh` loads secrets (§8), honours a `STOP` kill-switch file, trims logs, `cd`s into the folder and `exec`s the runtime, so signals reach it. Minimum shape and the rendering rules for every supervisor file: `templates/local/README.md`.
-- **Absolute paths only.** launchd and systemd don't read your shell profile. `PATH` must be set in the unit/plist (Homebrew is `/opt/homebrew/bin` on Apple silicon, `/usr/local/bin` on Intel).
+- **Absolute paths only.** launchd and systemd don't read your shell profile. `PATH` must be set in the unit/plist and must contain the folder of every binary the job calls: run `dirname "$(command -v claude)"` (the native installer uses `~/.local/bin`, written as an absolute path), plus Homebrew (`/opt/homebrew/bin` on Apple silicon, `/usr/local/bin` on Intel).
 - **Never `sudo` from the agent** (rule 9). The few steps that need admin rights (`pmset`, `loginctl enable-linger`, `/etc/wsl.conf`, `pm2 startup`) are `user_action` tasks: the Architect shows the exact command and the person runs it with `! <command>`.
 - **One instance only.** Two copies of the same gateway on one data directory corrupt state (`CMP-11`). Before installing a supervisor, check nothing else (tmux, a runtime's own daemon, pm2) already runs it.
 
@@ -62,7 +62,7 @@ Hard constraints the Architect checks before choosing local (see `knowledge/comp
 | Can use | login Keychain, the user's files, GUI-session things (iMessage, Apple automations) | no login Keychain, no GUI session |
 | Use for Jarvis | **Always**, plus auto-login on a dedicated Mac (§6) | Not recommended: needs root to install, runs outside the user's Keychain and session |
 
-The runtimes' own installers also write LaunchAgents: Hermes `~/Library/LaunchAgents/ai.hermes.gateway.plist`, OpenClaw `~/Library/LaunchAgents/ai.openclaw.gateway.plist` (UNVERIFIED; check names in `runtimes/hermes.md` and `runtimes/openclaw.md`). A LaunchAgent only starts after a login, so a headless Mac needs auto-login (source: [stackharbor](https://stackharbor.com/en/knowledge-base/openclaw-as-launchd-service/)).
+The runtimes' own installers also write LaunchAgents: Hermes `~/Library/LaunchAgents/ai.hermes.gateway.plist`, OpenClaw `~/Library/LaunchAgents/ai.openclaw.gateway.plist` (after the runtime's installer runs, confirm the exact file with `ls ~/Library/LaunchAgents | grep -Ei 'hermes|openclaw'` and use that name; `runtimes/hermes.md` and `runtimes/openclaw.md` have the details). A LaunchAgent only starts after a login, so a headless Mac needs auto-login (source: [stackharbor](https://stackharbor.com/en/knowledge-base/openclaw-as-launchd-service/)).
 
 ### Plist template (custom Jarvis, Agent SDK app, Claude Code wrapper)
 
@@ -78,7 +78,7 @@ Full template: `templates/local/com.jarvis.agent.plist.tmpl` (`workspace-writer`
   </array>
   <key>WorkingDirectory</key><string>{{jarvis_dir}}</string>
   <key>EnvironmentVariables</key><dict>
-    <key>PATH</key><string>{{path}}</string>      <!-- e.g. /opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin -->
+    <key>PATH</key><string>{{path}}</string>      <!-- e.g. /Users/ana/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin -->
     <key>TZ</key><string>{{timezone}}</string>    <!-- e.g. America/Mexico_City -->
   </dict>
   <key>RunAtLoad</key><true/>
@@ -112,8 +112,8 @@ Channels only deliver events while the session runs (`knowledge/capabilities/cha
 - `bin/jarvis-up.sh` is an idempotent watchdog: if the tmux session `jarvis` is missing it starts `claude --channels plugin:telegram@claude-plugins-official …` inside it; if the `claude` process is above an RSS cap it kills the session first (the `CMP-22` memory cap); otherwise it exits 0.
 - The LaunchAgent runs that watchdog with `RunAtLoad` + `StartInterval` 300 + `AbandonProcessGroup` (so tmux survives the script exiting) instead of `KeepAlive`.
 - The script **unsets `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and `CLAUDE_CODE_OAUTH_TOKEN`**: this runtime authenticates only with the owner's own `/login` inside the unmodified `claude` binary (`knowledge/auth-matrix.md`). A stray API key in `.env` would silently switch it to API billing. Never put a subscription token in the plist.
-- **Memory cap (`CMP-22`):** launchd has no dependable hard RSS limit on current macOS (UNVERIFIED — `HardResourceLimits`/`ResidentSetSize` is not documented as enforced), so the cap is the watchdog's RSS check plus a nightly restart (`bin/jarvis-restart.sh` from a second LaunchAgent with `StartCalendarInterval`, e.g. 04:00), and `/jarvis-doctor` re-checks RSS (`ps -o rss= -p <pid>`).
-- The tmux + launchd wrapper is a community pattern, not an Anthropic-documented setup (UNVERIFIED — TEST on a clean Mac).
+- **Memory cap (`CMP-22`):** launchd has no dependable hard RSS limit on current macOS (`HardResourceLimits`/`ResidentSetSize` is not documented as enforced), so the cap is the watchdog's RSS check plus a nightly restart (`bin/jarvis-restart.sh` from a second LaunchAgent with `StartCalendarInterval`, e.g. 04:00), and `/jarvis-doctor` re-checks RSS (`ps -o rss= -p <pid>`).
+- The tmux + launchd wrapper is a community pattern, not an Anthropic-documented setup. The build proves it on the person's Mac: `launchctl kickstart -k gui/$(id -u)/com.jarvis.agent`, then `tmux has-session -t jarvis` exits 0 and the owner gets a reply on the channel; after the first reboot, `/jarvis-doctor` repeats the check.
 
 ---
 
@@ -146,7 +146,9 @@ MemoryMax={{memory_max}}     # e.g. 2G
 CPUQuota={{cpu_quota}}       # e.g. 200%
 TasksMax=256
 # light hardening; MemoryMax/CPUQuota need the memory/cpu controllers delegated to the user manager,
-# PrivateTmp in a user unit needs unprivileged user namespaces (both UNVERIFIED per distro)
+# PrivateTmp in a user unit needs unprivileged user namespaces. Check after start:
+# `systemctl --user show jarvis -p MemoryMax` must show the value; if a line fails on this distro, drop it
+# and rely on the watchdog RSS check (record it in SECURITY.md)
 NoNewPrivileges=yes
 UMask=0077
 
@@ -168,7 +170,7 @@ loginctl show-user "$USER" --property=Linger | grep -qx 'Linger=yes'   # verify 
 
 - `EnvironmentFile=` reads `.env` directly; the file stays chmod 600 and the unit file holds no secrets.
 - Scheduled restart for long-running Claude Code: a `jarvis-restart.timer` with `OnCalendar=*-*-* 04:00:00` that runs `systemctl --user restart jarvis.service`.
-- Runtimes with their own installer (`hermes gateway install` writes a systemd user unit — UNVERIFIED): use theirs, then add `MemoryMax=` via `systemctl --user edit <unit>` (drop-in).
+- Runtimes with their own installer (`hermes gateway install` writes a systemd user unit; find it with `systemctl --user list-unit-files | grep -i hermes`): use theirs, then add `MemoryMax=` via `systemctl --user edit <unit>` (drop-in).
 - Sources: [systemd.service](https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html), [systemd.resource-control](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html).
 
 ---
@@ -193,7 +195,7 @@ terminal, and a postcondition checks the result. Versions come from the runtime 
 
 ### Why WSL2
 
-Claude Code on native Windows has **no sandbox**; WSL2 supports it, WSL1 does not ([code.claude.com/docs/en/sandboxing](https://code.claude.com/docs/en/sandboxing)). Channels on native Windows is UNVERIFIED (`CMP-14`). So any always-on Jarvis on Windows runs inside WSL2 and uses §2.
+Claude Code on native Windows has **no sandbox**; WSL2 supports it, WSL1 does not ([code.claude.com/docs/en/sandboxing](https://code.claude.com/docs/en/sandboxing)). Channels are Bun-based plugins and the sandbox needs WSL2 (`CMP-14`). So any always-on Jarvis on Windows runs inside WSL2 and uses §2.
 
 ### Setup (person runs the admin steps)
 
@@ -216,7 +218,7 @@ Claude Code on native Windows has **no sandbox**; WSL2 supports it, WSL1 does no
   [general]
   instanceIdleTimeout=-1
   ```
-- A **Task Scheduler** task "At log on" (or "At startup" with "Run whether user is logged on or not") that runs `wsl.exe -d Ubuntu --exec /bin/true` so the distro boots and systemd starts the unit. Whether this alone keeps the VM up across hours with no terminal open is **UNVERIFIED — TEST** on Windows 11; `/jarvis-doctor` must check it.
+- A **Task Scheduler** task "At log on" (or "At startup" with "Run whether user is logged on or not") that runs `wsl.exe -d Ubuntu --exec /bin/true` so the distro boots and systemd starts the unit. After setup, close every terminal, wait 10 minutes and message the Jarvis: it must answer. If it doesn't, change the task's action to `wsl.exe -d Ubuntu --exec sleep infinity` so the distro stays up. `/jarvis-doctor` repeats the check.
 - Windows power settings: never sleep while plugged in (Settings › System › Power), and a UPS if it's a dedicated box.
 - Webhooks/dashboards into WSL from other devices: use Tailscale **inside** WSL (§7), not Windows port proxies.
 
@@ -285,10 +287,10 @@ services:
     logging: { driver: local, options: { max-size: "10m", max-file: "5" } }
 ```
 
-- **Hermes specifically** (`runtimes/hermes.md` § Run & supervise is authoritative): the image starts as root only to fix ownership of `/opt/data` and then drops to its own user, so **leave out `user:`** and add only the minimum `cap_add` it needs (UNVERIFIED which — TEST and record in `SECURITY.md`); data at `/opt/data`; command `gateway run`; **no `ports:`** for Telegram polling. Ports 8642 (OpenAI-compatible API) and 9119 (dashboard) only if the person enables them, and then `127.0.0.1:` only ([Hermes Docker](https://hermes-agent.nousresearch.com/docs/user-guide/docker)). Never mount `/var/run/docker.sock`.
-- `read_only` / `user` / `cap_drop` may need loosening per image (UNVERIFIED per runtime — TEST); record every loosening in `SECURITY.md`.
+- **Hermes specifically** (`runtimes/hermes.md` § Run & supervise is authoritative): the image starts as root only to fix ownership of `/opt/data` and then drops to its own user, so **leave out `user:`** and add only the minimum `cap_add` it needs: start with none, read `docker compose logs` for permission errors, add one capability at a time (usually `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE`) and record each in `SECURITY.md`; data at `/opt/data`; command `gateway run`; **no `ports:`** for Telegram polling. Ports 8642 (OpenAI-compatible API) and 9119 (dashboard) only if the person enables them, and then `127.0.0.1:` only ([Hermes Docker](https://hermes-agent.nousresearch.com/docs/user-guide/docker)). Never mount `/var/run/docker.sock`.
+- `read_only` / `user` / `cap_drop` may need loosening per image: run `docker compose up` and read the logs; if the image fails writing a path, add that path as a `tmpfs` or volume before dropping `read_only`, and record every loosening in `SECURITY.md`.
 - A worker that only makes outbound connections (Telegram polling) needs **no `ports:` at all**. That is the safest form.
-- `restart: unless-stopped` restarts on crash and after the Docker daemon starts. Docker Desktop on Mac/Windows only starts after a user logs in (pair with auto-login, §6). Colima/OrbStack headless boot is UNVERIFIED.
+- `restart: unless-stopped` restarts on crash and after the Docker daemon starts. Docker Desktop on Mac/Windows only starts after a user logs in (pair with auto-login, §6). With Colima or OrbStack, enable their start-at-login option and do one reboot test: the Jarvis must answer without anyone opening a terminal.
 - Commands: `docker compose config -q` (syntax check), `docker compose up -d`, `docker compose ps`, `docker compose logs -f --tail 100`, `docker compose restart`, `docker compose pull && docker compose up -d` (update after bumping the tag + digest).
 - Same image later on Railway with `image()` in `.railway/railway.ts` (`knowledge/capabilities/deploy-railway.md`).
 
@@ -312,9 +314,9 @@ All steps are `user_action` with a clear explanation; the agent never runs `sudo
 
 1. **Keep FileVault on** (recommended when the Mac holds client, health or legal data) and accept that after a power cut someone unlocks it. The UPS makes that rare; the owner gets "Jarvis is down" from the heartbeat/uptime check.
 2. FileVault off + auto-login: Jarvis survives reboots, but anyone with physical access gets the account. Only for a Mac in a locked place with no sensitive data, and the person says yes explicitly (log it in the spec).
-3. Whether current macOS offers an unattended unlock path after power loss for this case (e.g. `fdesetup authrestart` only covers *planned* restarts) is **UNVERIFIED** for macOS 27.
+3. For a *planned* restart (updates), `sudo fdesetup authrestart` reboots once without the unlock screen. After an unplanned power loss someone types the password; that is why option 1 pairs with a UPS and the down alert.
 
-**Home-hosting reality:** power cuts and ISP drops happen at home far more than in a data center (frequency by country UNVERIFIED). That is why the UPS and an outside liveness signal (heartbeat message to the owner, or an external uptime check through Tailscale Funnel on a `/health` path) are part of the default local plan, not extras.
+**Home-hosting reality:** power cuts and ISP drops happen at home far more than in a data center. That is why the UPS and an outside liveness signal (heartbeat message to the owner, or an external uptime check through Tailscale Funnel on a `/health` path) are part of the default local plan, not extras.
 
 ---
 
@@ -339,7 +341,7 @@ All steps are `user_action` with a clear explanation; the agent never runs `sudo
 
 Order of preference for a local Jarvis:
 
-1. **Runtime's own secret file** if it has one (e.g. `~/.hermes/.env`, created chmod 600 by its installer — UNVERIFIED). Don't duplicate keys elsewhere.
+1. **Runtime's own secret file** if it has one (e.g. `~/.hermes/.env`). Check it with `stat -f %Lp ~/.hermes/.env` (macOS) or `stat -c %a` (Linux); if it isn't `600`, run `chmod 600` on it. Don't duplicate keys elsewhere.
 2. **`.env` in the Jarvis folder**, `chmod 600`, owned by the person, in `.gitignore`, never committed (pre-commit secret scan, see `SEC-17`). The person types the values; the Architect only checks presence:
    ```bash
    [ "$(stat -c '%a' .env 2>/dev/null || stat -f '%Lp' .env)" = 600 ]   # exit 0 = mode 600 (GNU, then BSD stat)
@@ -351,7 +353,7 @@ Order of preference for a local Jarvis:
    export ANTHROPIC_API_KEY="$(security find-generic-password -a "$USER" -s jarvis-anthropic -w)"
    ```
    Works from a LaunchAgent (user's login Keychain is unlocked after login); does **not** work from a LaunchDaemon. If macOS shows a Keychain access prompt on first start, the person clicks *Always Allow* once. **Not for `claude-code-local`**: that runtime uses `/login` and its watchdog unsets `ANTHROPIC_API_KEY` (§1). Source: `man security` ([ss64 security](https://ss64.com/mac/security.html)).
-4. **Linux:** `.env` + `EnvironmentFile=` is the default. `systemd-creds` / `LoadCredential=` or `secret-tool` (GNOME keyring) are optional upgrades; keyring access from a lingering user service with nobody logged in is UNVERIFIED.
+4. **Linux:** `.env` + `EnvironmentFile=` is the default. `systemd-creds` / `LoadCredential=` or `secret-tool` (GNOME keyring) are optional upgrades; a lingering user service with nobody logged in usually can't unlock the keyring, so use them only if a reboot test with nobody logged in still answers.
 5. **Windows native:** Credential Manager is out of scope for v1; use WSL2 + `.env`.
 
 Never: secrets in the plist, unit file, `ecosystem.config.cjs`, `compose.yaml`, `CLAUDE.md`, `SOUL.md`, memory files, logs or the chat (rule 7, `SEC-17`, `SEC-18`). Credentials allowed per runtime come only from `knowledge/auth-matrix.md` — a third-party harness on the person's machine still uses an API key, never their Claude Pro/Max login (`CMP-02`).

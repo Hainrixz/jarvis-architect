@@ -78,7 +78,7 @@ Admin steps are `user_action` tasks. The person runs them with `! <command>`: `l
 | `{{jarvis_dir}}` | Absolute path, e.g. `/Users/ana/jarvis-ana` or `/home/ana/jarvis-ana`. No `~`: supervisors don't expand it | spec `jarvis_dir` |
 | `{{jarvis_name}}` | Display name | spec |
 | `{{timezone}}` | IANA zone, e.g. `America/Bogota` | `knowledge/countries/<cc>.md` |
-| `{{path}}` | Absolute `PATH`. macOS Apple silicon: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`. Intel: `/usr/local/bin:/usr/bin:/bin`. Linux: add `%h/.local/bin` only in systemd, or the real node/uv path | `preflight.json` (`which node`, `brew --prefix`) |
+| `{{path}}` | Absolute `PATH`. macOS Apple silicon: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`. Intel: `/usr/local/bin:/usr/bin:/bin`. macOS: prepend the directory of `which claude` when it is outside these (native installer: `/Users/USER/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`, `USER` = `id -un`; same convention as `knowledge/capabilities/scheduling.md` and `knowledge/runtimes/claude-p-cron.md`). Linux: add `%h/.local/bin` only in systemd, or the real node/uv path | `preflight.json` (`which node`, `brew --prefix`) |
 
 ### `com.jarvis.agent.plist.tmpl`
 
@@ -87,7 +87,8 @@ Admin steps are `user_action` tasks. The person runs them with `! <command>`: `l
 | `{{launchd_label}}` | `com.jarvis.agent`, or `com.jarvis.<name>` if the person has more than one Jarvis; the panel is `<label>.panel`. The file name must equal the label + `.plist` |
 | `{{program_args}}` | `<string>` lines. Default `<string>/bin/bash</string><string>{{jarvis_dir}}/bin/run.sh</string>`. `claude-code-local`: `…/bin/jarvis-up.sh`. Panel: `<string>/opt/homebrew/bin/node</string><string>src/server.js</string>` (real node path from preflight) |
 | `{{working_dir}}` | `{{jarvis_dir}}`; the panel uses `{{jarvis_dir}}/panel` |
-| flag `service` / flag `watchdog` | Exactly one on. `service` (default, and the panel): `KeepAlive` restarts a long-running process. `watchdog` (`claude-code-local`): `StartInterval` 300 + `AbandonProcessGroup`, because `jarvis-up.sh` starts tmux and exits |
+| flag `service` / flag `watchdog` / flag `calendar` | Exactly one on. `service` (default, and the panel): `KeepAlive` restarts a long-running process. `watchdog` (`claude-code-local`): `StartInterval` 300 + `AbandonProcessGroup`, because `jarvis-up.sh` starts tmux and exits. `calendar` (`claude-code-local` nightly restart, label `<label>.restart`, program `bin/jarvis-restart.sh`): `StartCalendarInterval` at `{{calendar_hour}}`:`{{calendar_minute}}` (e.g. `4` and `17`) + `AbandonProcessGroup` |
+| `{{calendar_hour}}`, `{{calendar_minute}}` | Only with flag `calendar`: plain integers, local time (e.g. `4`, `17`) |
 
 Notes: `KeepAlive` → `SuccessfulExit=false` restarts on crash only. `ThrottleInterval` 30 s stops a
 crash loop from spinning. `Umask` 63 (= 077) makes logs and state owner-only. A LaunchAgent starts
@@ -106,9 +107,12 @@ daily-restart LaunchAgent described in `deploy-local.md` §1 (CMP-22). Keys chec
 
 Notes: `EnvironmentFile=` reads `.env` directly. The unit fails to start if `.env` is missing, on
 purpose. `MemoryMax=` needs the memory controller delegated to the user manager. Most systemd
-distros do this by default (UNVERIFIED per distro; `/jarvis-doctor` checks `systemctl --user show
-<unit> -p MemoryMax`). `PrivateTmp=` in a user unit needs unprivileged user namespaces (UNVERIFIED
-per distro). If start fails with `226/NAMESPACE`, drop that line and record it in `SECURITY.md`.
+distros do this by default; confirm it before relying on the cap: `cat
+/sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers` must list
+`memory` (`/jarvis-doctor` also checks `systemctl --user show <unit> -p MemoryMax`). If `memory` is
+missing, keep the unit, tell the person the cap is not enforced on their distro, and record it in
+`SECURITY.md`. `PrivateTmp=` in a user unit needs unprivileged user namespaces: if start fails
+with `226/NAMESPACE`, drop that line and record it in `SECURITY.md`.
 WSL2 shuts down when idle unless kept alive (`deploy-local.md` §3).
 
 ### `docker-compose.yml.tmpl`
@@ -119,12 +123,12 @@ WSL2 shuts down when idle unless kept alive (`deploy-local.md` §3).
 | `{{service_name}}` | Runtime id, e.g. `hermes`, `openclaw`, `jarvis` |
 | `{{image}}` | `<registry>/<image>:<tag>@sha256:<digest>`, **only** from `runtimes/<id>.md` § Pinned versions. Never `:latest` |
 | flag `command`, `{{command}}` | The runtime's command if the image's default is not right (Hermes: `gateway run`) |
-| flag `init` | On for plain Node/Python images. Off for images whose entrypoint must be PID 1 (Hermes uses s6; s6-overlay refuses to run when it is not PID 1, UNVERIFIED for the pinned tag, so TEST) |
+| flag `init` | On for plain Node/Python images. Off for images whose entrypoint must be PID 1 (Hermes uses s6, and s6-overlay refuses to run when it is not PID 1). After `docker compose up -d`, check `docker compose logs --tail 50`: if it mentions PID 1 or s6, turn `init` off and start again |
 | flag `ports`, `{{host_port}}`, `{{container_port}}` | Only for a local API/dashboard. Always rendered as `127.0.0.1:…`. Off for outbound-only workers |
 | `{{data_mount}}` | Data path inside the container (Hermes `/opt/data`; OpenClaw per its runtime file) |
 | flag `user`, `{{uid}}`, `{{gid}}` | On by default with the person's `id -u` / `id -g` (or the image's documented non-root UID). Off **only** for images that must start as root to drop privileges themselves (Hermes: s6 drops to UID 10000; see `runtimes/hermes.md`). Write the reason in `SECURITY.md` |
-| flag `cap_add`, `{{cap_add}}` | Off by default. With `user` off, the image may need e.g. `CHOWN, SETUID, SETGID` to drop privileges. **UNVERIFIED per image: TEST**, keep the smallest working set, record it |
-| flag `read_only` | On by default. Turn it off if the image writes outside `/tmp` and `{{data_mount}}` (UNVERIFIED per image: TEST). Images with s6-overlay (Hermes) write to `/run` at start, so expect to turn it off there (UNVERIFIED for the pinned tag: TEST) |
+| flag `cap_add`, `{{cap_add}}` | Off by default. With `user` off, the image may need e.g. `CHOWN, SETUID, SETGID` to drop privileges. Start with none; if the logs show a permission error on start, add only the capability named there, start again, and record the final set in `SECURITY.md` |
+| flag `read_only` | On by default. Turn it off if the image writes outside `/tmp` and `{{data_mount}}` (the logs show `Read-only file system` on start). Images with s6-overlay (Hermes) write to `/run` at start, so turn it off for them; for any image, if `docker compose logs` shows `Read-only file system`, turn it off, start again and record it in `SECURITY.md` |
 | `{{mem_limit}}`, `{{cpus}}` | e.g. `2g` / `1.0` for Hermes or OpenClaw, `512m` / `0.5` for a lean worker |
 | flag `healthcheck`, `{{health_cmd}}` | The runtime's health command from its *Verify* section, if the image contains it |
 

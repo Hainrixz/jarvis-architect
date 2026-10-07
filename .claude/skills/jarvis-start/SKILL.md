@@ -167,10 +167,11 @@ No slash = auto-activates; never write a slash in front of an auto-activating sk
 
 | Skill | When | Fallback |
 |---|---|---|
-| `/abogado-del-diablo` | Gate B pre-mortem in ARCHITECTURE | Run the 8-angle pre-mortem inline from `questions/3-confirmacion.md` |
-| `use-railway` | DEPLOY on Railway | `knowledge/capabilities/deploy-railway.md` + Railway CLI |
 | `claude-api` | Before writing any Claude model ID or price into a spec | `knowledge/models.json` + `stack-researcher` |
-| `humanizalo` | Polishing the Jarvis's SOUL.md voice in Spanish | Write it plainly |
+
+Railway deploys use the Railway CLI (`railway`), or the Railway MCP server when it is connected,
+following `knowledge/capabilities/deploy-railway.md`. The Gate B pre-mortem always runs inline from
+`questions/3-confirmacion.md`.
 
 ## Conversation style
 
