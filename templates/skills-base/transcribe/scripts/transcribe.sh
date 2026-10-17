@@ -79,7 +79,7 @@ case "$IN" in
   -*) die 2 "nombre de archivo que empieza con '-': rechazado" ;;
   *://*) die 2 "solo archivos locales; para enlaces usa la skill watch-video" ;;
 esac
-[ -f "$IN" ] && [ ! -L "$IN" ] || die 2 "no existe o no es un archivo normal: $IN"
+if [ ! -f "$IN" ] || [ -L "$IN" ]; then die 2 "no existe o no es un archivo normal: $IN"; fi
 
 TMP=
 cleanup_input() {

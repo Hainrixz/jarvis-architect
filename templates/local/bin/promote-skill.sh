@@ -214,7 +214,7 @@ PYEOF
 cmd="${1:-}"; name="${2:-}"
 case "$cmd" in
   lint)
-    [ -n "$name" ] && [ -d "$name" ] || die "uso: promote-skill.sh lint <carpeta>" 2
+    if [ -z "$name" ] || [ ! -d "$name" ]; then die "uso: promote-skill.sh lint <carpeta>" 2; fi
     lint "$name" ;;
 
   promote)

@@ -202,11 +202,11 @@ PYEOF
       close_c "$c" not_a_correction undone 2>/dev/null || true
     done
     # the "deshaz" message itself opened a pending hint:undo record: it is fulfilled now (no Stop nudge)
-    for c in $([ -f memory/corrections.jsonl ] && "$PY" -I -c 'import json,sys
+    for c in $(if [ -f memory/corrections.jsonl ]; then "$PY" -I -c 'import json,sys
 for s in open(sys.argv[1], encoding="utf-8"):
     try: r = json.loads(s)
     except Exception: continue
-    if r.get("hint") == "undo" and r.get("outcome") == "pending": print(r.get("id", ""))' memory/corrections.jsonl || true); do
+    if r.get("hint") == "undo" and r.get("outcome") == "pending": print(r.get("id", ""))' memory/corrections.jsonl || true; fi); do
       close_c "$c" not_a_correction undone "${ref:-last}" 2>/dev/null || true
     done
     audit learning.undo "${ref:-last}" "$new" "reverts ${sha:0:12}: ${subj#learning: }"
