@@ -80,7 +80,7 @@ if [ -z "$MODEL" ]; then
 fi
 MISSING=
 for t in ffmpeg ffprobe whisper-cli; do have "$t" || MISSING="$MISSING $t"; done
-[ -n "$MODEL" ] && [ -f "$MODEL" ] || MISSING="$MISSING whisper-model"
+if [ -z "$MODEL" ] || [ ! -f "$MODEL" ]; then MISSING="$MISSING whisper-model"; fi
 if [ -n "$MISSING" ]; then
   skip "media pipeline: missing$MISSING (brew install ffmpeg whisper.cpp; model → JARVIS_TEST_WHISPER_MODEL)"
 else

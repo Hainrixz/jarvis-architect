@@ -42,7 +42,7 @@ import json,sys
 d=json.load(sys.stdin); h=d["hookSpecificOutput"]
 assert h["hookEventName"]=="UserPromptSubmit"
 assert sys.argv[1] in h["additionalContext"]' "$id" || { bad "additionalContext mal formado para: $2"; return; }
-  [ "$(last outcome)" = pending ] && [ "$(last actor)" = owner ] || { bad "registro incompleto: $2"; return; }
+  if [ "$(last outcome)" != pending ] || [ "$(last actor)" != owner ]; then bad "registro incompleto: $2"; return; fi
   ok
 }
 

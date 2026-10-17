@@ -14,7 +14,7 @@
 # Exit ≠ 0 (more than one block, or apply-ops rejected the block) makes run-job.sh send the AVISO.
 set -euo pipefail
 OUT="${1:-}"
-[ -n "$OUT" ] && [ -f "$OUT" ] || { echo "post: missing claude output file" >&2; exit 2; }
+if [ -z "$OUT" ] || [ ! -f "$OUT" ]; then echo "post: missing claude output file" >&2; exit 2; fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 JOB="$(basename "$0" .post)"
 case "$JOB" in (""|-*|*[!a-z0-9-]*) echo "post: bad job name" >&2; exit 2;; esac
