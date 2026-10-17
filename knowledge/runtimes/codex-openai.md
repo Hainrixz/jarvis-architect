@@ -41,6 +41,7 @@ Two sub-tracks. The Architect picks one and records it in `jarvis-spec.md`:
 | `grammy` (Telegram) | 1.46.0 | latest | https://www.npmjs.com/package/grammy | 2026-10-06 |
 | OpenAI Agents SDK, Python (`openai-agents`), alternative only | 0.23.1 (Python ≥3.10) | latest | https://pypi.org/project/openai-agents/ | 2026-10-06 |
 | Node.js (Track B) | 24.x LTS (`node@24`) | LTS | https://nodejs.org/en/about/previous-releases | 2026-10-06 |
+| **Media** (`transcribe` via the bridge, `watch-video`; photos with `--image`, PDFs with `pdftotext`) | whisper.cpp 1.9.5, ffmpeg 9.0.2, yt-dlp latest and the Whisper model + SHA-256, exactly as in `knowledge/runtimes/claude-code-local.md` § Pinned versions. `pdftotext` comes from Homebrew `poppler` (version recorded at install) | Homebrew stable | `knowledge/capabilities/multimodal.md` | 2026-10-06 |
 
 **Security floor:** Codex CLI **≥ 0.39.0** fixes CVE-2025-59532 / GHSA-w5fx-fh39-j5rw ("Sandbox bypass due to bug in path configuration logic", high). https://github.com/openai/codex/security/advisories/GHSA-w5fx-fh39-j5rw. The pin above is far above that floor. The Architect still refuses any Codex below the floor and re-checks the advisories page on every `/jarvis-refresh`.
 
@@ -200,7 +201,7 @@ Codex reads **`AGENTS.md`**, not SOUL/USER files. The Architect adapts the share
 | `AGENTS.md` | **Auto-loaded.** Global scope: `$CODEX_HOME/AGENTS.override.md` if it exists, otherwise `$CODEX_HOME/AGENTS.md`. Then, in each folder from the git root down to cwd, `AGENTS.override.md`, else `AGENTS.md`, else a fallback filename. Files are concatenated root-down, so closer files win. Limit `project_doc_max_bytes` = 32 KiB by default. The Jarvis-root `AGENTS.md` holds the operating rules + a compact SOUL (persona, tone, language) + the line "At the start of every task, read USER.md and MEMORY.md; on scheduled runs also read HEARTBEAT.md." | Concatenated into `instructions` at startup (code above) |
 | `SOUL.md` | Read on demand by the agent (read-only sandbox allows reads). Its core is inlined in `AGENTS.md` so it is always present | Concatenated into `instructions` |
 | `USER.md` | Read on demand (instruction in `AGENTS.md`) | Concatenated |
-| `MEMORY.md` | Read on demand. Written only by jobs running `--sandbox workspace-write` in the Jarvis folder, append-only with a `source:` tag | Concatenated (last N KB). Writes only through a `remember` function tool that appends with provenance |
+| `MEMORY.md` | Read on demand. Written only by jobs running `--sandbox workspace-write` in the Jarvis folder, append-only, each line ending in a `[src:…] [YYYY-MM-DD]` tag (format: `capabilities/memory.md` § 3) | Concatenated (last N KB). Writes only through a `remember` function tool that appends with provenance |
 | `HEARTBEAT.md` | The prompt file for scheduled `codex exec` jobs | The checklist the scheduler's cheap-model run follows |
 | `TOOLS.md` | Human-readable list of the MCP servers in `config.toml` and their trust tier | Same, for the function/MCP tools registered in code |
 | Skills | `.agents/skills/<skill>/SKILL.md` in the Jarvis folder (repo level), `~/.agents/skills` (user), `/etc/codex/skills` (admin). Explicit call `$skill-name`, or implicit by description. The Architect copies `templates/skills-base/` into `.agents/skills/` | No native skill loader: a skill becomes a function tool or a sub-agent (handoff) whose instructions are the SKILL.md body |
@@ -236,6 +237,8 @@ Groups are ignored by default (`chat.type !== 'private'`). The owner finds their
 
 **Memory** (→ `capabilities/memory.md`). The file-based default is `MEMORY.md` in the Jarvis folder (git-tracked, so the owner can review and purge it). Track B can add `MemorySession` (in process) or a SQLite session store for chat history. `OpenAIConversationsSession` keeps history on OpenAI's side, so list it in the data-flow disclosure (SEC-32) if used. Long-term facts always go to `MEMORY.md`, never only into a provider-side store.
 
+**Learning** (`knowledge/capabilities/learning.md`). Codex local memories stay **off** (the default; leave `[features] memories` unset in `config.toml`). If the owner turns them on, also set `[memories] disable_on_external_context = true` so chats that used MCP or web search never feed memory ([memories](https://learn.chatgpt.com/docs/customization/memories)). Corrections go through the skill `learn` into `LESSONS.md`: Track A's `AGENTS.md` says in prose to read `LESSONS.md` before each task; Track B adds a `learn` function tool that runs `bin/learn.sh` / `bin/promote-skill.sh` with plain arguments (copied from `templates/local/bin/`) and the same ES/EN regex prefilter as `bin/hooks/capture-correction.sh` on owner messages only.
+
 **Scheduling** (→ `capabilities/scheduling.md`). Track A runs one shell script per job, which the OS scheduler calls:
 
 ```bash
@@ -265,6 +268,43 @@ done
 - Scheduled jobs produce **drafts and summaries only**. Sending, paying, deleting or posting is never done unattended (SEC-15).
 - macOS: a launchd `~/Library/LaunchAgents/com.jarvis.<name>.morning.plist` with `StartCalendarInterval` (Hour 7, Minute 30), `ProgramArguments` = `/bin/bash`, path to `morning.sh`, and `StandardErrorPath` in `logs/`. launchd uses local time, and it runs a missed job on wake if the Mac was asleep at 7:30 (not if it was powered off). Linux/WSL2: a `systemd --user` timer `OnCalendar=*-*-* 07:30:00` with `Persistent=true`, or `crontab -e` with `CRON_TZ=America/Mexico_City` (not every cron supports `CRON_TZ`: add a one-off line for the next minute and confirm it fires in local time; if not, use the systemd timer). Windows: `schtasks /Create /SC DAILY /ST 07:30 /TN "Jarvis\morning" /TR "wsl.exe -e bash -lc ~/jarvis-<name>/jobs/morning.sh"` or a PowerShell port of the script.
 - Track B: an in-process scheduler (e.g. a `setInterval` minute tick against cron expressions in the owner's `JARVIS_TZ`) or a separate Railway cron service. **Railway cron schedules are UTC**: convert from the owner's timezone and write both in `RUNBOOK.md`.
+
+**Autonomy** (→ `capabilities/autonomy.md`). Track A: one more launchd/systemd job at
+`13 10,13,16 * * 1-5` running `jobs/autopilot.sh`. Codex runs in the **read-only** sandbox; the
+ops block is applied afterwards by `jobs/autopilot.post` + `jobs/apply-ops.sh` (verbatim from
+`templates/local/jobs/`, `chmod 700`, needs `jq`):
+
+```bash
+#!/usr/bin/env bash
+# ~/jarvis-<name>/jobs/autopilot.sh
+set -euo pipefail
+cd "$HOME/jarvis-<name>"; export CODEX_HOME="$PWD/.codex"; mkdir -p out logs
+for f in STOP STOP_AUTOPILOT JARVIS_PAUSED; do                                 # before the model
+  [ -e "$f" ] && { echo "$(date '+%F %T') autopilot skipped: $f" >> logs/jobs.log; exit 0; }
+done
+mkdir logs/.autopilot.lock 2>/dev/null || exit 0                                 # previous run still going
+trap 'rmdir logs/.autopilot.lock 2>/dev/null || true' EXIT
+rm -f out/autopilot.md
+if codex exec --sandbox read-only --ephemeral --skip-git-repo-check \
+     --output-last-message out/autopilot.md "$(cat .agents/skills/autopilot/SKILL.md)" >>logs/autopilot.log 2>&1 \
+   && [ -s out/autopilot.md ]; then
+  jq -n --rawfile r out/autopilot.md '{result: $r}' > out/autopilot.json
+  text="$(bash jobs/autopilot.post out/autopilot.json 2>>logs/autopilot.log)" \
+    || text="AVISO Jarvis: el piloto falló (ops rechazadas). Revisa logs/audit.jsonl."
+else
+  text="AVISO Jarvis: el piloto no corrió (codex falló). Revisa logs/autopilot.log."  # never silent
+fi
+case "$text" in (AVISO*) echo "$(date '+%F %T') autopilot FAILED" >> logs/jobs.log;;
+  (*) echo "$(date '+%F %T') autopilot ok" >> logs/jobs.log;; esac
+case "$text" in (""|HEARTBEAT_OK*|*HEARTBEAT_OK) exit 0;; esac
+printf '%s\n' "$text" | head -c 4000 > out/autopilot.tg.txt     # then send it as in morning.sh step 2
+```
+
+Codex prints no per-run cost, so the daily cap here is the schedule itself (three weekday runs on
+the subscription); on API-key billing the provider spend cap from `capabilities/costs.md` is what bounds it.
+
+Track B (Agents SDK service): a function tool `ledger_update` that pipes the ops JSON to the same
+`apply-ops.sh`, available only to the scheduled autopilot agent.
 
 **Tools/MCP** (→ `capabilities/tools-mcp.md`, trust tiers there). Codex:
 
@@ -331,7 +371,7 @@ IDs are the stable ones in `security-checklist.md` (SEC-01…SEC-33). That file 
 | **SEC-10** No bypass flags | Never `--dangerously-bypass-approvals-and-sandbox` / `--yolo`, `danger-full-access` or the deprecated `--full-auto` in `jobs/` or config (Verify greps for them) |
 | **SEC-11** Rule of Two | Each tool is classed [A] untrusted (web search, inbox, documents, non-owner text), [B] private (USER/MEMORY, calendar, mail) or [C] action. An A+B+C flow never runs alone: Track B sets `needsApproval: true` on every [C] tool, and Track A jobs are read-only drafts. Hosted web search and `hostedMcpTool()` count as [A] |
 | **SEC-12** Untrusted content fenced | Untrusted text is wrapped in `<untrusted>…</untrusted>` and `AGENTS.md` says it is data. The Architect reads every context file and skill before installing it |
-| **SEC-13** Memory hygiene | `MEMORY.md` is append-only, each entry tagged `source:`, git-tracked so the owner can purge it, never treated as a permission. Writes only through `workspace-write` jobs (Track A) or the `remember` tool (Track B) |
+| **SEC-13** Memory hygiene | `MEMORY.md` is append-only, each entry tagged `[src:…] [YYYY-MM-DD]`, git-tracked so the owner can purge it, never treated as a permission. Writes only through `workspace-write` jobs (Track A) or the `remember` tool (Track B) |
 | **SEC-14** Approval with exact preview | Track B: `result.interruptions` → a Telegram "Sí / No" message with the exact preview → `state.approve` / `state.reject`. Interactive Codex: `approval_policy = "on-request"` |
 | **SEC-15** Unattended runs deny IRR | `codex exec` and cron jobs never send, pay, delete, post or invite. They write a draft and notify. Track B scheduled runs use a tool list with no [C] tools |
 | **SEC-16** Approvals expire and are bound | Each approval is bound to a hash of tool+args and expires in 5 minutes (tested in `npm test`) |

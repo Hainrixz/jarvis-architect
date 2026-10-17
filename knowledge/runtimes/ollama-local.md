@@ -65,6 +65,7 @@ OAuth for Gmail…) and follow the harness file.
 | Windows installer | `OllamaSetup.exe` sha256 `135bf4d927b1de03e884cd2fe66729bdf4d6a2983c5a453b99eb403489e460e1` | stable | same `sha256sum.txt` | 2026-10-06 |
 | LM Studio (alternative) | Homebrew cask `lm-studio` **0.4.25,1** · winget `ElementLabs.LMStudio` **0.4.25+1** | stable | https://formulae.brew.sh/api/cask/lm-studio.json · https://github.com/microsoft/winget-pkgs/tree/master/manifests/e/ElementLabs/LMStudio | 2026-10-06 |
 | Harness on top | see `knowledge/runtimes/hermes.md` / `knowledge/runtimes/openclaw.md` | — | — | — |
+| **Media** (whisper.cpp sidecar for audio; `watch-video` with local transcription; frames to a local vision model) | whisper.cpp 1.9.5, ffmpeg 9.0.2, yt-dlp latest and the Whisper model + SHA-256, exactly as in `knowledge/runtimes/claude-code-local.md` § Pinned versions. Fully local: no cloud STT row applies. Local vision models read frames less reliably than Claude; the Architect says so at the gate | Homebrew stable | `knowledge/capabilities/multimodal.md` | 2026-10-06 |
 
 Release checksums **are** published as `sha256sum.txt` on every GitHub release (checked for
 v0.40.0 on 2026-10-06; the docs pages don't mention them). Homebrew's local tap may lag: on 2026-10-06 a stale local `brew info`
@@ -388,6 +389,16 @@ summarization calls also hit Ollama.
 - Claude Code (unofficial path): no Channels and no Desktop scheduled tasks against Ollama. Use
   `claude-p-cron` style jobs with the launcher (`bin/claude-local -p "…" --allowedTools "Read"`),
   never `--dangerously-skip-permissions`.
+
+**Autonomy:** the autopilot runs through the harness on top (Hermes cron or OpenClaw automations,
+see `knowledge/runtimes/hermes.md` / `knowledge/runtimes/openclaw.md` § Autonomy), rules in
+`knowledge/capabilities/autonomy.md`. Local-specific rules:
+- Small models (8–12B): the skill's `max_tasks` is **1** and the job is one step (CMP-25). The 27B+
+  tier keeps 3.
+- Through Claude Code against Ollama (unofficial path), use the `claude-p-cron` wiring: the job
+  prints the ops block and `jobs/autopilot.post` → `apply-ops.sh` validates it, so a malformed
+  answer from a small model is rejected whole instead of half-applied.
+- Every run is a full local inference: keep the three weekday slots, not more.
 
 **Tools/MCP:** through the harness's MCP client (`knowledge/capabilities/tools-mcp.md`). Ollama
 supports tool calling natively for capable models (Ollama "built-in" per [hermes-providers]).

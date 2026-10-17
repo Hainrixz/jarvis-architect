@@ -51,7 +51,8 @@ Todo lo que no está en esta lista es interno y puede cambiar en un PATCH.
    - `runtimes/<id>.md`: `claude-code-local` · `claude-code-server` · `claude-p-cron` ·
      `claude-agent-sdk` · `hermes` · `openclaw` · `codex-openai` · `ollama-local` · `cowork`;
    - `capabilities/<id>.md`: `channels` · `whatsapp` · `memory` · `tools-mcp` · `scheduling` ·
-     `voice` · `skills` · `deploy-local` · `deploy-railway` · `costs` · `web-ui`;
+     `voice` · `skills` · `deploy-local` · `deploy-railway` · `costs` · `web-ui` · `autonomy` ·
+     `learning` · `multimodal`;
    - `professions/<id>.md`: `creator` · `developer` · `founder` · `sales` · `student` ·
      `lawyer-accountant` · `health` · `real-estate` · `smb-restaurant` · `ecommerce` · `coach` ·
      `agency` · `teacher`;
@@ -73,6 +74,41 @@ Todo lo que no está en esta lista es interno y puede cambiar en un PATCH.
    `state.json`) y que BUILD no se alcanza sin el sí explícito.
 7. **Nombres de los subagentes** en `.claude/agents/`: `stack-researcher`, `workspace-writer`,
    `jarvis-validator` (un fork o una skill puede despacharlos por nombre).
+8. **Los contratos que un Jarvis ya construido comparte con el Architect.** `/jarvis-doctor`,
+   `/jarvis-add`, `jarvis-validator` y el panel (`templates/panel/`) leen estos formatos dentro de
+   un Jarvis que ya corre, así que cambiarlos rompe Jarvis existentes:
+   - **Autonomía** (`knowledge/capabilities/autonomy.md`):
+     - la gramática de línea de `TASKS.md` (separador ` · `, los estados
+       `inbox|todo|doing|waiting|needs_ok|blocked|done|dropped`, `who:jarvis|owner|other`,
+       `lvl:L0…L3`, los campos opcionales `due,next,prio,src,tries,dep,conf` en ese orden) y sus
+       cinco secciones (`Hoy`, `Próximos`, `Esperando a otros`, `Bandeja (capturado, sin
+       confirmar)`, `Hecho`);
+     - los códigos de salida de `jobs/apply-ops.sh` (`0` aplicado · `2` uso · `3` rechazado ·
+       `4` lock o conflicto · `5` TASKS.md no parsea), sus ops (`set state|tries|next|note|due|lvl|who`,
+       `add`, `drafts`; `set due` solo mientras `task.reschedule` está en AGENTS.md § 10) y sus
+       razones de rechazo, incluidas `awaiting_owner`, `blocked_task`, `due_not_allowed` y
+       `due_in_past`;
+     - las acciones de auditoría `autopilot.op` / `autopilot.reject` en `logs/audit.jsonl`;
+     - el archivo `STOP_AUTOPILOT` (raíz del Jarvis), la variable `JARVIS_AUTOPILOT_DAILY_USD`, el
+       lock `logs/.tasks.lock` y los tipos L3 `calendar.block.private` · `email.label` ·
+       `task.reschedule`.
+   - **Aprendizaje** (`knowledge/capabilities/learning.md`):
+     - la línea de `LESSONS.md` (`- L-NNNN · <regla> · ámbito:<general|skill> · [src:owner/<canal>]
+       [AAAA-MM-DD] [ev:C-NNNN|ev:import:<origen>] [usos:N]`) y sus secciones `Activas` (máx. 60),
+       `En revisión`, `Retiradas`;
+     - el esquema de `memory/corrections.jsonl` (`id`, `ts`, `channel`, `actor`, `trigger`,
+       `hint`, `quote`, `class`, `outcome`, `ref`, `repeat_of`, `nudged`, con sus valores válidos);
+     - los eventos `learning.*` de `logs/audit.jsonl` (`{ts, event, ref, actor, commit?, detail?}`);
+     - los comandos `bin/learn.sh close|commit|undo|review|weekly` y
+       `bin/promote-skill.sh lint|promote|used|retire|status`, el marcador `.probation` y
+       `metadata.created-by: agent`.
+   - **Multimodal** (`knowledge/capabilities/multimodal.md`): los nombres de skill `transcribe` y
+     `watch-video`, sus puntos de entrada (`scripts/transcribe.sh`, `scripts/watch.py` con
+     `--detail transcript|balanced|visual` y `--cleanup`), las etiquetas `<media_transcript>` /
+     `<untrusted_media>` y las variables `JARVIS_WHISPER_MODEL`, `JARVIS_STT_CLOUD`,
+     `JARVIS_STT_CLOUD_MODEL`, `JARVIS_SENSITIVE_PACK`.
+   - Los nombres de las skills base de `templates/skills-base/` (`pending`, `autopilot`, `learn`,
+     `remember`, …): un Jarvis ya construido las tiene con ese nombre.
 
 **EN — summary.** (1) Command names, including plugin-mode namespaced forms. (2) Plugin and
 marketplace names and the install pair. (3) Every ID and path in `knowledge/README.md`, plus
@@ -80,7 +116,15 @@ marketplace names and the install pair. (3) Every ID and path in `knowledge/READ
 `tasks.json` schema in `templates/tasks-schema.md`. (5) The `state.json` shape: `state`, `brief`,
 `started_at`, `profile`, `decision`, `consents[]` — new optional fields are fine, renaming or
 redefining one is not. (6) The state machine, its state names and the explicit-yes gate.
-(7) Subagent names.
+(7) Subagent names. (8) The contracts a built Jarvis shares with the Architect, because
+`/jarvis-doctor`, `/jarvis-add`, the validator and the panel read them inside a running Jarvis: the
+`TASKS.md` line grammar and sections, `apply-ops.sh` exit codes, ops and reject reasons (including
+`awaiting_owner`, `blocked_task`, `due_not_allowed`, `due_in_past`, and `set due` only while
+`task.reschedule` is listed), the `autopilot.op`/`autopilot.reject` audit actions,
+`STOP_AUTOPILOT`, `JARVIS_AUTOPILOT_DAILY_USD` and the L3 type names; the `LESSONS.md` line
+format, the `corrections.jsonl` schema, the `learning.*` audit events, the `learn.sh` /
+`promote-skill.sh` commands and the `.probation` marker; the `transcribe` / `watch-video` skill
+names, entry points, transcript tags and media env vars; and the base skill names.
 
 ---
 
@@ -96,13 +140,16 @@ redefining one is not. (6) The state machine, its state names and the explicit-y
   campo, cambiar su tipo o sus valores válidos, volver obligatorio uno opcional.
 - Cambiar la **máquina de estados**: agregar, quitar, renombrar o reordenar estados, o quitar el
   gate de confirmación.
+- Cambiar un **contrato del Jarvis construido** (punto 8): la gramática de `TASKS.md` o
+  `LESSONS.md`, un código de salida, el nombre de un evento de auditoría, un comando de
+  `learn.sh`/`promote-skill.sh` o el nombre de una skill base.
 - Quitar un **control de seguridad** del default (eso además casi nunca se acepta).
 
 **EN — MAJOR:** removing/renaming a command, the plugin or the marketplace; renaming, moving or
 deleting any ID or path in `knowledge/README.md`, or renumbering a `SEC-NN`/`CMP-NN`; changing the
 `tasks.json` schema or `state.json` shape (removing/renaming a field, changing its type or valid
 values, making an optional field required); changing the state machine or removing the gate;
-dropping a default security control.
+changing a built-Jarvis contract from item 8; dropping a default security control.
 
 ### MINOR — algo nuevo, nada se mueve
 
@@ -110,13 +157,16 @@ dropping a default security control.
   nuevo en `knowledge/README.md`).
 - Un **comando** o **subagente** nuevo.
 - Un **campo opcional** nuevo en `tasks.json` o `state.json`.
+- Un campo opcional nuevo en la línea de `TASKS.md`, una razón de rechazo, un evento de auditoría
+  o un tipo L3 reversible nuevo (punto 8), siempre que lo existente siga igual.
 - Un **`SEC-NN` o `CMP-NN` nuevo** (más estricto, nada se rompe).
 - Nuevas opciones, filas de decisión, señales de entrevista, jobs o guardrails que hacen decidir
   mejor sin mover una ruta.
 - Un runtime que gana una capa entera nueva (otro host soportado, otro canal nativo).
 
 **EN — MINOR:** a new profession, country, runtime or capability; a new command or subagent; a new
-optional field in `tasks.json`/`state.json`; a new `SEC-NN`/`CMP-NN`; new options, decision rows,
+optional field in `tasks.json`/`state.json`, or a new optional `TASKS.md` field, reject reason,
+audit event or reversible L3 type; a new `SEC-NN`/`CMP-NN`; new options, decision rows,
 interview signals, jobs or guardrails; a runtime gaining a whole new layer.
 
 ### PATCH — el comportamiento no cambia

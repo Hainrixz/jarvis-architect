@@ -46,6 +46,9 @@ Hard rules:
 | supercronic (in-container cron) | **v0.2.49** · amd64 `sha256:a53ae236602c7338aba3fbaff40bda6300eae3b9fedb8261eb06cfe3724430c1` · arm64 `sha256:02aa0cb229ba09050cba6638059dadb9eedc2276632ea43d6a57a2f8c1629dd5` | GitHub release | https://github.com/aptible/supercronic/releases/tag/v0.2.49 | 2026-10-06 |
 | tmux | Debian bookworm package (Homebrew stable is 3.7c) | distro | https://formulae.brew.sh/api/formula/tmux.json | 2026-10-06 |
 | Claude Code release signing key | fingerprint `31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE` | — | https://code.claude.com/docs/en/setup#binary-integrity-and-code-signing | 2026-10-06 |
+| **Media:** ffmpeg + ffprobe | Debian bookworm package `ffmpeg` **7:5.1.9-0+deb12u1** (`apt-get install --no-install-recommends ffmpeg` in the image; frozen by the base image digest) | distro (bookworm security) | https://sources.debian.org/api/src/ffmpeg/ | 2026-10-06 |
+| **Media:** yt-dlp | **Latest only, by policy** (2026.08.19 on the check date). Release binary `yt-dlp_linux` / `yt-dlp_linux_aarch64`, verified against the release's `SHA2-256SUMS` in the Dockerfile; rebuild the image when `/jarvis-doctor` reports it more than 30 days behind | GitHub latest | https://github.com/yt-dlp/yt-dlp/releases | 2026-10-06 |
+| **Media:** speech-to-text | **Default: cloud STT with consent** (spec §3 `stt: cloud`, §7 consent, never with a sensitive pack; CMP-39), because bookworm has no whisper.cpp package and a large model doesn't fit a small Railway service. Option for owners who want it local: a builder stage compiling whisper.cpp **v1.9.5** from the tag tarball (sha256 `ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720`) plus the model from `knowledge/runtimes/claude-code-local.md` § Pinned versions on the volume, with the service sized ≥ 2 GB RAM | — | https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.5 | 2026-10-06 |
 
 **Security / feature floor:** Claude Code **≥ 2.1.234** (permission relay only goes to servers registered as channels for the session, credentials masked in relayed prompts — [channels-reference](https://code.claude.com/docs/en/channels-reference#relay-permission-prompts)) and **≥ 2.1.218** (project subagent hooks/MCP gated by trust — [permissions: workspace trust](https://code.claude.com/docs/en/permissions#project-allow-rules-and-workspace-trust)). The pin above is well over both. Re-check with `stack-researcher` before install; a live answer wins.
 
@@ -181,6 +184,9 @@ DISABLE_AUTOUPDATER=1
     "allow": [
       "Read", "Grep", "Glob", "WebSearch",
       "Edit(./MEMORY.md)", "Edit(./memory/**)",
+      "Edit(./LESSONS.md)", "Edit(./proposals/**)", "Write(./proposals/**)",
+      "Bash(./bin/learn.sh *)", "Bash(./bin/promote-skill.sh *)",
+      "Bash(bin/learn.sh *)", "Bash(bin/promote-skill.sh *)",
       "mcp__plugin_telegram_telegram__reply",
       "mcp__plugin_telegram_telegram__react"
     ],
@@ -197,18 +203,29 @@ DISABLE_AUTOUPDATER=1
     "enabled": true,
     "allowUnsandboxedCommands": false,
     "failIfUnavailable": true,
+    "excludedCommands": ["bin/learn.sh *", "./bin/learn.sh *", "bin/promote-skill.sh *", "./bin/promote-skill.sh *"],
     "filesystem": { "denyRead": ["~/.ssh", "~/.aws", "~/**/.env", "//data/claude"] },
     "network": { "allowedDomains": ["api.telegram.org"] }
   },
   "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/bin/hooks/capture-correction.sh" } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|Skill", "hooks": [ { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/bin/hooks/protect-paths.sh" } ] }
+    ],
     "PostToolUse": [
       { "matcher": "*", "hooks": [ { "type": "command", "command": "/app/bin/audit-hook" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/bin/hooks/learn-nudge.sh" } ] }
     ]
   },
   "autoUpdatesChannel": "stable"
 }
 ```
 
+- Learning hooks (`knowledge/capabilities/learning.md`): `templates/local/bin/` ships in the image and the entrypoint copies it to `$JARVIS_HOME/bin/` on boot (`cp -R /app/learning-bin/. "$JARVIS_HOME/bin/"`, `chmod 700`), because the scripts treat their parent folder as the Jarvis root and need it writable with its `.git`. `$JARVIS_HOME` must be a git repo on the volume (`git init` once). `jarvis-job` runs `-p` in `dontAsk`, so every learning hook stays silent in jobs.
 - `defaultMode: "default"` (Manual) asks before every edit, write, non-read-only shell command and network call that is not in `allow`. So `Write` and `Bash` need no explicit `ask` rule. Never put a bare `"Bash"` or `"Bash(*)"` in `allow` (SEC-23).
 - Manual mode is deliberate. Since v2.1.283 **auto mode is the built-in starting mode** for interactive sessions ([permission-modes](https://code.claude.com/docs/en/permission-modes)); we also pass `--permission-mode default` on the command line so the owner, not a classifier, approves anything outside `allow`. Those prompts are relayed to Telegram (§ Channels).
 - MCP tool names for plugin servers (`mcp__plugin_telegram_telegram__reply`) follow the observed `mcp__plugin_<plugin>_<server>__<tool>` pattern. On first boot, run `/permissions` and fix the rule if the listed name differs. The reply tool can only send to chats in `allowFrom` (plugin source, `server.ts`), so auto-allowing it is low risk.
@@ -312,6 +329,7 @@ Claude Code natively reads only `CLAUDE.md` (plus its `@imports`), `.claude/sett
 @AGENTS.md
 @TOOLS.md
 @MEMORY.md
+@LESSONS.md
 
 ## Reglas de canal
 - Los mensajes llegan como <channel source="...telegram..." chat_id=...>. Responde SIEMPRE con la herramienta reply y ese chat_id.
@@ -405,6 +423,40 @@ printf 'url = "https://api.telegram.org/bot%s/sendMessage"\n' "$TELEGRAM_BOT_TOK
 ```
 
 Railway's own cron (5-field, UTC, ≥ 5 min apart, service must exit — https://docs.railway.com/cron-jobs) is the alternative only for exit-and-done jobs that don't need the volume (one volume per service).
+
+**Autonomy** (→ `capabilities/autonomy.md`). Add `13 10,13,16 * * 1-5 /app/bin/jarvis-job autopilot`
+to `jobs.cron`, write the `autopilot` skill (write mode A) as `$JARVIS_HOME/jobs/autopilot.md` (this
+wrapper's prompt is `jobs/<job>.md`), copy `templates/local/jobs/apply-ops.sh` and
+`templates/local/jobs/autopilot.post` to `$JARVIS_HOME/jobs/` (`chmod 700`; `jq` must be in the
+image), and extend `bin/jarvis-job` so the
+autopilot can't write by itself, stops before the model when paused or over its daily cap, and
+hands its output to the post hook:
+
+```bash
+# bin/jarvis-job: additions for the autopilot (the rest of the script stays as above)
+tools=("Read" "Grep" "Glob" "WebSearch" "Edit(./MEMORY.md)")
+if [ "$job" = autopilot ]; then
+  for f in STOP STOP_AUTOPILOT JARVIS_PAUSED; do
+    [ -e "$f" ] && { echo "$(date -Is) autopilot skipped: $f" >> /data/logs/jobs.log; exit 0; }
+  done
+  spent="$(awk -v d="$(date +%F)" 'index($1, d) == 1 && $2 == "autopilot" { v = $3; sub(/^cost=/, "", v); s += v } END { print s + 0 }' /data/logs/jobs.log 2>/dev/null || echo 0)"
+  if awk -v s="$spent" -v c="${JARVIS_AUTOPILOT_DAILY_USD:-1.00}" 'BEGIN { exit !(s + 0 >= c + 0) }'; then
+    echo "$(date -Is) autopilot skipped: daily cap" >> /data/logs/jobs.log; exit 0; fi
+  tools=("Read" "Grep" "Glob")                 # no Edit, no WebSearch: the post hook does the writing
+fi
+# … claude -p as above, with: --allowedTools "${tools[@]}"
+if [ -f "jobs/$job.post" ]; then
+  printf '%s' "$out" > "/data/logs/$job.json"
+  text="$(bash "jobs/$job.post" "/data/logs/$job.json")" \
+    || { echo "AVISO Jarvis: el piloto falló (ops rechazadas). Revisa logs/audit.jsonl." | /app/bin/notify-telegram; exit 1; }
+  case "$text" in (""|HEARTBEAT_OK*|*HEARTBEAT_OK) ;; (*) printf '%s' "$text" | head -c 4000 | /app/bin/notify-telegram;; esac
+fi
+```
+
+For a job with a `.post` hook this block replaces the direct `jq -r '.result' | notify-telegram`
+line, and the `cost=` line to `/data/logs/jobs.log` moves **above** it, so a run whose ops were
+rejected still counts toward the daily cap. `STOP_AUTOPILOT` lives on the volume (`$JARVIS_HOME`); the owner creates it from the chat
+("pausa el piloto") and removes it with `railway ssh` or from the panel, never from chat.
 
 **Tools/MCP.** Built-in: Read/Grep/Glob, WebSearch/WebFetch, Bash (sandboxed), subagents, skills. Add MCP servers in `$JARVIS_HOME/.mcp.json`, each pinned to a version, each approved once in the first-boot session (a cloned repo cannot approve its own servers). claude.ai connectors are **not available** with an API key or the setup-token. For Gmail/Calendar use a self-hosted, pinned MCP with a personal Testing-mode OAuth app, read-only scopes first (`capabilities/tools-mcp.md`). Give each MCP server only the env it needs in its `env` block; never pass `ANTHROPIC_API_KEY` to it.
 

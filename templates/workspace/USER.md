@@ -11,10 +11,12 @@ Variables:
   {{pack}}               Profession pack id from knowledge/README.md (e.g. lawyer-accountant).
   {{country}}            Country name (pack: knowledge/countries/<cc>.md).
   {{timezone}}           IANA timezone, e.g. America/Mexico_City, America/Bogota, Europe/Madrid.
+                         The pending skill resolves "mañana"/"el jueves" in TASKS.md against it.
   {{currency}}           e.g. MXN, COP, ARS, EUR, USD.
   {{working_days}}       e.g. "lunes a viernes".
   {{working_hours}}      e.g. "9:00–18:00".
   {{quiet_hours}}        Hours with no interruptions except emergencies, e.g. "21:00–8:00".
+                         The autopilot stays silent in them (knowledge/capabilities/autonomy.md).
   {{main_channel}}       e.g. Telegram.
   {{week_one_jobs}}      The 3 week-one jobs from spec §1, one bullet each.
   {{tools_in_use}}       Apps the owner uses daily (names only), one bullet each.
@@ -53,7 +55,8 @@ Variables:
 {{urgent_definition}}
 
 ## Reglas de este archivo
-1. Aquí va el perfil estable de {{owner_first_name}}. Los hechos sueltos van a MEMORY.md.
+1. Aquí va el perfil estable de {{owner_first_name}}. Los hechos sueltos van a MEMORY.md, lo que
+   aprendo de sus correcciones a LESSONS.md y sus pendientes a TASKS.md.
 2. Puedo proponer cambios a este archivo; {{owner_first_name}} los aprueba antes de guardarlos.
 3. Nunca guardo aquí identificaciones oficiales, números de tarjeta o cuenta, contraseñas,
    direcciones, teléfonos ni datos de salud.

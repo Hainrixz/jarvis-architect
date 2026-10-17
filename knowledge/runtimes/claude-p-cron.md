@@ -46,6 +46,7 @@ Usage draws from the subscription's usage limits ([support 15036540](https://sup
 | npm package engine | Node `>=22.0.0` (npm path only; the binary does not use Node at runtime) | — | https://code.claude.com/docs/en/setup#install-with-npm | 2026-10-06 |
 | jq (parses `--output-format json` in the bash wrapper) | 1.8.2 | stable | https://formulae.brew.sh/api/formula/jq.json | 2026-10-06 |
 | Telegram Bot API `sendMessage` | n/a (HTTP API, text ≤ 4096 chars) | — | https://core.telegram.org/bots/api#sendmessage | 2026-10-06 |
+| **Media** (`transcribe`, `watch-video`) | Not installed by default: jobs here run without Bash, and the bot is send-only, so no audio or video arrives. When the owner adds attended sessions (`claude-code-local`) or the optional "inbox folder" job, use the media rows in `knowledge/runtimes/claude-code-local.md` § Pinned versions (whisper.cpp 1.9.5, ffmpeg 9.0.2, yt-dlp latest, model + SHA-256) | — | `knowledge/capabilities/multimodal.md` | 2026-10-06 |
 
 **Default pin: stable 2.1.285.** Use the latest channel only if the chosen model needs a newer CLI
 ("A newly launched model can require a Claude Code version newer than the stable channel serves", [setup](https://code.claude.com/docs/en/setup#configure-release-channel)).
@@ -299,6 +300,7 @@ narrows settings to the project scope with `--setting-sources project`.
 @SOUL.md
 @USER.md
 @MEMORY.md
+@LESSONS.md
 @AGENTS.md
 @TOOLS.md
 
@@ -406,6 +408,16 @@ Then in Task Scheduler → task → Settings, tick "Run task as soon as possible
 is missed". Then run the task once with `schtasks /Run /TN "Jarvis\briefing"` and check that `outbox/` got a new file with
 `"is_error":false`. If it failed with an auth error, set the task to "Run only when user is logged on"; if it still
 fails, use the `CLAUDE_CODE_OAUTH_TOKEN` fallback from *Risks*.
+
+**Autonomy** (→ `knowledge/capabilities/autonomy.md`). Same wiring as `claude-code-local`: the
+`autopilot` skill as `.claude/skills/autopilot/SKILL.md` (write mode A), `jobs/autopilot.tools`
+(`Read,Grep,Glob` + read-only MCP), `jobs/autopilot.model` = `cheap`, and `jobs/autopilot.post` +
+`jobs/apply-ops.sh` verbatim from `templates/local/jobs/`, scheduled at `13 10,13,16 * * 1-5`
+(LaunchAgent with 15 `StartCalendarInterval` dicts, or `OnCalendar=Mon..Fri *-*-* 10,13,16:13:00`).
+`run-job.sh` skips the model when `STOP_AUTOPILOT` exists or today's autopilot cost reaches
+`JARVIS_AUTOPILOT_DAILY_USD` (`knowledge/capabilities/scheduling.md`). There is no chat session
+here, so tasks are added by the owner editing `TASKS.md` or through the panel. Native Windows
+(`run-job.ps1`) has no post hook: use the WSL2 path for the autopilot, or leave it off (L0).
 
 **Tools/MCP** (→ `knowledge/capabilities/tools-mcp.md`). Default tool list per job: `Read,Grep,Glob` (override in `jobs/<job>.tools`)
 (no Bash, no Edit/Write, no WebFetch). On macOS/Linux/WSL Glob and Grep are absent from the default set but come back when named in `--tools` ([tools-reference](https://code.claude.com/docs/en/tools-reference#glob-tool-behavior)). `--tools` restricts the built-in set; it "doesn't affect MCP

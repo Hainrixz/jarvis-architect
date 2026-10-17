@@ -163,6 +163,7 @@ export function createApp({ config, adapter, store = createStore(config) }) {
         action: info.action || `${c.req.method} ${c.req.path}`,
         ...(info.target ? { target: info.target } : {}),
         ...(info.decision ? { decision: info.decision } : {}),
+        ...(info.detail ? { detail: info.detail } : {}),
         method: c.req.method,
         path: c.req.path.slice(0, 200),
         status: c.res.status,
@@ -317,6 +318,60 @@ export function createApp({ config, adapter, store = createStore(config) }) {
     const decision = body.decision === 'approve' || body.decision === 'reject' ? body.decision : undefined;
     c.set('audit', { action: 'approval.decide', target: String(id).slice(0, 128), decision });
     return c.json(await store.decideApproval(id, body.decision));
+  });
+
+  // --- pending list (Pendientes) ---
+  app.get('/api/tasks', async (c) => c.json({ ...(await store.listTasks()), autopilot: await store.autopilotState() }));
+  app.post('/api/tasks/:id', async (c) => {
+    const id = c.req.param('id');
+    c.set('audit', { action: 'task.update', target: String(id).slice(0, 16) });
+    const body = await readJson(c);
+    const r = await store.updateTask(id, body.patch, body.base_mtime, body.base_sha);
+    // Only the fields that changed, never the task title.
+    const detail = {};
+    for (const k of Object.keys(r.after)) if (r.before[k] !== r.after[k]) detail[k] = [r.before[k], r.after[k]];
+    c.set('audit', { action: 'task.update', target: id, detail });
+    return c.json(r);
+  });
+
+  // --- autopilot pause / resume ---
+  app.get('/api/autopilot', async (c) => c.json(await store.autopilotState()));
+  app.post('/api/autopilot', async (c) => {
+    const body = await readJson(c);
+    const action = body.action === 'pause' || body.action === 'resume' ? body.action : null;
+    c.set('audit', { action: `autopilot.${action || 'invalid'}` });
+    if (!action) return c.json({ error: 'invalid_action', message: 'action debe ser "pause" o "resume".' }, 400);
+    if (action === 'pause') return c.json(await store.setAutopilotPaused(true));
+    // Resuming gives power back: only from an authenticated panel session, with an explicit confirm.
+    // (Never from chat: the chat adapter has no route to this endpoint.)
+    if (!isAuthenticated(c, config, sessions)) return c.json({ error: 'auth_required', message: 'Inicia sesión primero.' }, 401);
+    if (body.confirm !== true) {
+      return c.json({ error: 'confirm_required', message: 'Confirma que quieres reanudar el piloto ({"confirm":true}).' }, 400);
+    }
+    return c.json(await store.setAutopilotPaused(false));
+  });
+
+  // --- learning (Aprendizajes) ---
+  app.get('/api/learning', async (c) => c.json(await store.learningState()));
+  app.post('/api/learning/lessons/:id/:op', async (c) => {
+    const id = c.req.param('id');
+    const op = c.req.param('op');
+    const to = op === 'retire' ? 'retired' : op === 'activate' ? 'active' : null;
+    c.set('audit', { action: `learning.lesson.${to ? op : 'invalid'}`, target: String(id).slice(0, 16) });
+    if (!to) return c.json({ error: 'not_found', message: 'Ruta no encontrada.' }, 404);
+    const body = await readJson(c);
+    const r = await store.moveLesson(id, to, body.base_mtime, body.base_sha);
+    c.set('audit', { action: `learning.lesson.${op}`, target: id, detail: { from: r.from, to: r.to, committed: r.committed } });
+    return c.json(r);
+  });
+  app.post('/api/learning/skills/:name/revert', async (c) => {
+    const name = c.req.param('name');
+    c.set('audit', { action: 'learning.revert_request', target: String(name).slice(0, 64) });
+    const body = await readJson(c);
+    if (body.confirm !== true) {
+      return c.json({ error: 'confirm_required', message: 'Confirma que quieres deshacer esta skill ({"confirm":true}).' }, 400);
+    }
+    return c.json(await store.revertSkill(name));
   });
 
   // --- audit log ---

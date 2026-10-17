@@ -28,7 +28,7 @@ Use `AskUserQuestion`. Suggested options are a starting point — adapt labels t
 | Q5 | ¿Cuánto quieres gastar al mes **además de lo que ya pagas** (tu plan de Claude o ChatGPT no cuenta)? | $0, nada extra · Hasta $10 USD · $10–30 · $30–100 · Lo que haga falta | model slots + host tier |
 | Q6 | ¿Qué tan delicada es la información que va a manejar? | Normal · Datos de clientes · Muy sensible (salud, legal, finanzas de terceros) · Nada sale de mi computadora | privacy → local / compliance |
 | Q7 | ¿Cuánto te manejas con lo técnico? | Nada, guíame paso a paso · Me defiendo con la terminal · Soy dev | runtime + verbosity |
-| Q8 | ¿Quieres un panel web para ver a tu Jarvis (chat, lo que recuerda, sus tareas, lo que espera tu aprobación)? | Sí, con panel (Recomendado si no eres dev) · No, me basta el chat | UI slot |
+| Q8 | ¿Quieres un panel web para ver a tu Jarvis (chat, lo que recuerda, tus pendientes, lo que aprendió, lo que espera tu aprobación)? | Sí, con panel (Recomendado si no eres dev) · No, me basta el chat | UI slot |
 
 Also capture, from conversation (not as a quiz):
 
@@ -65,6 +65,19 @@ secondary.
 
 **Anti-signals** (do not change the pack on their own): "quiero que use IA", "que sea inteligente",
 "que tenga memoria" — those are capabilities every Jarvis has.
+
+**Capability signals** (they never pick a pack; note them in `profile.signals[]` and use them in
+the combined defaults question of `questions/2-ramas.md`):
+
+| What they say | Signal | Read |
+|---|---|---|
+| "que sea autónomo", "que avance solo", "que lleve mis pendientes", "que me recuerde lo que prometí" | `autonomy` (default L1; never more on its own) | `knowledge/capabilities/autonomy.md` |
+| "solo recuérdame", "no quiero que haga nada solo" | `autonomy: L0` (no autopilot job) | same |
+| "que aprenda de mí", "que no le tenga que repetir las cosas", "como Hermes" | `learning` (on by default anyway; confirms it) | `knowledge/capabilities/learning.md` |
+| "que entienda audios / notas de voz", "que vea videos", "le mando fotos o PDFs", "que transcriba mis reuniones" | `multimodal` (local first) | `knowledge/capabilities/multimodal.md` |
+
+None of these change the gate: anything that sends, pays, posts or deletes still needs the owner's
+live "sí", whatever they said here.
 
 Ambiguous between two packs? Name both, say which you'd pick and why, ask one deciding question.
 

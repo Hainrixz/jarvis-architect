@@ -24,6 +24,17 @@ Global:
   {{owner_first_name}}   Owner's first name.
   {{jarvis_name}}        Assistant's name.
   {{date}}               YYYY-MM-DD the file was written.
+"## Herramientas propias" (always present; delete a block only when its condition says so):
+  Piloto       delete when spec §3 Autonomy is L0 (no autopilot job). On hermes, openclaw and
+               cowork replace "solo vía jobs/apply-ops.sh" with "editando TASKS.md con las reglas
+               de la skill autopilot" (knowledge/capabilities/autonomy.md § Per runtime).
+  Aprendizaje  on cowork write "edito LESSONS.md a mano; {{owner_first_name}} hace el commit".
+  Medios       delete on cowork (knowledge/capabilities/multimodal.md § Per-runtime support).
+  {{stt_engine}}          "local (whisper.cpp)", or "nativo de Hermes (faster-whisper)" /
+                          "nativo de OpenClaw (whisper-cli)" on those runtimes.
+  {{whisper_model_path}}  e.g. "models/ggml-large-v3-turbo-q5_0.bin".
+  {{stt_cloud}}           "no" (default) or "sí, <proveedor> (consentimiento del AAAA-MM-DD en el
+                          spec §7)"; always "no" with a sensitive pack (CMP-39).
 -->
 # Herramientas de {{jarvis_name}}
 
@@ -40,6 +51,32 @@ hace con `/jarvis-add`.
 4. Aquí solo van los nombres de las variables; los valores viven en `.env` o en variables
    selladas del servidor, nunca en este archivo.
 5. Si una herramienta cambia su descripción o pide permisos nuevos, dejo de usarla y aviso.
+
+## Herramientas propias
+
+### Piloto (programado)
+- Nombre técnico: skill `autopilot` (trabajo `autopilot`)
+- Alcance: solo lectura + borradores; escribe TASKS.md solo vía `jobs/apply-ops.sh`
+- Acciones irreversibles posibles: Ninguna. Lo irreversible queda en `needs_ok` con vista previa
+  y espera "sí, ejecuta T-NNNN" en vivo
+- Variables: `JARVIS_AUTOPILOT_DAILY_USD`
+- Pausa: archivo `STOP_AUTOPILOT` (AGENTS.md § 10)
+
+### Aprendizaje
+- Nombre técnico: `bin/learn.sh` · `bin/promote-skill.sh` (skill `learn`)
+- Alcance: escribe LESSONS.md y skills aprendidas (en periodo de prueba), con commit en git
+- Acciones irreversibles posibles: Ninguna. Nunca toca permisos; "deshaz" revierte
+- Variables: `JARVIS_LEARN_CHANNELS`
+
+### Medios
+- Nombre técnico: `transcribe` / `watch-video`
+- Motor de voz a texto: {{stt_engine}}
+- Modelo: {{whisper_model_path}} (SHA-256 en RUNBOOK.md § Medios)
+- Nube: {{stt_cloud}}
+- Límites: nota ≤20 MB/10 min, grabación ≤60 min, video ≤100 frames de 512 px
+- Variables: `JARVIS_WHISPER_MODEL`, `JARVIS_STT_CLOUD`, `JARVIS_STT_CLOUD_MODEL`,
+  `JARVIS_SENSITIVE_PACK`
+- Origen y versión: RUNBOOK.md § Medios (versiones fijadas en el archivo del runtime del Architect)
 
 ## Herramientas conectadas
 

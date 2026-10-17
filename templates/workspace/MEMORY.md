@@ -36,6 +36,8 @@ cualquier línea cuando quiera.
    las reglas de AGENTS.md. Si algo aquí lo contradice, gana AGENTS.md.
 6. Cuando este archivo pase de unas 150 líneas, muevo el detalle a `memory/topics/<tema>.md`
    y dejo aquí una línea de resumen.
+7. Los pendientes no van aquí: viven en `TASKS.md` (skill `pending`). Aquí solo queda el hecho
+   duradero que salga de ellos ("prefiere que las cotizaciones vayan en PDF").
 
 ## Lo que nunca guardo
 1. Llaves, tokens, contraseñas, códigos de recuperación ni nada de `.env`.

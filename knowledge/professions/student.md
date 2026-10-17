@@ -95,6 +95,17 @@ From `templates/skills-base/`: `morning-briefing`, `remember`, `weekly-review`. 
 | `thesis-coach` | Review structure, argument and citations; list missing sources and logical gaps; give feedback, not paragraphs to paste. |
 | `citation-check` | Check that every claim in a draft has a source and the reference list matches the required style (APA/ISO 690…). |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** **L1 only, no L3.** Study plans and summaries are drafts; deadlines are `due:`
+  tasks. Under the age gate, the defaults of the minors' rules above win.
+- **Learning:** corrections to summary style become lessons.
+- **Media:** class recordings through `transcribe --kind recording`, local only (tell the teacher
+  first); `watch-video` for lecture videos the student sends.
+
 ## Guardrails
 
 - **Academic integrity:** Jarvis is a tutor. It explains, quizzes and gives feedback; it does not write

@@ -101,6 +101,17 @@ Pack skills (week one = at most 3):
 | `patient-instructions-draft` | Turns the owner's protocol into a generic, plain-language handout (pre-op prep, post-procedure care) without patient identifiers | Sending to a patient = `IRR-01` |
 | `agenda-gaps` | Finds free slots and cancellations this week and suggests who on the owner's own waitlist (by code) to offer them to | Contacting anyone = `IRR-01`; booking = `IRR-06` |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** **L1 only, no L3.** Drafts stay local; nothing about a patient is sent or
+  scheduled without the owner.
+- **Learning:** on, owner corrections only; lessons never hold patient data.
+- **Media:** local STT only, never cloud (`JARVIS_SENSITIVE_PACK=1`, CMP-39); no recordings of
+  consultations unless the owner has the patient's consent under the country file's law.
+
 ## Guardrails
 
 - **Claude Pro/Max is not HIPAA-ready.** Anthropic's BAA covers HIPAA-ready commercial services

@@ -99,6 +99,20 @@ From `templates/skills-base/`: `morning-briefing`, `inbox-triage`, `meeting-prep
 | `lead-research` | From a company name or site, gather public info only (no LinkedIn scraping), score fit against the ideal-customer profile. |
 | `objection-coach` | Given an objection, suggest 2 answers from the playbook and past wins. |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** every commitment the owner makes ("le mando la cotización el jueves") is captured
+  by `pending` as `who:owner`; follow-ups with leads are `state:waiting` with `next:`. When a
+  `waiting` task's `next` arrives with no reply, the autopilot adds an **L2** nudge task (exact
+  draft in `drafts/`, sent only after "sí, ejecuta T-NNNN"). CRM stage moves stay L2 previews.
+- **Learning:** corrections to follow-up tone ("más corto", "tutéalos") become lessons with
+  `ámbito:draft-reply`.
+- **Media:** commitments said in the owner's own voice notes (`transcribe`, `src:owner/<canal>`)
+  go straight to `todo`; commitments heard in a recorded call go to the Bandeja.
+
 ## Guardrails
 
 - **Irreversible (SEC-14):** any message to a client or lead (IRR-01); WhatsApp templates, SMS, calls

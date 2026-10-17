@@ -41,6 +41,9 @@ AGENTS.md, TOOLS.md, HEARTBEAT.md or config. Rules: knowledge/capabilities/memor
 6. Agrega la línea al final de la sección "## Hechos", empezando con "- ".
 7. Si MEMORY.md pasa de unas 150 líneas, propone mover un tema a `memory/topics/<tema>.md`.
 8. Confirma en una línea: "Anotado: <hecho>".
+9. Si el hecho llegó como corrección (lo trajo la skill `learn`, con un `C-NNNN`), registra el
+   cambio con `bin/learn.sh commit fact <tema> <C-NNNN>` para que «deshaz» pueda revertirlo.
+   Una corrección de **cómo trabajo** ("no, así no", "prefiero…") no es un hecho: es de `learn`.
 
 ## Olvidar
 1. Busca el hecho en MEMORY.md, `memory/inbox.md`, `memory/topics/` y los registros diarios

@@ -117,6 +117,18 @@ Pack skills (max 3 in week one):
 | `exam-builder` | N questions mixing formats, answer key, variant B, difficulty tags, aligned to the plan | No |
 | `family-message` | Short, warm, clear message for families from bullet points; no student names unless the teacher writes it themselves at send time | Sending IRR-01 (teacher sends) |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** **L1 only, no L3.** Plans, exams and family messages are drafts that stay local;
+  sending a family message is the teacher's (IRR-01).
+- **Learning:** rubric feedback corrections become lessons scoped to `rubric-feedback`
+  (`ámbito:rubric-feedback`); lessons never hold student names.
+- **Media:** local STT only (minors' data, `JARVIS_SENSITIVE_PACK=1`, CMP-39). `rubric-feedback`
+  keeps its photo stop: a photo with a face, name or ID ends the run and asks to anonymize.
+
 ## Guardrails
 
 - **Minors' data rules above are non-negotiable** (SEC-13 hardened). The validator should find a

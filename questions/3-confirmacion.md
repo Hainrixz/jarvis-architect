@@ -13,7 +13,7 @@ Last verified: 2026-10-06
 4. **Gate C** — consent for any flagged risk (subscription token on a server, a setup-token for
    scheduled jobs, WhatsApp unofficial bridge, sensitive third-party data on a cloud host, OpenClaw
    on a public host, local-only tradeoffs: a declined hybrid on `HW-small`/`HW-weak` hardware or no
-   push channel).
+   push channel, cloud speech-to-text, video from links, an L3 action).
 5. Present ONE message. Get the yes.
 6. Write `jarvis-spec.md` (from `templates/jarvis-spec.md`) into `.jarvis/`. Transition to BUILD.
 
@@ -74,6 +74,18 @@ gate in `capabilities/whatsapp.md`). No consent → choose the safe alternative.
 > - **Mejor en mi compu, aunque no sea 24/7 (Recomendado)**
 > - Acepto, en la nube
 
+**Autonomy, learning and media.** Two of these are recorded for every Jarvis (they are defaults,
+not risks, but the owner must have seen them), and the rest only when they apply. Each goes into
+spec §7 with its date and into `consents[]`:
+
+| id | When | Sentence (adapt only the names) |
+|---|---|---|
+| `autonomy-level` | always | "Tu Jarvis trabaja solo en nivel L1: 3 veces al día hábil (10:13, 13:13, 16:13) prepara borradores y vistas previas, con tope de 1 USD al día. Nunca envía, paga ni publica sin tu «sí, ejecuta T-N». «Pausa el piloto» lo detiene." Spec §7: `Nivel de autonomía L1, piloto 3×/día hábil, tope 1 USD/día; lista L3 vacía` |
+| `learning-auto` | always | "Cuando lo corriges, aprende solo y te avisa en una línea; si repites una corrección crea su propia skill en periodo de prueba. «deshaz» quita lo último. Nunca aprende permisos ni de correos o webs." Spec §7: `Aprendizaje automático con aviso y «deshaz» — aceptado AAAA-MM-DD` |
+| `autonomy-l3-<type>` | only if they asked for an L3 action | Name the one reversible type (`knowledge/capabilities/autonomy.md` § Levels), say that the owner adds it to AGENTS.md § 10 from the terminal, and that it can be removed the same way. Never for sensitive packs |
+| `stt-cloud-<vendor>` | only if `stt: cloud` | "Tus audios se transcriben en <proveedor>, fuera de tu compu, con una llave con tope de gasto." Refused with a sensitive pack (CMP-39); no consent → `stt: local`, or text only on a small Railway service |
+| `video-urls-terms` | `video: on` | "Para ver videos de un link, Jarvis lee sus subtítulos y, si preguntas qué se ve, baja una copia temporal. Los términos de YouTube no permiten descargar salvo lo autorizado: úsalo solo para tu consulta personal; nunca usa tus cookies ni tu cuenta y borra todo al terminar." No consent → `watch-video` only for files the owner sends |
+
 Region: the one closest to the person that Railway offers (`capabilities/deploy-railway.md`,
 "Region" paragraph), chosen before the first deploy. Transfer clauses: `countries/<cc>.md` § Data-protection
 law.
@@ -93,7 +105,10 @@ law.
 | Memoria | … | … |
 | Herramientas | … (solo lectura al inicio) | … |
 | Trabajos automáticos | … | … |
-| Panel | … (dónde lo abres) | … |
+| Autonomía | L1 · piloto 10:13/13:13/16:13 L–V · tope 1 USD/día · L3: ninguna | prepara solo, tú decides |
+| Aprende de ti | sí, solo (te aviso en una línea; «deshaz» lo quita; nunca permisos) | no repites correcciones |
+| Entiende audio/video/fotos | local (whisper.cpp ≈574 MB) · videos: subtítulos primero | nada sube sin tu permiso |
+| Panel | … (dónde lo abres) · Pendientes y Aprendizajes (pausar piloto, deshacer lo aprendido) | … |
 | Seguridad | allowlist solo tú · aprobación para enviar/pagar/borrar · sandbox · tope de gasto | siempre |
 
 **Costo estimado:** ~$X/mes (modelo ~$Y + hosting ~$Z) ≈ <moneda local> (tipo de cambio de hoy, solo si `countries/<cc>.md` lo pide). Tope de gasto: $N.
@@ -105,6 +120,11 @@ law.
 
 ¿Lo construimos así?
 ```
+
+Adapt the three new rows to the spec: `L0` → "Autonomía: solo te recuerdo (sin piloto)";
+`cowork` → "Entiende: fotos y PDFs en la app; audios y videos no" and "Autonomía: una tarea local
+L–V"; `stt: cloud` → name the vendor; `video: off` → drop "videos"; no panel → drop the Panel
+row's second half.
 
 Frame it as "esto es lo que haría" — not "estas son tus opciones". Silence is not confirmation.
 "Sí / va / dale / hazlo" is. Any adjustment loops back to DEEP DIVE for that slot only.

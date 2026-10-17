@@ -53,6 +53,10 @@ Last verified: 2026-10-06
 | CMP-36 | Claude Code sandbox expected on native Windows | BLOCK | WSL2 (bubblewrap sandbox) |
 | CMP-37 | Stripe MCP with a full secret key | BLOCK (from 2026-10-31) | Stripe Agent API key or OAuth |
 | CMP-38 | Unattended cron jobs allowed to run irreversible actions | BLOCK | Cron defaults to deny; human approval |
+| CMP-39 | Cloud speech-to-text or Gemini video with a sensitive pack (health, legal, minors) | BLOCK | Local whisper.cpp; captions and frames only for video |
+| CMP-40 | A video URL taken from untrusted content (email, web page, document, group) opened on its own | BLOCK | Open it only when the owner asks for that link |
+| CMP-41 | Cloud Routine (or any connector-carrying scheduler without a permission prompt) used as the autopilot | BLOCK | Local `run-job.sh` / core scheduler with read-only tools + `apply-ops.sh` |
+| CMP-42 | OpenClaw dreaming on + the portable learning loop | WARN→fix | `dreaming.enabled: false` |
 
 ---
 
@@ -248,6 +252,26 @@ Last verified: 2026-10-06
 - **Do instead:** Cron defaults to deny for irreversible actions (Hermes `cron_mode: deny` or equivalent; SEC-15). The job drafts the action and asks the owner on their channel, with an exact preview (SEC-14). The canonical irreversible-action list is in `security-checklist.md` § 1.
 - **Source:** `security-checklist.md`; https://hermes-agent.nousresearch.com/docs/user-guide/docker
 
+### CMP-39 · Cloud STT or Gemini with a sensitive pack
+- **Why it fails:** Health, legal and minors' audio would leave the owner's machine for a third-party processor. The packs `health`, `lawyer-accountant` and any pack that handles minors promise local handling of that data, and some vendors' terms allow training on inputs (CMP-35).
+- **Do instead:** Local whisper.cpp (`transcribe` with `stt: local`); `JARVIS_SENSITIVE_PACK=1` makes `transcribe.sh --engine cloud` refuse. For long videos, captions and frames only; no Gemini. Validator sweep 16 grades the combination MAJOR (SEC-38).
+- **Source:** `knowledge/capabilities/multimodal.md` § Privacy, retention and terms
+
+### CMP-40 · Video URL from untrusted content
+- **Why it fails:** A link inside an email, web page, document or group is attacker-chosen. Fetching it on its own is [A] driving a network action, and an extractor can follow redirects after the first address check.
+- **Do instead:** `watch-video` opens only links the owner sent or asked for by name (AGENTS.md § 2 item 4); anything else, Jarvis asks first.
+- **Source:** `knowledge/capabilities/multimodal.md` § Video (`templates/skills-base/watch-video/`)
+
+### CMP-41 · Cloud Routines as autopilot
+- **Why it fails:** Routines have "no permission-mode picker" and call connectors "all without stopping for approval"; an autopilot reading untrusted mail there holds A+B+C.
+- **Do instead:** `knowledge/capabilities/autonomy.md` § Per runtime (local `run-job.sh`, Hermes cron, OpenClaw isolated automations, the SDK core's cron), with read-only tools and `apply-ops.sh` as the only writer.
+- **Source:** https://code.claude.com/docs/en/routines
+
+### CMP-42 · OpenClaw dreaming + the portable learning loop
+- **Why it fails:** Dreaming is on by default and promotes notes into `MEMORY.md` with no review, no provenance and no undo. With the portable loop that makes two writers into memory, one of them outside the audit and "deshaz" (SEC-36).
+- **Do instead:** `plugins.entries.memory-core.config.dreaming.enabled: false` in `config/openclaw.json5`; keep `memoryFlush` on. Validator sweep 15 checks it.
+- **Source:** `knowledge/capabilities/learning.md` § 6; https://docs.openclaw.ai/concepts/memory
+
 ## Sources
 
 - https://code.claude.com/docs/en/channels
@@ -281,3 +305,5 @@ Last verified: 2026-10-06
 - https://ai.google.dev/gemini-api/docs/pricing
 - https://docs.stripe.com/mcp
 - https://docs.ollama.com/context-length
+- https://code.claude.com/docs/en/routines (fetched 2026-10-06)
+- https://docs.openclaw.ai/concepts/memory (checked 2026-10-06)

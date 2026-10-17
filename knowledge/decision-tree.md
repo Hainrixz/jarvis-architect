@@ -265,14 +265,19 @@ auth counts as `K`.
 | Model slots | From `models.json` for the provider: `main` for chat, `cheap` for jobs and heartbeats, `max` off unless asked. |
 | Memory | Markdown workspace + the runtime's native memory. No vector DB in v1. |
 | Tools / MCP | The pack's top two week-one tools (usually email + calendar), **read-only**. Everything else is a Non-Goal for v1, addable with `/jarvis-add`. |
-| Jobs | Morning briefing at 07:03 local time + the pack's first job. No heartbeat in v1. |
-| Voice | Off. Voice notes are offered later via `/jarvis-add`. |
+| Jobs | Morning briefing at 07:03 local time + the pack's first job + the autopilot and the weekly `learning-review` (rows below). No heartbeat in v1. |
+| Autonomy | L1, autopilot `13 10,13,16 * * 1-5` on `cheap`, 1.00 USD/day (`JARVIS_AUTOPILOT_DAILY_USD`), L3 list empty (`capabilities/autonomy.md`). `cowork`: one weekday local-folder task. Small `ollama-local` models: one task per run. |
+| Learning | On, automatic: lessons apply at once with a one-line receipt, repeated procedures become skills on probation, everything committed and undoable with "deshaz" (`capabilities/learning.md`). Weekly `learning-review` at `37 19 * * 0`. |
+| Multimodal | Local STT with `ggml-large-v3-turbo-q5_0` (file and hash in the runtime's § Pinned versions), video on, Gemini off (`capabilities/multimodal.md`). `cowork`: neither audio nor video. Railway (`hermes` / `claude-code-server`) without the local-model image: audio through cloud STT only with a logged consent, otherwise text only; video is captions plus frames (`watch.py` has no cloud engine). Video from URLs on needs the YouTube-terms consent at Gate C. Sensitive packs: local only (CMP-39). |
+| Voice | Voice **out** (TTS) off, offered later via `/jarvis-add` (`capabilities/voice.md`). Voice notes **in** are on (Multimodal row). |
 | Actions | Drafts only. Send, pay, delete, stamp or refund always need approval. |
 | Allowlist | Owner only. |
 | Name / personality | "Jarvis", calm and direct, in their language. |
 
 Fast-track never removes Gate C. A WhatsApp grey-zone disclosure, any Baileys use (never a quick
-default) and a subscription on a server each still need an explicit, logged yes.
+default) and a subscription on a server each still need an explicit, logged yes, and so do the
+`autonomy-level`, `learning-auto` and (with video on) `video-urls-terms` lines of
+`questions/3-confirmacion.md` § Gate C.
 
 ---
 

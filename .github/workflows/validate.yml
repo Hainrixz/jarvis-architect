@@ -247,3 +247,87 @@ jobs:
                  "using screen readers; every image needs a description."
             exit 1
           fi
+
+  panel:
+    name: Jarvis Panel tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: templates/panel
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: npm ci && npm test (node --test, includes Pendientes and Aprendizajes)
+        run: |
+          npm ci --no-fund --no-audit
+          npm test
+
+  scripts:
+    name: Shell scripts and fixtures (autonomy, learning, media)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: bash -n on every templates/**/*.sh and tests/**/*.sh
+        run: |
+          FAIL=0
+          while IFS= read -r -d '' f; do
+            bash -n "$f" || { echo "  syntax error: $f"; FAIL=1; }
+          done < <(find templates tests -type f -name '*.sh' -not -path '*/node_modules/*' -print0 | sort -z)
+          for f in templates/local/jobs/autopilot.post; do bash -n "$f" || { echo "  syntax error: $f"; FAIL=1; }; done
+          [ "$FAIL" -eq 0 ] || { echo "::error::Shell syntax errors above."; exit 1; }
+
+      - name: shellcheck on the scripts a Jarvis runs
+        run: |
+          shellcheck --version | head -2
+          shellcheck -s bash templates/local/bin/*.sh templates/local/bin/hooks/*.sh \
+            templates/skills-base/*/scripts/*.sh tests/learning/*.sh tests/media/run.sh
+          python3 -I -c "import ast,sys;[ast.parse(open(p).read(),p) for p in sys.argv[1:]]" \
+            templates/skills-base/watch-video/scripts/watch.py tests/autonomy/parse_tasks.py
+
+      - name: Autonomy fixtures (apply-ops.sh, TASKS.md grammar, run-job.sh wrapper)
+        run: |
+          bash -n templates/local/jobs/apply-ops.sh templates/local/jobs/autopilot.post tests/autonomy/apply-ops.test.sh
+          shellcheck templates/local/jobs/apply-ops.sh tests/autonomy/apply-ops.test.sh
+          shellcheck -s bash templates/local/jobs/autopilot.post
+          python3 -I tests/autonomy/parse_tasks.py --template templates/workspace/TASKS.md
+          bash tests/autonomy/apply-ops.test.sh
+
+      - name: Learning (capture, protect-paths, promote-skill)
+        run: |
+          # No global git identity on purpose: learn.sh / promote-skill.sh must commit without one.
+          bash tests/learning/capture.test.sh
+          bash tests/learning/protect-paths.test.sh
+          bash tests/learning/promote-skill.test.sh
+
+  media:
+    name: Media pipeline (skips what the runner lacks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install ffmpeg (optional; the suite skips media checks without it)
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Test model from the pin in knowledge/runtimes/claude-code-local.md (only if whisper-cli exists)
+        run: |
+          if ! command -v whisper-cli >/dev/null 2>&1; then
+            echo "::notice::whisper-cli is not on this runner; transcription checks will SKIP."; exit 0
+          fi
+          ROW=$(grep -E 'ggml-base-q5_1\.bin' knowledge/runtimes/claude-code-local.md | head -1)
+          SHA=$(echo "$ROW" | grep -oE '[0-9a-f]{64}' | head -1)
+          COMMIT=$(grep -oE 'resolve/[0-9a-f]{40}/' knowledge/runtimes/claude-code-local.md | head -1 | cut -d/ -f2)
+          [ -n "$SHA" ] && [ -n "$COMMIT" ] || { echo "::error::model pin not found"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/media-cache"
+          curl -fsSL -o "$RUNNER_TEMP/media-cache/ggml-base-q5_1.bin" \
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/$COMMIT/ggml-base-q5_1.bin"
+          echo "$SHA  $RUNNER_TEMP/media-cache/ggml-base-q5_1.bin" | sha256sum -c - \
+            || { rm -f "$RUNNER_TEMP/media-cache/ggml-base-q5_1.bin"; echo "::error::model hash mismatch"; exit 1; }
+
+      - name: tests/media/run.sh (exit 0 with SKIP lines when tools are missing)
+        run: JARVIS_MEDIA_CACHE="$RUNNER_TEMP/media-cache" bash tests/media/run.sh

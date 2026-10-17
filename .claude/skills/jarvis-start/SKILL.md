@@ -107,7 +107,7 @@ RESUME? → PREFLIGHT → DISCOVERY → DEEP DIVE → ARCHITECTURE →(explicit 
 | RESUME? | always first | `./.jarvis/state.json` if it exists | Person chooses: continue where they left off (go to saved state) or start over (archive old state to `.jarvis/archive/`) |
 | PREFLIGHT | fresh start | `questions/0-preflight.md` | `./.jarvis/preflight.json` written |
 | DISCOVERY | preflight done | `questions/1-descubrimiento.md` | Profile locked: who, what for, country, existing subscriptions, technical level, budget, privacy, where it should live, UI (panel yes/no) |
-| DEEP DIVE | profile locked | `questions/2-ramas.md` + `knowledge/decision-tree.md` + the matching `knowledge/professions/*.md` and `knowledge/countries/*.md` | Every slot decided: runtime, auth, model slots, host, channels, memory, tools/MCP, proactive jobs, skills |
+| DEEP DIVE | profile locked | `questions/2-ramas.md` + `knowledge/decision-tree.md` + the matching `knowledge/professions/*.md` and `knowledge/countries/*.md` | Every slot decided: runtime, auth, model slots, host, channels, memory, tools/MCP, proactive jobs, skills, and autonomy/learning/media (one combined question) |
 | ARCHITECTURE | slots drafted | `questions/3-confirmacion.md` | **Explicit yes, zero markers, cost quote accepted, consent logged for any flagged risk** |
 | BUILD | gate passed | `questions/4-construir.md` + `templates/tasks-schema.md` + the chosen `knowledge/runtimes/*.md` | Every task in `tasks.json` is `done` (verify exits 0) |
 | VERIFY | build done | `questions/4-construir.md` §Smoke test | Smoke test passes + `jarvis-validator` PASS |
@@ -126,8 +126,11 @@ RESUME? → PREFLIGHT → DISCOVERY → DEEP DIVE → ARCHITECTURE →(explicit 
 | Memory | `knowledge/capabilities/memory.md` |
 | Tools / MCP | profession pack + `knowledge/capabilities/tools-mcp.md` + country pack (fiscal, CRM) |
 | Proactive jobs | `knowledge/capabilities/scheduling.md` |
-| Voice (optional) | `knowledge/capabilities/voice.md` |
-| Face / UI | `knowledge/capabilities/web-ui.md` — Jarvis Panel (`templates/panel/`) or the runtime's native UI |
+| Voice (optional) | `knowledge/capabilities/voice.md` (voice out); voice notes in → Multimodal |
+| Autonomy (always) | `knowledge/capabilities/autonomy.md` → `templates/workspace/TASKS.md`, skills `pending` + `autopilot`, `templates/local/jobs/apply-ops.sh` + `templates/local/jobs/autopilot.post`, AGENTS.md § 10 |
+| Learning (always) | `knowledge/capabilities/learning.md` → `templates/workspace/LESSONS.md`, skill `learn`, `templates/local/bin/` (`learn.sh`, `promote-skill.sh`, hooks) |
+| Multimodal (always, except `cowork`) | `knowledge/capabilities/multimodal.md` → skills `transcribe` (+ `watch-video` when `video: on`) with their `scripts/`; pins in `knowledge/runtimes/<id>.md` |
+| Face / UI | `knowledge/capabilities/web-ui.md` — Jarvis Panel (`templates/panel/`, with Pendientes and Aprendizajes) or the runtime's native UI |
 | Skills | `templates/skills-base/` + profession pack |
 | Security controls | `knowledge/security-checklist.md` — all of them, always |
 

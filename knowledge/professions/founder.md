@@ -91,6 +91,18 @@ From `templates/skills-base/`: `morning-briefing`, `inbox-triage`, `meeting-prep
 | `decision-memo` | Turn a messy question into a one-page memo: context, options, recommendation, risks. |
 | `delegate-email` | Draft an email for the team or a vendor from a one-line instruction; goes to the owner for approval or to the agent-owned outbox. |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** the monthly investor update and board-prep packs are **L1** drafts the autopilot
+  prepares ahead of their `due:`; sending them is the owner's. Team asks that wait on someone
+  else are `who:other` + `waiting`.
+- **Learning:** corrections to the update's structure or tone become lessons scoped to that skill.
+- **Media:** `transcribe --kind recording` for the owner's own meeting recordings (tell
+  participants first, `multimodal.md` § Privacy); action items found there enter the Bandeja.
+
 ## Guardrails
 
 - **Irreversible (SEC-14):** sending email/Slack/WhatsApp to anyone but the owner (IRR-01); calendar

@@ -12,7 +12,9 @@ Last verified: 2026-10-06
 3. `knowledge/countries/<cc>.md` — fiscal/CRM tools, WhatsApp reality and rates, data law, voice accent.
 4. The candidate `knowledge/runtimes/<id>.md` (one, maybe two to compare).
 5. `knowledge/auth-matrix.md` — the credential for runtime × host. Not negotiable.
-6. Only the capability files this Jarvis needs: `knowledge/capabilities/{channels,whatsapp,memory,tools-mcp,scheduling,voice,skills,deploy-local,deploy-railway,costs}.md`.
+6. Only the capability files this Jarvis needs: `knowledge/capabilities/{channels,whatsapp,memory,tools-mcp,scheduling,voice,skills,web-ui,deploy-local,deploy-railway,costs}.md`.
+   Always read `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+   `knowledge/capabilities/multimodal.md` (their *Decision rule* tables): every Jarvis gets all three.
 7. `knowledge/models.json` — fill `cheap` / `main` / `max` for the chosen provider.
 8. `knowledge/compatibility.md` — reject known-bad combinations before you present anything.
 
@@ -83,6 +85,42 @@ the one source the build generates schedulers from. Heartbeat every 30–60 min 
 hours and only if it has something to check (none in v1 by default). For a `while-on` laptop, say
 once: "si a esa hora tu compu está dormida, llega al abrirla; si está apagada, ese día no llega".
 
+### Autonomy, learning and media (one combined question, always asked)
+Every Jarvis ships with all three, so you never ask three questions about them. You state the
+defaults in **one** message and ask once whether to change anything:
+
+> Por defecto tu Jarvis: lleva tus pendientes y prepara borradores solo 3 veces al día (nunca
+> envía ni paga sin tu sí), aprende de tus correcciones (te avisa en una línea y puedes
+> deshacerlo) y entiende audios, fotos, PDFs y videos en tu computadora. ¿Cambiamos algo?
+
+`AskUserQuestion` options (first = default):
+
+| Option | Slot result (spec §3) |
+|---|---|
+| Así está bien (Recomendado) | Autonomy `L1`, autopilot `13 10,13,16 * * 1-5` on `cheap`, `JARVIS_AUTOPILOT_DAILY_USD=1.00`, L3 list empty · Learning automatic · Multimodal `stt: local`, `video: on`, `gemini: off` |
+| Que solo me recuerde, sin preparar nada solo | Autonomy `L0`: `TASKS.md`, `pending` and the briefing stay; **no** autopilot job |
+| Sin videos | `video: off` (the `watch-video` skill is not installed); audio, photos and PDFs stay |
+| Quiero cambiar otra cosa | Open text; map it with the rules below, one follow-up at most |
+
+Rules behind the answer (the capability files are authoritative):
+- **Autonomy** (`knowledge/capabilities/autonomy.md` § Decision rule): L1 is the ceiling you
+  propose. L2 needs nothing extra (it ends at a preview and a live "sí, ejecuta T-NNNN"). An L3
+  action is only offered when the person asks for one, only from the reversible types in that
+  file, and the owner writes it into AGENTS.md § 10 from the terminal; sensitive packs never get
+  L3. `cowork` gets one weekday local-folder task; small `ollama-local` models one task per run.
+- **Learning** (`knowledge/capabilities/learning.md` § Decision rule): automatic, like Hermes.
+  Lessons apply at once with a one-line receipt; repeated procedures become skills on probation
+  through `bin/promote-skill.sh`; everything is git-committed, audited and undoable ("deshaz" or
+  the panel). It has no off switch in v1, because it acts only on the owner's own corrections on
+  an allowlisted channel and never touches permissions. If they want it quieter, say that any
+  lesson can be retired with one word or one click.
+- **Media** (`knowledge/capabilities/multimodal.md` § Decision rule): local whisper.cpp first
+  (model ≈574 MB, shown again at step 13). Cloud STT only with a consent naming the vendor, and
+  never with a sensitive pack (`health`, `lawyer-accountant`, minors in `teacher`; CMP-39).
+  `cowork` gets neither audio nor video (say it in one line). Railway without the local-model
+  image: audio through cloud STT only with consent, otherwise text only; video is captions plus
+  frames (`watch.py` has no cloud engine). Video from URLs needs the YouTube-terms line at Gate C.
+
 ### Face / UI
 Read `capabilities/web-ui.md`. Default **yes** to the Jarvis Panel for non-technical people (it's
 where they see memory, jobs and pending approvals), except where that file says otherwise: `hermes`
@@ -100,7 +138,11 @@ Tailscale recommended over a public domain.
   default: a new number via the official API)
 - "¿Quieres que te hable con voz o te basta con texto y notas de voz?"
 
+The combined autonomy/learning/media question above is not one of these 1–3: it is always asked,
+once, in the same message as at most two of them.
+
 ## Gate
 
-Every slot filled or marked `[NEEDS CLARIFICATION: … — blocks …]`. Write the draft to
+Every slot filled or marked `[NEEDS CLARIFICATION: … — blocks …]`, including the three rows
+Autonomy, Learning and Multimodal. Write the draft to
 `.jarvis/state.json → decision` with a one-line reason per slot. Transition to ARCHITECTURE.

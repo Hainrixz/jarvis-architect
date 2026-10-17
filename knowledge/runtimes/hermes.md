@@ -46,6 +46,8 @@ Hermes uses two version schemes for one release: a semver (`v0.21.5`) and a cale
 | PyPI `hermes-agent` | 0.19.0 (2026-07-20). **Stale, not a supported channel: do not use**; install from the official channels below | — | https://pypi.org/project/hermes-agent/ | 2026-10-06 |
 | Python (source installs) | 3.11–3.14; first-party installs bundle their own | — | installation docs | 2026-10-06 |
 | Node (WhatsApp Baileys bridge only) | 18+ per the WhatsApp docs. The installer at `v2026.9.24` itself wants Node 22.22+, 24.11+ or 26+ for its build and installs a Hermes-managed Node when the system one is older | — | https://hermes-agent.nousresearch.com/docs/user-guide/messaging/whatsapp · `scripts/install.sh` at the tag | 2026-10-06 |
+| **Media:** native STT `stt.provider: local` | `faster-whisper` **1.2.1** (PyPI). Live check at install: run one voice note with `stt.provider: local`; if Hermes reports the package missing, install exactly `faster-whisper==1.2.1` into Hermes' own environment (never system Python). Model size `large-v3` on machines with ≥ 8 GB RAM, `small` below that | latest | https://pypi.org/project/faster-whisper/ · https://hermes-agent.nousresearch.com/docs/user-guide/features/voice-mode | 2026-10-06 |
+| **Media:** ffmpeg, yt-dlp, whisper.cpp (for the `watch-video` skill) | Same rows as `knowledge/runtimes/claude-code-local.md` § Pinned versions on macOS (whisper.cpp 1.9.5, ffmpeg 9.0.2, yt-dlp latest, model + SHA-256). Docker image: ffmpeg from the image's distro package; `stack-researcher` checks `docker run --rm <image> ffmpeg -version` before relying on it, else video is answered from captions only | Homebrew stable / image | `knowledge/capabilities/multimodal.md` | 2026-10-06 |
 
 Never use the moving tags `latest`, `stable` or `main` in a Jarvis. Before installing, `stack-researcher` re-checks the releases page. If a newer stable release exists and is at least 3 days old with no rollback note, use it and record its digest.
 
@@ -235,9 +237,15 @@ memory:
   write_approval: false          # true for health/legal/finance profiles
 
 skills:
-  write_approval: true           # agent-written skills are staged for the owner to review
+  write_approval: false          # learning is automatic (owner decision, Hermes default); lint + probation + undo instead
+  guard_agent_created: true      # scan agent-written skills for dangerous patterns (default false)
+  create_dir: ~/jarvis-<name>/skills-learned   # agent-written skills land in the git workspace (bin/learn.sh review commits + lints them)
   external_dirs:
-    - ~/jarvis-<name>/skills     # skills shipped by Jarvis Architect
+    - ~/jarvis-<name>/skills     # skills shipped by Jarvis Architect (+ the ones bin/promote-skill.sh promoted)
+
+curator:
+  enabled: true                  # archives unused agent-created skills, never deletes (hermes curator restore)
+  consolidate: false             # no LLM merge pass
 
 security:
   allow_private_urls: false      # keep SSRF blocking on (Ollama is configured as the model endpoint, not fetched by tools)
@@ -245,7 +253,9 @@ security:
 unauthorized_dm_behavior: ignore # strangers get silence; switch to 'pair' only while adding a 2nd device (SEC-04)
 ```
 
-Key names come from the [security](https://hermes-agent.nousresearch.com/docs/user-guide/security/), [memory](https://hermes-agent.nousresearch.com/docs/user-guide/features/memory), [skills](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills) and [configuration](https://hermes-agent.nousresearch.com/docs/user-guide/configuration/) docs. Run `hermes config check` after every edit.
+Key names come from the [security](https://hermes-agent.nousresearch.com/docs/user-guide/security/), [memory](https://hermes-agent.nousresearch.com/docs/user-guide/features/memory), [skills](https://hermes-agent.nousresearch.com/docs/user-guide/features/skills), [curator](https://hermes-agent.nousresearch.com/docs/user-guide/features/curator) and [configuration](https://hermes-agent.nousresearch.com/docs/user-guide/configuration/) docs. Run `hermes config check` after every edit; if it rejects `create_dir` or `curator`, drop that key and keep `guard_agent_created` (fallbacks in `knowledge/capabilities/learning.md` § 8).
+
+**Learning** (`knowledge/capabilities/learning.md`): the native loop (memory nudges, `skill_manage`, curator) stays on and automatic. Behaviour lessons go to the workspace `LESSONS.md` through the skill `learn`, and `AGENTS.md` § 9 says to read `LESSONS.md` at the start of every task (Hermes has no `@import`). Copy `templates/local/bin/` into `~/jarvis-<name>/bin/` so the terminal tool can run `bin/learn.sh` and `bin/promote-skill.sh`. Cron prompts name the skills they may use, so a fresh agent skill is not used unattended before the owner has used it once.
 
 **Ollama as the model** (`knowledge/runtimes/ollama-local.md`): `model: { default: <ollama model tag>, provider: custom, base_url: http://127.0.0.1:11434/v1, context_length: 65536 }`. One supported topology per OS, the same in both files: **Linux** = Ollama native (loopback) + Hermes container with `network_mode: host`, so `127.0.0.1` inside the container is the host's loopback (compose below); **macOS** = both native (no Docker); **Windows** = both inside WSL2. Don't use `host.docker.internal`/`host-gateway` on Linux: it resolves to the Docker bridge, and a loopback-bound Ollama (SEC-05) refuses it.
 
@@ -261,9 +271,9 @@ Jarvis Architect writes the six workspace files into the Jarvis folder (`~/jarvi
 | `AGENTS.md` | Working directory: `terminal.cwd` for gateway and cron, launch dir for CLI. Priority `.hermes.md` → `AGENTS.override.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules` (first match wins) | Set `terminal.cwd` to the Jarvis folder; keep no `.hermes.md` there | To confirm gateway sessions load `AGENTS.md` from `terminal.cwd`, the smoke test asks "¿Qué reglas tienes para enviar correos?" to prove it. Startup files are truncated beyond a dynamic limit (floor 20,000 chars), keeping 70 % head + 20 % tail. |
 | `TOOLS.md` | Not a Hermes concept | `workspace-writer` appends its content to `AGENTS.md` under `## Tools` (and keeps `TOOLS.md` as the human copy) | Tool permissions are enforced in `config.yaml` (`mcp_servers.*.tools.include`), not by this text. |
 | `HEARTBEAT.md` | Not a Hermes concept | A cron job reads it: `hermes cron create "every 2h" "Lee ~/jarvis-<name>/HEARTBEAT.md y revisa cada punto. Si nada requiere atención, responde solo [SILENT]." --deliver telegram` | `[SILENT]` suppresses delivery ([cron docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/cron)). Restrict to waking hours in the owner's timezone. |
-| `skills/` | `~/.hermes/skills/` (primary, agent-written) + `skills.external_dirs` | Point `external_dirs` at `~/jarvis-<name>/skills` | Agent Skills format (`SKILL.md` + frontmatter). Hermes adds optional `platforms` and metadata. |
+| `skills/` | `~/.hermes/skills/` (primary) + `skills.external_dirs`; agent-written skills go to `skills.create_dir` | Point `external_dirs` at `~/jarvis-<name>/skills` and `create_dir` at `~/jarvis-<name>/skills-learned` | Agent Skills format (`SKILL.md` + frontmatter). Hermes adds optional `platforms` and metadata. |
 
-Docker: mount the Jarvis folder read-only (`-v ~/jarvis-<name>:/opt/jarvis:ro`) **plus its `memory/` folder writable on top** (`-v ~/jarvis-<name>/memory:/opt/jarvis/memory`), and set `terminal.cwd: /opt/jarvis` and `external_dirs: [/opt/jarvis/skills]`. SOUL/AGENTS/skills stay read-only (they change only through the owner); topic memory the packs write (`memory/topics/…`, `memory/briefings/`, `memory/weekly/`) lives in the writable mount, because Hermes' own `MEMORY.md` is capped at 2,200 chars. AGENTS.md tells Hermes to keep durable facts in `MEMORY.md` and longer lists (deadlines, courses) in `memory/topics/<name>.md`.
+Docker: mount the Jarvis folder read-only (`-v ~/jarvis-<name>:/opt/jarvis:ro`) **plus its `memory/` folder writable on top** (`-v ~/jarvis-<name>/memory:/opt/jarvis/memory`), plus `LESSONS.md`, `proposals/` and `skills-learned/` writable the same way for learning (the read-only `.git` means `bin/learn.sh` can't commit inside the container: lessons apply at once, and the host's weekly `bin/learn.sh review` commits them), and set `terminal.cwd: /opt/jarvis` and `external_dirs: [/opt/jarvis/skills]`. SOUL/AGENTS/skills stay read-only (they change only through the owner); topic memory the packs write (`memory/topics/…`, `memory/briefings/`, `memory/weekly/`) lives in the writable mount, because Hermes' own `MEMORY.md` is capped at 2,200 chars. AGENTS.md tells Hermes to keep durable facts in `MEMORY.md` and longer lists (deadlines, courses) in `memory/topics/<name>.md`.
 
 ## Channels
 
@@ -306,6 +316,24 @@ hermes cron pause <job_id>
 ```
 
 Schedules accept `"in 30m"`, `"every 2h"`, `"daily at 7am"`, `"weekdays at 9am"`, cron expressions (`"0 8 * * 1-5"`) and ISO timestamps. In chat: `/cron add "every monday 9am" "…"`. Cron prompts are scanned for injection and exfiltration at creation. `approvals.cron_mode: deny` denies dangerous terminal commands in unattended jobs (SEC-15). It does **not** gate MCP tool calls, so cron jobs must only reach read-only MCP tools. For watchdog jobs without a model call: `--no-agent --script <file>`, where empty stdout means silent.
+
+**Autonomy** (`knowledge/capabilities/autonomy.md`). The autopilot is a Hermes cron job with the
+`autopilot` skill attached (the skill lives in `~/jarvis-<name>/skills/`, reached through
+`skills.external_dirs`; write mode C):
+
+```bash
+hermes cron create "13 10,13,16 * * 1-5" "Corre la skill autopilot sobre ~/jarvis-<name>/TASKS.md. Si no cambió nada, responde solo [SILENT]." \
+  --skill autopilot --deliver "telegram:123456789"      # fake ID: use the owner's chat ID
+hermes cron edit <job_id> --model <cheap slot>          # per-job model (cron docs)
+hermes cron run <job_id>                                # forced run at build time
+```
+
+Hermes writes `TASKS.md` and `drafts/` in the Jarvis folder with its file tools, never its own
+`MEMORY.md`. `approvals.cron_mode: deny` stays, and the cron job reaches only read-only MCP tools
+(`tools.include`), so it can draft but not send. Pause: `hermes cron pause <job_id>` or the owner's
+"pausa el piloto" (creates `STOP_AUTOPILOT`, which the skill checks first); resume:
+`hermes cron resume <job_id>` / `rm STOP_AUTOPILOT` in the terminal. If the pinned Hermes rejects
+`--skill`, start the prompt with "Usa la skill autopilot".
 
 **Tools / MCP** (`knowledge/capabilities/tools-mcp.md`). `config.yaml`:
 
@@ -408,7 +436,7 @@ IDs are the stable ones in `knowledge/security-checklist.md` (SEC-01…SEC-33). 
 | SEC-09 | Egress / SSRF | Built-in SSRF block (private, loopback, metadata IPs): `security.allow_private_urls: false` | `! grep -Eq 'allow_private_urls:\s*true' ~/.hermes/config.yaml` |
 | SEC-10 | No bypass flags; destructive patterns denied | `approvals.mode: smart` or `manual`, never `off`. **Never** `--yolo`, `/yolo`, `HERMES_YOLO_MODE`. `approvals.deny` for `rm -rf*`, `*curl*\|*sh*`, `*wget*\|*sh*`, `git push --force*`, `*sudo *`, credential paths. The hardline blocklist stays on | `! grep -Eq '^\s*mode:\s*off' ~/.hermes/config.yaml && ! grep -q 'HERMES_YOLO_MODE' ~/.hermes/.env` |
 | SEC-11 | [A]/[B]/[C] classified; A+B+C never autonomous | Each tool/MCP server is tagged in the spec. Flows with untrusted input + private data + external action are draft-only (no send tools in `tools.include`) | spec §3 review |
-| SEC-12 | Untrusted content fenced; context files scanned | Hermes scans context files, memory writes and cron prompts for injection (scanners fixed ≥ 0.15.0, see floor). `AGENTS.md` says tool results are data, never instructions. `skills.write_approval: true` | `grep -q 'write_approval: true' ~/.hermes/config.yaml` |
+| SEC-12 | Untrusted content fenced; context files scanned | Hermes scans context files, memory writes and cron prompts for injection (scanners fixed ≥ 0.15.0, see floor). `AGENTS.md` says tool results are data, never instructions. Agent-written skills are scanned (`skills.guard_agent_created: true`) and linted weekly by `bin/learn.sh review` (SEC-36) | `grep -Eq '^\s*guard_agent_created:\s*true' ~/.hermes/config.yaml` |
 | SEC-13 | Memory hygiene | Provenance rule in `AGENTS.md`; no instructions from emails/web into memory. `memory.write_approval: true` for health/legal/finance. Purge = edit the two memory files. `hermes backup` holds credentials: encrypted, never committed | `AGENTS.md` contains the provenance rule |
 | SEC-14 | IRR actions need approval with exact preview | Terminal: approval prompt (`smart`/`manual`). **Hermes approvals do not cover MCP tool calls** ([security docs](https://hermes-agent.nousresearch.com/docs/user-guide/security/)), so send/pay/delete MCP tools stay out of `tools.include` until the owner asks, and the `AGENTS.md` rule "muestra la vista previa exacta y espera un 'sí'" applies | smoke test step 4 |
 | SEC-15 | Unattended runs deny IRR | `approvals.cron_mode: deny`, `single_query_mode: deny`, `unattended_mode: deny`. Cron jobs reach only read-only MCP tools | `grep -Eq 'cron_mode:\s*deny' ~/.hermes/config.yaml` |

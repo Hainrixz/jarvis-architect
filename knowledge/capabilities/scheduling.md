@@ -59,16 +59,17 @@ Generated for every Jarvis unless the person opts out. The profession pack
 
 | Job | Default schedule (cron, local) | Model slot | What it does | May write |
 |---|---|---|---|---|
-| **Briefing de la mañana** | `3 7 * * 1-5` (07:03 weekdays). Add `7 9 * * 0,6` for weekends only if asked | `main` | Today's calendar, emails that need a reply (drafted, never sent), top 3 priorities from MEMORY.md/tasks, weather if the person wants it. ≤15 lines, in the owner's language | Drafts, `memory/briefings/YYYY-MM-DD.md` |
+| **Briefing de la mañana** | `3 7 * * 1-5` (07:03 weekdays). Add `7 9 * * 0,6` for weekends only if asked | `main` | Today's calendar, emails that need a reply (drafted, never sent), top 3 priorities from `TASKS.md` (format: `templates/workspace/TASKS.md`, rules: `knowledge/capabilities/autonomy.md`), what Jarvis will prepare itself, items waiting for the owner's OK and inbox captures to confirm, weather if the person wants it. ≤18 lines, in the owner's language | Drafts, `memory/briefings/YYYY-MM-DD.md` |
 | **Heartbeat** | `17 9-18 * * 1-5` (hourly at :17, working hours). Every 30 min (`7,37 9-18 * * 1-5`) only when the pack needs it (sales follow-ups, clinic schedule) | `cheap` | Runs HEARTBEAT.md. Says nothing (`HEARTBEAT_OK`) unless something needs the owner | `memory/heartbeat-state.md` (what was already notified) |
-| **Cierre del día** | `43 18 * * 1-5` (18:43 weekdays) | `cheap` | What got done, what's pending tomorrow, open drafts waiting for approval | MEMORY.md (append) |
+| **Piloto** (`autopilot`) | `13 10,13,16 * * 1-5` (10:13, 13:13, 16:13 weekdays) | `cheap` | Skill `autopilot`: picks at most 3 tasks from `TASKS.md` (`who:jarvis`/`other`), prepares drafts, puts L2 previews in `needs_ok`, never executes anything irreversible. Output = one ops block + ≤6 lines, or silence. Caps: `--max-turns 12`, `--max-budget-usd 0.50`, `JARVIS_AUTOPILOT_DAILY_USD` (default `1.00`). Paused by `STOP_AUTOPILOT` (`knowledge/capabilities/autonomy.md`) | Only through `jobs/autopilot.post` → `jobs/apply-ops.sh`: `TASKS.md`, `drafts/T-NNNN.md`, `tasks/T-NNNN.md` |
+| **Cierre del día** (`cierre-del-dia`) | `43 18 * * 1-5` (18:43 weekdays) | `cheap` | What got done, what's pending tomorrow (from `TASKS.md`), open drafts waiting for approval | `memory/YYYY-MM-DD.md` (day log). Task changes (e.g. `next:` for tomorrow, a note) only as an ops block applied by `jobs/cierre-del-dia.post` (a copy of `autopilot.post`) → `apply-ops.sh`, same rules as the autopilot; never MEMORY.md |
 | **Revisión semanal** | `7 19 * * 0` (Sunday 19:07) | `main` | Week summary, next week's calendar, stale follow-ups, which tools and jobs ran (audit, `SEC-29`) | `memory/weekly/YYYY-WW.md` |
 | **Mantenimiento** (silent) | `23 9 * * 1` (Monday 09:23) | `cheap` | Reports (never applies) runtime updates and security-floor status (`hermes update` check, `openclaw security audit`, `npm audit`), allowlist still owner-only, spend vs cap (`SEC-33` weekly update/audit check). Notifies only on a finding | Nothing outside its log |
 | **Compactar memoria** | `17 3 1 * *` (1st of month, 03:17), only past ~200 lines of MEMORY.md | `cheap` | Summarises old MEMORY.md entries into `memory/archive/`. Git-committed first, so it can be undone | MEMORY.md, `memory/archive/` |
 
 The Architect states the pack in one block at the ARCHITECTURE gate, with the monthly run count:
-weekday briefing ≈ 22 runs, hourly heartbeat ≈ 220 runs, end of day ≈ 22, weekly ≈ 4, maintenance
-≈ 4. Cost per run comes from `knowledge/capabilities/costs.md` with the slot's model. A heartbeat
+weekday briefing ≈ 22 runs, hourly heartbeat ≈ 220 runs, autopilot ≈ 66 (most end silent), end of
+day ≈ 22, weekly ≈ 4, maintenance ≈ 4. Cost per run comes from `knowledge/capabilities/costs.md` with the slot's model. A heartbeat
 that **pre-checks without the model** (§ Cheap heartbeats) costs a fraction of that.
 
 Ask at most one question about this: *"¿A qué hora quieres tu resumen de la mañana?"* Default
@@ -219,7 +220,9 @@ What it guarantees:
   never shows in `ps`.
 - **Locked-down run:** `--permission-mode dontAsk` with an explicit tool list (refuses wildcards,
   Bash/Edit/Write and bare `WebFetch`), `--strict-mcp-config --mcp-config ./mcp.jobs.json`,
-  `--max-turns` + `--max-budget-usd`.
+  `--max-turns` + `--max-budget-usd`. `claude` gets `JARVIS_UNATTENDED=1` (the learning hooks and
+  `bin/` scripts refuse to learn or promote), and a job whose skill carries `.probation` is refused
+  (`capabilities/learning.md` § 3).
 - **Delivery** `JARVIS_DELIVERY=telegram|file` (default `telegram`); `JARVIS_DRY_RUN=1` never sends.
 - **Failures are never silent:** `claude` rc≠0, `is_error` not `false`, or an empty result →
   `FAILED` line in `logs/jobs.log`, `outbox/<stamp>-<job>-AVISO.txt`, the AVISO on Telegram in
@@ -228,14 +231,21 @@ What it guarantees:
   `error=unknown cost_est=0 denied=0` when the JSON is empty (e.g. `claude` not on `PATH`, rc=127).
   Successful runs also log `<job> ok` in `logs/jobs.log`.
 - **Kill switch** `STOP` file, per-job `mkdir` lock, job name limited to `[a-z0-9-]` (no paths, no flags).
+  For the `autopilot` job only: `STOP_AUTOPILOT` or `JARVIS_PAUSED` in the Jarvis folder, or
+  today's autopilot `cost_est` sum in `logs/audit.tsv` at or above `JARVIS_AUTOPILOT_DAILY_USD`
+  (default `1.00`), ends the run **before** `claude` is called (`skipped:` line in `logs/jobs.log`).
+- **Post hook** `jobs/<job>.post` (optional): after a successful run and before delivery, it gets
+  the output JSON path, runs under `env -i`, and its stdout replaces the text that is delivered
+  (empty or a silent token = silent; otherwise `outbox/<stamp>-<job>.txt` keeps it). A non-zero exit is a failure
+  with an AVISO. The autopilot uses it to apply its ops block with `apply-ops.sh` (§ Autopilot below).
 
 Per job: the prompt is `jobs/<job>.md` (appended as system prompt) or, if absent, the skill
 `.claude/skills/<job>/SKILL.md` (prompt `/<job>`); tools in `jobs/<job>.tools` (default
 `Read,Grep,Glob`; MCP tools by exact name); model slot `cheap|main` in `jobs/<job>.model` (default
 `main`, `cheap` for `heartbeat`) → `JARVIS_MODEL_CHEAP` / `JARVIS_MODEL_MAIN`; optional
-`jobs/<job>.deny` for `--disallowedTools`. `mcp.jobs.json` holds only the read-only servers jobs
-may use (start with `{"mcpServers": {}}`). `outbox/`, `logs/` and `STOP` are gitignored. Runs under
-macOS `/bin/bash` 3.2.
+`jobs/<job>.deny` for `--disallowedTools`; optional `jobs/<job>.post` (post hook above).
+`mcp.jobs.json` holds only the read-only servers jobs may use (start with `{"mcpServers": {}}`).
+`outbox/`, `logs/`, `STOP` and `STOP_AUTOPILOT` are gitignored. Runs under macOS `/bin/bash` 3.2.
 
 ```bash
 #!/usr/bin/env bash
@@ -246,8 +256,13 @@ JOB="${1:-}"
 case "$JOB" in (""|-*|*[!a-z0-9-]*) echo "bad job name" >&2; exit 2;; esac   # no paths, no flags
 cd "$(dirname "$0")/.."                                    # the Jarvis folder
 mkdir -p outbox logs
-STAMP="$(date +%Y-%m-%dT%H%M)"; OUT="outbox/$STAMP-$JOB.json"
+STAMP="$(date +%Y-%m-%dT%H%M%S)"; OUT="outbox/$STAMP-$JOB.json"   # seconds: two runs in one minute never overwrite
 [ -f STOP ] && { echo "$(date '+%F %T') $JOB skipped: STOP file" >> logs/jobs.log; exit 0; }   # kill switch
+if [ "$JOB" = autopilot ]; then                            # autopilot pause: no model call at all
+  for f in STOP_AUTOPILOT JARVIS_PAUSED; do
+    [ -e "$f" ] && { echo "$(date '+%F %T') $JOB skipped: $f" >> logs/jobs.log; exit 0; }
+  done
+fi
 
 # Config is parsed, never sourced, never exported. Only non-secret JARVIS_*/OWNER_* settings and
 # the model credential are kept; the bot token is skipped here and read only at send time.
@@ -267,6 +282,11 @@ load_cfg jobs/.env.jobs        # claude-code-local only: optional setup-token fa
 [ "${JARVIS_AUTH:-subscription}" = "api_key" ] || unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN
 DELIVERY="${JARVIS_DELIVERY:-telegram}"                     # telegram | file
 TOKEN_FILE="${JARVIS_BOT_TOKEN_FILE:-$HOME/.claude/channels/telegram/.env}"   # claude-p-cron: .env
+if [ "$JOB" = autopilot ] && [ -f logs/audit.tsv ]; then  # daily cap: today's autopilot cost_est sum
+  SPENT="$(awk -F'\t' -v d="$(date +%Y-%m-%d)" '$2 == "autopilot" && index($1, d) == 1 { v = $5; sub(/^cost_est=/, "", v); s += v } END { printf "%.4f", s + 0 }' logs/audit.tsv)"
+  if awk -v s="$SPENT" -v c="${JARVIS_AUTOPILOT_DAILY_USD:-1.00}" 'BEGIN { exit !(s + 0 >= c + 0) }'; then
+    echo "$(date '+%F %T') $JOB skipped: daily cap (${SPENT} USD)" >> logs/jobs.log; exit 0; fi
+fi
 
 audit() {  # one complete line per run, even when claude is missing or printed nothing
   printf '%s\t%s\trc=%s\terror=%s\tcost_est=%s\tdenied=%s\n' \
@@ -297,6 +317,8 @@ case "$DELIVERY" in (telegram|file) ;; (*) abort "JARVIS_DELIVERY debe ser teleg
 if   [ -f "jobs/$JOB.md" ];                 then PROMPT="Run the job described in your instructions."; PFILE=(--append-system-prompt-file "jobs/$JOB.md")
 elif [ -f ".claude/skills/$JOB/SKILL.md" ]; then PROMPT="/$JOB"; PFILE=()
 else abort "no existe jobs/$JOB.md ni .claude/skills/$JOB/SKILL.md"; fi
+for d in .claude/skills skills; do                         # a learned skill on probation never runs unattended
+  [ -e "$d/$JOB/.probation" ] && abort "la skill $JOB está en prueba (.probation): úsala una vez en vivo primero"; done
 TOOLS="Read,Grep,Glob"
 [ -f "jobs/$JOB.tools" ] && { TOOLS="$(tr -s ' \r\n,' ',' < "jobs/$JOB.tools")"; TOOLS="${TOOLS#,}"; TOOLS="${TOOLS%,}"; }
 case "$TOOLS" in (""|*'*'*) abort "lista de herramientas vacía o con comodín";; esac
@@ -317,7 +339,7 @@ SETTINGS=(--setting-sources project)                                            
 [ -f .claude/headless-settings.json ] && SETTINGS=(--settings .claude/headless-settings.json)   # claude-code-local
 
 # claude gets an explicit, minimal environment: no bot token, nothing inherited by accident
-CENV=(HOME="$HOME" PATH="$PATH" USER="${USER:-$(id -un)}" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}")
+CENV=(HOME="$HOME" PATH="$PATH" USER="${USER:-$(id -un)}" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}" JARVIS_UNATTENDED=1)   # hooks and bin/ scripts refuse learning here
 [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && CENV+=(CLAUDE_CODE_OAUTH_TOKEN="$CLAUDE_CODE_OAUTH_TOKEN")
 [ -n "${ANTHROPIC_API_KEY:-}" ] && CENV+=(ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY")         # only with JARVIS_AUTH=api_key
 for k in ${JARVIS_JOB_ENV:-}; do                           # MCP secrets mcp.jobs.json references as ${NAME}
@@ -345,6 +367,14 @@ if [ -s "$OUT" ] && command -v jq >/dev/null && jq -e . "$OUT" >/dev/null 2>&1; 
 fi
 audit
 { [ "$RC" -eq 0 ] && [ "$ISERR" = false ] && [ -n "$TEXT" ]; } || fail "rc=$RC error=$ISERR"
+if [ -f "jobs/$JOB.post" ]; then  # optional post hook (e.g. autopilot → apply-ops.sh); its stdout is what gets delivered
+  set +e
+  TEXT="$(env -i HOME="$HOME" PATH="$PATH" LANG="${LANG:-en_US.UTF-8}" TMPDIR="${TMPDIR:-/tmp}" \
+    /bin/bash "jobs/$JOB.post" "$OUT" 2>> "logs/$JOB.stderr")"; PRC=$?
+  set -e
+  [ "$PRC" -eq 0 ] || fail "post rc=$PRC"
+  [ -n "$TEXT" ] || { echo "$(date '+%F %T') $JOB ok (silent)" >> logs/jobs.log; exit 0; }
+fi
 
 case "$TEXT" in (HEARTBEAT_OK*|*HEARTBEAT_OK|NADA)       # nothing to report: stay silent
   echo "$(date '+%F %T') $JOB ok (silent)" >> logs/jobs.log; exit 0;; esac
@@ -353,6 +383,7 @@ if [ "$DELIVERY" = telegram ] && [ -z "${JARVIS_DRY_RUN:-}" ]; then
     send_telegram "${TEXT:$i:3900}" || { NO_TG=1; fail "envío a Telegram falló"; }
     i=$((i+3900)); done
 fi                                                         # file mode: the result stays in $OUT
+[ -f "jobs/$JOB.post" ] && printf '%s\n' "$TEXT" > "outbox/$STAMP-$JOB.txt"   # post-hook text, without the ops block
 echo "$(date '+%F %T') $JOB ok" >> logs/jobs.log
 ```
 
@@ -361,6 +392,26 @@ at 4096 characters, so the wrapper sends plain text in 3900-character chunks (`$
 characters only with a UTF-8 `LANG`, so set it in the scheduler entry). `--permission-prompts none`
 needs the Claude Code version listed in `runtimes/claude-p-cron.md` § Pinned versions; remove only that flag
 if a pinned version rejects it (flags table above).
+
+**Autopilot on this wrapper** (rules: `knowledge/capabilities/autonomy.md`). The build writes:
+
+| File | Content |
+|---|---|
+| `.claude/skills/autopilot/SKILL.md` | From `templates/skills-base/autopilot/` (no `jobs/autopilot.md`, so the prompt is `/autopilot`) |
+| `jobs/autopilot.tools` | `Read,Grep,Glob` plus read-only MCP tools by exact name (e.g. a Gmail search tool to see if someone replied). Never Bash/Edit/Write: the job **cannot** write; the post hook does |
+| `jobs/autopilot.model` | `cheap` |
+| `jobs/autopilot.post` | Verbatim from `templates/local/jobs/autopilot.post` (`chmod 700`) |
+| `jobs/apply-ops.sh` | Verbatim from `templates/local/jobs/apply-ops.sh` (`chmod 700`). Needs `jq` |
+| `jobs/cierre-del-dia.post` | Byte-identical copy of `autopilot.post` (actor name comes from the file name) |
+| `.env` | `JARVIS_AUTOPILOT_DAILY_USD=1.00` |
+
+Schedule `13 10,13,16 * * 1-5`: a LaunchAgent `com.jarvis.autopilot` with 15
+`StartCalendarInterval` dicts (Weekday 1–5 × Hour 10, 13, 16, Minute 13), or a systemd timer with
+`OnCalendar=Mon..Fri *-*-* 10,13,16:13:00` (`Persistent=false`: a missed autopilot run is not
+worth a catch-up). Proof at build time (`questions/4-construir.md`): `launchctl kickstart` the job
+once → `grep -q "autopilot ok" logs/jobs.log`; then `touch STOP_AUTOPILOT`, kickstart again →
+`grep -q "autopilot skipped: STOP_AUTOPILOT" logs/jobs.log` and no new `outbox/*-autopilot.json`;
+`rm STOP_AUTOPILOT`. The wrapper side of this is covered by `tests/autonomy/apply-ops.test.sh`.
 
 **macOS LaunchAgent** `~/Library/LaunchAgents/com.jarvis.briefing.plist` (user-level, no `sudo`). `{{JARVIS_DIR}}` is the absolute
 path of the Jarvis folder, filled in by the build (launchd does not expand `~` or `$HOME`):
@@ -554,7 +605,7 @@ Eres el chequeo periódico de Jarvis. Revisa SOLO esta lista. No hagas nada más
 ## Revisa
 1. ¿Hay correos sin leer de las personas en USER.md § Importantes? → avísame con 1 línea cada uno.
 2. ¿Tengo algún evento en las próximas 2 horas que no te haya mencionado? → recuérdamelo.
-3. ¿Algún seguimiento en MEMORY.md § Pendientes vence hoy? → dímelo.
+3. ¿Alguna tarea en TASKS.md vence hoy? → dímelo.
 4. ¿Hay borradores esperando mi aprobación desde hace más de 24 h? → recuérdamelo.
 (entre 3 y 8 puntos; cada uno con condición y aviso)
 
@@ -669,6 +720,11 @@ untrusted input (email, web, documents), and they repeat. Map to `knowledge/secu
   plist, crontab line, routine prompt, Hermes job prompt or a repo a Routine clones.
 - **SEC-29 Audit.** Every run appends one line to `logs/audit.tsv` and one to `logs/jobs.log` from `jobs/run-job.sh` (or the runtime's run history).
   The weekly review lists which jobs ran and which tools they used.
+- **SEC-34 / SEC-35 Autopilot.** Same read/draft tool profile as every job; its writes happen only
+  in `apply-ops.sh`, which rejects raising a level, `who:owner→jarvis`, unknown ids, paths outside
+  `drafts/`/`tasks/` and anything aimed at `approvals/`, and audits each op as `autopilot.op`.
+  `STOP_AUTOPILOT` and the daily cap stop it before the model is called. Resuming is never done
+  from chat (`knowledge/capabilities/autonomy.md` § Security).
 - **Loops.** No job schedules other jobs. A job that wants to reschedule itself (Desktop
   `update_scheduled_task`, OpenClaw automations tool) only does so when the owner asks in chat.
 

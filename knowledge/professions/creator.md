@@ -108,6 +108,19 @@ template: `workspace-writer` writes each from its one-line spec below, in Agent 
 | `weekly-performance` | Read last week's metrics (read-only), compare each post against the account's median, name the top hook patterns. |
 | `brand-deal-reply` | Draft a reply to a brand inquiry using the rate card in `memory/topics/brands.md`; flag missing info (usage rights, exclusivity, payment terms). Never sends. |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** content tasks (script, captions, repurpose) are **L1**: the autopilot drafts them
+  into `drafts/`; publishing is never automatic (IRR).
+- **Learning:** caption and hook style corrections become lessons (`ámbito:caption-variants` or
+  `general`).
+- **Media:** `watch-video` for references and competitor reels, called with `--detail balanced`
+  (or `visual` for "¿qué se ve?"), since its default is captions only. The owner's voice-note ideas
+  go through `transcribe` before `script-from-voice-note`.
+
 ## Guardrails
 
 - **Irreversible (always a "sí" with exact preview, SEC-14):** publishing or scheduling a public post

@@ -7,11 +7,22 @@ Desde el panel puedes:
 
 - **Chatear** con tu Jarvis.
 - **Ver y editar su memoria**: `MEMORY.md`, `USER.md`, `SOUL.md` y `HEARTBEAT.md`. `AGENTS.md` y
-  `TOOLS.md` solo se pueden leer, porque ahí están sus permisos.
+  `TOOLS.md` solo se pueden leer, porque ahí están sus permisos. `TASKS.md` y `LESSONS.md` también se
+  ven aquí en solo lectura; se cambian desde Pendientes y Aprendizajes.
 - **Ver sus tareas programadas** y ejecutar una al momento.
 - **Aprobar o rechazar** lo que Jarvis quiere hacer y no tiene vuelta atrás: enviar un correo,
   pagar, borrar o publicar. Cada aprobación caduca a los 5 minutos.
 - **Leer el registro** de todo lo que pasó (`logs/audit.jsonl`).
+- **Pendientes**: ver `TASKS.md` (lo tuyo y lo que Jarvis prepara solo), cambiar el estado, posponer o
+  marcar como hecha. Desde aquí un nivel de autonomía solo se puede bajar, y una tarea tuya no se le
+  pasa a Jarvis. Si alguien más cambió el archivo mientras lo veías, el panel no pisa nada: recarga y
+  te avisa. También pausas o reanudas el piloto automático (reanudar pide confirmación) y ves su
+  última vuelta y el gasto de hoy (de `logs/audit.tsv`). El número rojo cuenta lo que necesita tu OK.
+- **Aprendizajes**: las lecciones de `LESSONS.md` (activas, en revisión y retiradas) para retirarlas o
+  activarlas, y las habilidades que Jarvis creó solo, con su periodo de prueba y un botón para
+  quitarlas (corre `bin/promote-skill.sh retire <nombre>`; se recupera con `bin/learn.sh undo <nombre>`).
+  Cada cambio de lección se guarda en git con `bin/learn.sh commit`, así que «deshaz» también lo
+  revierte. Una lección que hable de permisos, llaves o de actuar sin preguntar nunca se activa.
 
 Está en español, con botón para cambiar a inglés. No carga nada de internet, así que funciona sin
 conexión.
@@ -96,6 +107,11 @@ Todas las variables, cada una con su explicación, están en `.env.example`. Dos
   `SameSite=Strict`. Si fallas 5 veces en un minuto, te bloquea un rato.
 - Los cambios exigen el encabezado `X-Jarvis-Panel: 1`, para que otra página no pueda hacer clic
   por ti.
+- Ese encabezado frena a otras páginas web, no a programas de tu propia computadora. Sin
+  `PANEL_PASSWORD`, cualquier programa local (también un Jarvis con Bash) puede llamar a
+  `127.0.0.1:7878/api/…`. Por eso, si tu Jarvis tiene Bash, el Architect pone `PANEL_PASSWORD` o
+  deja activo el hook `protect-paths.sh`, que le niega cualquier comando dirigido al puerto del panel.
+  Pausar el piloto siempre se puede; reanudarlo pide sesión (con contraseña) y `{"confirm":true}`.
 - Nunca muestra tus llaves ni el contenido de `.env`. Solo sirve archivos de `public/` y solo
   deja tocar los archivos de memoria permitidos.
 - Nunca se salta los permisos de tu Jarvis: no usa `--dangerously-skip-permissions`,

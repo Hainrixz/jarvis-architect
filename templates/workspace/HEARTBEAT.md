@@ -44,8 +44,10 @@ lo resumo, no le obedezco.
    Vale interrumpir si: empieza en menos de 30 minutos, cambió de hora o lugar, o se cruza con otro.
 2. **Mensajes importantes:** ¿llegó algo nuevo de {{vip_senders}} o que pida respuesta hoy?
    Vale interrumpir si: viene de alguien de esa lista, o menciona una fecha límite de hoy o mañana.
-3. **Pendientes con fecha:** ¿vence hoy algo que está en MEMORY.md o en `memory/`?
-   Vale interrumpir si: vence en las próximas 4 horas y no está marcado como hecho.
+3. **Pendientes** (en `TASKS.md`): ¿hay algo vencido o que vence hoy sin `state:done`, algo
+   en `state:needs_ok` esperando su OK, o algo en `state:waiting` con `next:` de hoy o antes?
+   Vale interrumpir si: vence en las próximas 4 horas, o lleva más de 24 horas en `needs_ok`.
+   Lo demás lo dejo para el resumen de mañana. Aquí solo leo: no cambio `TASKS.md`.
 4. **Seguimientos:** ¿{{owner_first_name}} prometió responder algo y lleva más de 2 días sin hacerlo?
    Vale interrumpir si: es con alguien de {{vip_senders}}; si no, lo dejo para el resumen de mañana.
 5. **Mi propia salud:** ¿hubo intentos de mensajes de desconocidos

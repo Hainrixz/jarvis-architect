@@ -40,7 +40,7 @@ WhatsApp is not useful here; skip it.
 
 ## Memory
 
-- Markdown workspace + **`CLAUDE.md` + auto memory** on Claude Code runtimes (the default for this pack).
+- Markdown workspace + **`CLAUDE.md` imports** on Claude Code runtimes (the default for this pack), with Claude Code auto memory off and the portable learning loop (`LESSONS.md`, `knowledge/capabilities/learning.md`) in its place.
 - `memory/topics/projects.md`: one line per repo (purpose, stack, where it deploys, who owns prod).
 - Repo-level knowledge stays in each repo's own `CLAUDE.md`/`AGENTS.md`, not in Jarvis memory.
 - No vector or graph memory in v1. Code search uses the repo itself (grep, the GitHub MCP).
@@ -91,6 +91,17 @@ if they have client calls). Pack-specific:
 | `standup-draft` | Summarize yesterday's commits/PRs/issues into "ayer / hoy / bloqueos". |
 | `deps-audit` | Read Dependabot/advisory alerts and lockfiles; list affected packages with the safe target version and the changelog link. |
 | `release-notes` | Turn merged PRs since the last tag into user-facing notes in the owner's language. |
+
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** PR-review summaries and issue triage are **L1** drafts; merging, pushing or
+  commenting on a PR is IRR and stays the owner's. Reviews waiting on teammates are `who:other`.
+- **Learning:** corrections to commit-message or review style become lessons.
+- **Media:** screenshots of errors and PDFs of specs are read with `Read`; `watch-video` for
+  talks and demos the owner sends.
 
 ## Guardrails
 

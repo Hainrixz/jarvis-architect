@@ -11,7 +11,7 @@ Apply the rows top to bottom. Each row adds to the ones above it and replaces no
 | If… | Then the memory slot is… | Why (one line for the person) |
 |---|---|---|
 | Always, every runtime | **Markdown workspace**: `SOUL.md` · `USER.md` · `MEMORY.md` · `HEARTBEAT.md` · `AGENTS.md` · `TOOLS.md` + `memory/` | You can read it, edit it and take it with you if you switch runtimes later |
-| Runtime is `claude-code-local`, `claude-code-server` or `claude-p-cron` | + `CLAUDE.md` that imports the workspace files, and Claude Code **auto memory** pointed into the workspace | Claude Code loads these files every session without extra setup |
+| Runtime is `claude-code-local`, `claude-code-server` or `claude-p-cron` | + `CLAUDE.md` that imports the workspace files, with Claude Code **auto memory off** (`autoMemoryEnabled: false`); the portable learning loop (`knowledge/capabilities/learning.md`, `LESSONS.md`) replaces it | Claude Code loads these files every session without extra setup, and everything it learns stays in one reviewable store |
 | Runtime is `claude-agent-sdk` | + the same `CLAUDE.md` (the SDK loads it by default); the **memory tool** (`memory_20250818`) only for a custom app that calls the Messages API directly | Same files as Claude Code, no database needed |
 | Runtime is `hermes` or `openclaw` | + the runtime's **built-in memory**, seeded from the workspace and synced back into it every week | Their own memory works well, and the workspace keeps it portable |
 | `MEMORY.md` passes ~200 lines, **or** more than one channel, **or** it has to search **across many** of the person's documents (reading one PDF the person names is a plain file read, no index), and the host is local | + **sqlite-vec** index (one file, derived from the markdown) | Search by meaning without running a server |
@@ -41,6 +41,8 @@ The ~200-line threshold has a source: Claude Code loads only the first 200 lines
 | `memory/YYYY-MM-DD.md` | Daily log, append-only | Jarvis | Today + yesterday |
 | `memory/inbox.md` | **Quarantine**: facts learned from untrusted sources, waiting for owner approval | Jarvis | Only during review |
 | `memory/topics/*.md` | Detail moved out of `MEMORY.md` (one topic per file) | Jarvis | On demand |
+| `LESSONS.md` | **How** the owner wants Jarvis to work, learned from corrections: one `L-NNNN` line each, with `[src:owner/…]` and `[ev:C-…]` (→ `capabilities/learning.md`) | Jarvis (skill `learn`, committed by `bin/learn.sh`) | Every session (`@LESSONS.md`) |
+| `memory/corrections.jsonl` | Redacted log of captured corrections (`C-NNNN`), gitignored | Hooks and `bin/learn.sh` only | Never loaded; read by the weekly review |
 | `memory/index.sqlite` | sqlite-vec index, if enabled. **Derived** and rebuildable | Indexer | Through a search tool |
 
 Rules:
@@ -54,7 +56,7 @@ Rules:
 | Option | What it is | Pros | Cons | Use when |
 |---|---|---|---|---|
 | **Markdown workspace** | Files above | No dependencies, human-editable, portable, works with git | No semantic search at scale; needs curation | **Always** |
-| **Claude Code `CLAUDE.md` + auto memory** | `CLAUDE.md` = instructions you write; auto memory = notes Claude writes in `<dir>/MEMORY.md` (an index) plus topic files, typed `user`/`feedback`/`project`/`reference` ([docs](https://code.claude.com/docs/en/memory)) | Built in. `@path` imports. `/memory` lets you browse and edit | Auto memory is machine-local. First 200 lines / 25 KB of the index load. `CLAUDE.md` is context, not enforcement (use hooks for hard blocks) | Claude Code runtimes and the Agent SDK |
+| **Claude Code `CLAUDE.md` + auto memory** | `CLAUDE.md` = instructions you write; auto memory = notes Claude writes in `<dir>/MEMORY.md` (an index) plus topic files, typed `user`/`feedback`/`project`/`reference` ([docs](https://code.claude.com/docs/en/memory)) | Built in. `@path` imports. `/memory` lets you browse and edit | Auto memory is machine-local, so a Jarvis keeps it off (§4). First 200 lines / 25 KB of the index load. `CLAUDE.md` is context, not enforcement (use hooks for hard blocks) | Claude Code runtimes and the Agent SDK |
 | **Claude memory tool** `memory_20250818` | Client-side tool. Claude asks to `view/create/str_replace/insert/delete/rename` under `/memories`, and **your code** executes it on storage you choose ([docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)) | You control storage (files, DB, encrypted). Python/TS ship `BetaLocalFilesystemMemoryTool` | You implement the handler and **must** block path traversal (`/memories/../..`) | A custom app on the raw Messages API (not needed when the Agent SDK already gives Claude Code's tools) |
 | **sqlite-vec** | Vector-search SQLite extension in C with no dependencies; installed from PyPI or npm at an exact version (never unpinned): the runtime files don't pin one yet, so `stack-researcher` pins it at build time and `/jarvis-refresh` adds it to `runtimes/<id>.md` § Pinned versions; Apache-2.0/MIT ([GitHub](https://github.com/asg017/sqlite-vec)) | One file that fits on a laptop or a Railway volume | **Pre-v1: "expect breaking changes"**, so pin it in the runtime file. You write the chunk/embed/search glue (or use the runtime's built-in) | Local upgrade past ~200 lines / multi-channel |
 | **Postgres + pgvector (Railway)** | Railway's standard Postgres image **does not include pgvector**. Use the pgvector template ([guide](https://docs.railway.com/guides/rag-pipeline-pgvector)), e.g. `pgvector-pg18` (image `pgvector/pgvector:pg18`, community-maintained) ([template](https://railway.com/deploy/pgvector-pg18)) | Survives redeploys. Relational + vector together. Several channels share one memory | An extra service and its cost (Tier B, → `capabilities/costs.md`). Needs backups. Community template (check the maintainer) | Railway Jarvis that needs semantic memory or document search |
@@ -98,7 +100,7 @@ Text from untrusted sources is stored as **data**: quoted, never as an instructi
 
 ### Owner review, export and purge
 
-- **Weekly review** (a `weekly-review` job → `capabilities/scheduling.md`). Jarvis sends the week's new lines and the inbox. The owner answers *ok / corrige / borra*.
+- **Weekly review** (a `weekly-review` job → `capabilities/scheduling.md`). Jarvis sends the week's new lines and the inbox. The owner answers *ok / corrige / borra*. Lessons and learned skills get their own digest from the `learning-review` job (`capabilities/learning.md` § 7).
 - **Purge on request.** "Olvida X" deletes the line from `MEMORY.md`, topic files and daily logs, then **re-indexes** (deletes vectors in sqlite-vec/pgvector, deletes episodes in Graphiti with the right `group_id`), then confirms what was deleted. Any third-party copy (Mem0, Honcho) is purged through its own API.
 - **Retention default.** Daily logs older than 90 days are summarized into `MEMORY.md`/topics and then deleted. The owner can change this, and it is written in `SECURITY.md`.
 - **Export.** The workspace folder *is* the export (zip it). `RUNBOOK.md` documents export and purge (`questions/4-construir.md` §Handoff).
@@ -118,22 +120,23 @@ Versions and exact install steps live in `runtimes/<id>.md`. This section covers
   @AGENTS.md
   @TOOLS.md
   @MEMORY.md
+  @LESSONS.md
   ```
   Import `AGENTS.md` explicitly. When a `CLAUDE.md` exists, Claude Code by default reads **only** the `CLAUDE.md` files and not `AGENTS.md` ([docs §AGENTS.md](https://code.claude.com/docs/en/memory)). Keep `CLAUDE.md` itself short (docs target < 200 lines per file). Imports do not reduce context cost.
-- **Auto memory** is on by default in local sessions. Its default location is `~/.claude/projects/<project>/memory/` and it is machine-local. Point it into the workspace so it is backed up and portable. In the Jarvis folder's `.claude/settings.json`:
+- **Auto memory is off** on every Claude Code track. It is on by default in local sessions and writes machine-local notes to `~/.claude/projects/<project>/memory/` ([docs](https://code.claude.com/docs/en/memory)), a second store without provenance tags. The Jarvis folder's `.claude/settings.json` turns it off (the same key `runtimes/claude-code-local.md` and `runtimes/claude-p-cron.md` ship):
   ```json
-  { "autoMemoryDirectory": "~/jarvis/memory/auto" }
+  { "autoMemoryEnabled": false }
   ```
-  The value must be absolute or start with `~/`. On Railway, use a path on the volume (`/data/memory/auto`, since the workspace lives under `JARVIS_HOME=/data`, → `capabilities/deploy-railway.md`). Otherwise memory is lost on redeploy. Project-level values are honored only after workspace trust, and are ignored while `permissions.blockReadsOutsideWorkingDirectories` is on.
-- Off switches: `autoMemoryEnabled: false` or `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`. Sessions in self-hosted environments, background sessions and sessions started by another Claude Code session may run with auto memory **off** ([docs](https://code.claude.com/docs/en/memory)). On a server, check the toggle in `/memory`, and don't assume it is on.
-- Policy: auto memory holds Claude's working notes. **Durable facts about the owner go to the workspace `MEMORY.md`** through the `remember` skill. By default, "recuerda que…" makes Claude Code save to auto memory, so `AGENTS.md` must say: *"Cuando el dueño diga 'recuerda…', usa la skill `remember` y escribe en `MEMORY.md`"*. Without that line the smoke test in §5 fails. The weekly review promotes useful auto-memory lines into `MEMORY.md`.
-- `claude-p-cron`: each `claude -p` run starts fresh and gets the workspace through `CLAUDE.md`. Don't rely on auto memory in `-p` mode: have jobs write results explicitly to `memory/YYYY-MM-DD.md`.
+  `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` in the service environment does the same. The portable learning loop replaces it: durable facts go to `MEMORY.md` through the `remember` skill, behaviour corrections go to `LESSONS.md` through `learn` (`knowledge/capabilities/learning.md`). One store, git-versioned, every line tagged `[src:…]`.
+- Live check at build time: `jq -e '.autoMemoryEnabled==false' .claude/settings.json`, then in a session open `/memory` and confirm auto memory shows as off. If a person's user-level settings turn it back on, the project value still wins for this folder; if it shows on anyway, add the env var to the launchd plist / service and re-check.
+- Policy: `AGENTS.md` must say: *"Cuando el dueño diga 'recuerda…', usa la skill `remember` y escribe en `MEMORY.md`"*. Without that line the smoke test in §5 fails.
+- `claude-p-cron`: each `claude -p` run starts fresh and gets the workspace through `CLAUDE.md`. Jobs write results explicitly to `memory/YYYY-MM-DD.md` and never write `MEMORY.md`.
 - Optional hard guard: a `PreToolUse` hook on `Write|Edit` targeting `memory/**` and `MEMORY.md` that rejects lines matching secret / card / ID patterns. `CLAUDE.md` alone is guidance, not enforcement.
 
 ### `claude-agent-sdk`
 
 - Leaving out `settingSources` loads user, project and local settings plus `CLAUDE.md`, exactly like the CLI ([docs](https://code.claude.com/docs/en/agent-sdk/claude-code-features)). Set `cwd` to the workspace and use the same `CLAUDE.md` as above.
-- Auto memory loads regardless of `settingSources`. Claude saves to it with `Write`/`Edit`, so those tools must be allowed. On Railway, either point `autoMemoryDirectory` at the volume or set `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` and rely on workspace files. For several users, run each in its own filesystem with `settingSources: []` + auto memory disabled (docs warning).
+- Auto memory loads regardless of `settingSources`, so turn it off the same way as the CLI tracks: `autoMemoryEnabled: false` in the project settings or `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1` in the process environment, and rely on the workspace files and the portable learning loop (`knowledge/capabilities/learning.md`). For several users, run each in its own filesystem with `settingSources: []` + auto memory disabled (docs warning).
 - **Memory tool** (`{"type": "memory_20250818", "name": "memory"}`): use it only when the app calls the Messages API directly. Map `/memories` → `<workspace>/memory/`, resolve every path and reject anything outside it, cap file sizes, and expire stale files. As of 2026-10-06 the docs say the tool **needs no beta header**, although the SDK helpers live in the beta namespace ([docs](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)). This supersedes earlier guidance that required one.
 - Semantic layer on Railway: pgvector (template) through the private network, reached as `${{<service>.DATABASE_URL_PRIVATE}}` (in the pgvector template `DATABASE_URL` is the public TCP-proxy URL). Remove the template's TCP proxy; never expose it.
 
@@ -141,6 +144,7 @@ Versions and exact install steps live in `runtimes/<id>.md`. This section covers
 
 - Built-in memory: `~/.hermes/memories/MEMORY.md` (≈2,200 chars) and `USER.md` (≈1,375 chars), injected as a frozen snapshot at session start, plus `session_search` over SQLite FTS5 (`~/.hermes/state.db`) ([docs](https://hermes-agent.nousresearch.com/docs/user-guide/features/memory)).
 - Hermes scans memory writes for injection and exfiltration patterns. **Turn on write approval** (`memory.write_approval: true` in `config.yaml`; review with `/memory pending`, `/memory approve <id>`, `/memory reject <id>`) for health, legal or finance profiles (as `runtimes/hermes.md` sets) **and** for any Jarvis that reads email or the web.
+- Hermes' self-improvement loop (nudges, `skill_manage`, curator) runs **automatically** (`skills.write_approval: false`) with `skills.guard_agent_created: true` and new skills written into the Jarvis folder (`skills.create_dir`); behaviour lessons still go to workspace `LESSONS.md` through the skill `learn`, so they stay portable (`capabilities/learning.md` § 6).
 - Mapping: seed Hermes `USER.md` from a digest of workspace `USER.md`. Keep the full history in workspace `MEMORY.md`/topics. A weekly job copies Hermes memory back into the workspace with `[src:hermes]` tags. This sync is the Architect's own pattern, not a Hermes feature.
 - External providers (Honcho, Mem0, Hindsight, Supermemory…) are opt-in plugins. Each one is a new data processor and needs consent. On Railway, everything sits on the single volume (`/opt/data`). Never run two gateways on the same data dir (→ `runtimes/hermes.md`).
 
@@ -149,12 +153,12 @@ Versions and exact install steps live in `runtimes/<id>.md`. This section covers
 - Native match: the workspace (default `~/.openclaw/workspace`) holds `USER.md`, `MEMORY.md` and `memory/YYYY-MM-DD.md`. Tools are `memory_search` and `memory_get`. Search is hybrid (vector + keyword) on SQLite, accelerated by sqlite-vec when available. A silent "save to memory" turn runs before compaction ([docs](https://docs.openclaw.ai/concepts/memory)).
 - `MEMORY.md` should load only in the main private session, **never in group contexts**. This comes from a docs mirror, so the Architect confirms it in `runtimes/openclaw.md` (or the live OpenClaw docs) and keeps the Jarvis out of groups either way.
 - Memory search needs an embedding provider. The docs default is OpenAI embeddings, with Gemini, Voyage, Mistral or a local model as alternatives. **With only an Anthropic key, semantic search stays off until one is configured; keyword search on SQLite still works.** Decide this explicitly and disclose it.
-- Optional consolidation ("dreaming", `DREAMS.md`) promotes notes into `MEMORY.md`. Leave it on only if the weekly review is also on.
+- Consolidation ("dreaming", `DREAMS.md`) is **on by default** and promotes notes into `MEMORY.md` with no review, so the Architect turns it off (`plugins.entries.memory-core.config.dreaming.enabled: false`) and the portable learning loop takes its place (`capabilities/learning.md` § 6). `memoryFlush` before compaction stays on.
 
 ### `codex-openai`
 
 - Codex reads `AGENTS.md` (project plus global `~/.codex/AGENTS.md`). Put the "read SOUL/USER/MEMORY at start, write facts via `remember`" rules in it. Tell it in prose to read the files instead of relying on `@path` imports.
-- Codex's generated memories in `~/.codex/memories/` are described by secondary sources. If that folder exists on the person's machine, treat it like auto memory: promote into the workspace at review.
+- Codex local memories (`~/.codex/memories/`) are **off by default**; `[features] memories = true` turns them on ([docs](https://learn.chatgpt.com/docs/customization/memories)). The Architect leaves them off. If the owner turns them on, `[memories] disable_on_external_context = true` keeps chats that used MCP or web search out of memory, and the weekly `learning-review` lists the folder so useful lines are imported into `LESSONS.md` § En revisión (`knowledge/capabilities/learning.md`).
 
 ### `ollama-local`
 
@@ -180,7 +184,7 @@ test "$(wc -l < MEMORY.md)" -le 200
 # every MEMORY.md fact line carries provenance
 ! grep -E '^- ' MEMORY.md | grep -v '\[src:' | grep -q . || exit 1
 # Claude Code runtimes only: CLAUDE.md imports the workspace
-grep -q '^@MEMORY.md' CLAUDE.md
+grep -q '^@MEMORY.md' CLAUDE.md && grep -q '^@LESSONS.md' CLAUDE.md
 # pgvector only (Railway Tier B), without printing the URL
 psql "$DATABASE_URL" -tAc "select 1 from pg_extension where extname='vector'" | grep -q 1
 ```
@@ -207,6 +211,7 @@ Smoke test (`questions/4-construir.md`): "Recuerda que mi color favorito es el v
 - Mem0: https://docs.mem0.ai · Letta: https://github.com/letta-ai/letta · https://github.com/letta-ai/letta-code
 - OpenClaw memory: https://docs.openclaw.ai/concepts/memory (checked 2026-10-06)
 - Hermes memory: https://hermes-agent.nousresearch.com/docs/user-guide/features/memory · providers: https://hermes-agent.nousresearch.com/docs/user-guide/features/memory-providers (checked 2026-10-06)
-- Codex memory (secondary): https://mem0.ai/blog/how-memory-works-in-codex-cli
+- Codex memories (off by default, `[memories]` keys): https://learn.chatgpt.com/docs/customization/memories (checked 2026-10-06)
+- Learning loop (lessons, corrections, learned skills): `knowledge/capabilities/learning.md`
 - Cowork projects: https://support.claude.com/en/articles/14116274 (via search summary)
 - OWASP Top 10 for Agentic Applications 2026 (ASI06): https://www.giskard.ai/knowledge/owasp-top-10-for-agentic-application-2026

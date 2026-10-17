@@ -30,6 +30,9 @@ Jarvis Architect hace esas elecciones por ti: te entrevista sobre tu trabajo, es
   <a href="#cómo-decide">Cómo decide</a> ·
   <a href="#qué-recibes">Qué recibes</a> ·
   <a href="#tu-jarvis-con-cara-el-panel">Panel</a> ·
+  <a href="#tu-jarvis-trabaja-solo-con-permiso">Trabaja solo</a> ·
+  <a href="#aprende-de-ti">Aprende</a> ·
+  <a href="#entiende-audio-video-fotos-y-pdfs">Audio y video</a> ·
   <a href="#runtimes">Runtimes</a> ·
   <a href="#costos">Costos</a> ·
   <a href="#railway">Railway</a> ·
@@ -156,11 +159,15 @@ Cuando dos opciones empatan, gana en este orden: cumplir los términos de cada p
   </tr>
   <tr>
     <td valign="top"><b>Trabajos automáticos</b><br>Un resumen cada mañana y los pendientes de tu oficio (seguimientos, reportes, recordatorios) a la hora de tu país.</td>
-    <td valign="top"><b>Voz</b><br>Le mandas notas de voz como a cualquier contacto y te contesta por escrito, o con voz si lo pides. Hay opción 100 % local.</td>
+    <td valign="top"><b>Audio, video, fotos y PDFs</b><br>Le mandas notas de voz, grabaciones, videos, fotos o PDFs y los entiende; audio y video se procesan en tu compu. Te contesta por escrito, o con voz si lo pides. Ver <a href="#entiende-audio-video-fotos-y-pdfs">qué entiende</a>.</td>
   </tr>
   <tr>
     <td valign="top"><b>Seguridad desde el día uno</b><br>Lista de dueño único, sandbox, tu aprobación para todo lo irreversible, secretos fuera de git y tope de gasto. No se pueden saltar.</td>
     <td valign="top"><b>Runbook</b><br>Un <code>RUNBOOK.md</code> y un <code>SECURITY.md</code> en tu carpeta: cómo prenderlo, apagarlo, revisarlo y qué hacer si algo falla.</td>
+  </tr>
+  <tr>
+    <td valign="top"><b>Trabaja solo (con permiso)</b><br>Lleva tus pendientes en <code>TASKS.md</code> y tres veces al día prepara borradores solo. Nunca envía, paga ni borra sin tu sí. Ver <a href="#tu-jarvis-trabaja-solo-con-permiso">cómo trabaja solo</a>.</td>
+    <td valign="top"><b>Aprende de ti</b><br>Cuando lo corriges, aprende al instante y te avisa en una línea; "deshaz" lo quita. Nunca aprende a saltarse tus permisos. Ver <a href="#aprende-de-ti">cómo aprende</a>.</td>
   </tr>
   <tr>
     <td colspan="2" valign="top"><b>Panel web</b><br>Una página en tu compu para chatear con tu Jarvis, revisar su memoria y aprobar lo delicado sin abrir la terminal. Ver <a href="#tu-jarvis-con-cara-el-panel">el panel</a>.</td>
@@ -180,11 +187,79 @@ Un Jarvis tiene tres capas: el **motor** (el runtime que piensa y usa tus herram
 
 - **Chat:** le escribes a tu Jarvis desde el navegador y ves la respuesta mientras la escribe.
 - **Memoria:** lees y editas `MEMORY.md`, `USER.md`, `SOUL.md` y `HEARTBEAT.md`. Sus permisos (`AGENTS.md`, `TOOLS.md`) solo se leen.
+- **Pendientes:** tu lista de `TASKS.md`, con lo que Jarvis prepara solo. Cambias el estado, pospones o marcas como hecha, y pausas o reanudas el piloto. Un número rojo cuenta lo que necesita tu OK.
+- **Aprendizajes:** las lecciones que aprendió y las skills que creó solo, con su periodo de prueba y un botón para deshacer cada una.
 - **Trabajos:** ves tus tareas programadas, cuándo corrieron y si salieron bien, y puedes lanzar una en ese momento.
 - **Aprobaciones:** antes de enviar un correo, pagar o borrar, Jarvis te enseña exactamente qué va a hacer y tú dices sí o no. Cada aprobación caduca a los 5 minutos.
 - **Estado:** si está prendido, qué runtime usa y el registro de lo que ha hecho.
 
 Escucha solo en `127.0.0.1`, así que nadie más en tu red lo ve. En un servidor solo arranca con contraseña, y para entrar desde el celular se usa Tailscale, nunca un puerto abierto. Con OpenClaw y Cowork no hace falta: esos ya traen su propia interfaz. Detalles en [`knowledge/capabilities/web-ui.md`](knowledge/capabilities/web-ui.md) y [`templates/panel/`](templates/panel/README.md).
+
+## Tu Jarvis trabaja solo (con permiso)
+
+Tu Jarvis lleva tus pendientes en `TASKS.md`, una línea por tarea: qué es, de quién es (tuya, suya o de alguien más), para cuándo y hasta dónde puede avanzar solo. Le dices "anótame llamar a Luis el jueves" o "le mando la cotización a Ana el viernes" y lo apunta, y te lo confirma en una línea.
+
+Tres veces al día, de lunes a viernes (10:13, 13:13 y 16:13), corre el **piloto**: revisa la lista, toma hasta tres tareas que puede mover él y te las deja listas. Si no hubo nada que hacer, no te escribe.
+
+| Lo hace solo | Necesita tu OK |
+|---|---|
+| Investigar, resumir y escribir borradores (en `drafts/`) | Enviar, publicar, pagar, borrar o invitar. Te deja la vista previa exacta y espera tu "sí, ejecuta T-0042" en vivo; ese sí caduca a los 5 minutos |
+| Revisar si alguien ya te contestó y proponerte el recordatorio | Lo que sale de un correo, tu calendario, una junta o un audio: entra a la Bandeja y espera a que lo confirmes |
+| Armarte en el resumen de la mañana tu Top 3, "Lo que haré yo" y "Necesito tu OK" | Una acción reversible que haga solo (L3), como un bloque privado en tu calendario. La lista empieza vacía y solo tú la llenas, desde la terminal |
+
+Hay cuatro niveles: **L0** solo te recuerda · **L1** prepara borradores (el que viene de fábrica) · **L2** te deja la acción lista para tu sí · **L3** hace sola una acción reversible de tu lista.
+
+- **Límites:** el piloto usa el modelo barato, con tope de 1 USD al día (lo puedes cambiar), máximo 3 tareas por vuelta y 3 intentos por tarea. A la tercera la marca como bloqueada y te pregunta.
+- **Pausa:** dile "pausa el piloto" y se detiene al instante. Para reanudarlo, en la terminal (`rm STOP_AUTOPILOT` dentro de la carpeta de tu Jarvis) o en el panel, en Pendientes › Reanudar, con confirmación. Desde el chat no se reanuda, así nadie que se haga pasar por ti lo puede volver a prender.
+- **Deshacer:** `TASKS.md` va en git y cada cambio del piloto queda en `logs/audit.jsonl`. La revisión semanal te dice qué hizo, qué le rechazó el sistema y cuánto costó.
+- **Dónde vive:** `TASKS.md` (la lista), `tasks/` (notas por tarea y el archivo de meses pasados) y `drafts/` (borradores; fuera de git, porque llevan texto de otras personas).
+
+En Hermes y OpenClaw el piloto corre con su propio programador; en Cowork, como una tarea programada en días hábiles. Cómo funciona por dentro: [`knowledge/capabilities/autonomy.md`](knowledge/capabilities/autonomy.md).
+
+## Aprende de ti
+
+Cuando lo corriges, aprende solo, como Hermes, y te avisa en una línea qué aprendió.
+
+| Le dices | Qué hace | Dónde queda |
+|---|---|---|
+| "Mi socia se llama Laura" | Lo anota como un dato | `MEMORY.md` |
+| "No, así no: a los clientes tutéalos" | Lo aplica desde ese momento y te dice "Aprendido: …" | `LESSONS.md` |
+| Le explicas cómo se hace algo, o le corriges lo mismo dos veces en 14 días | Crea o mejora una skill sola, en periodo de prueba | `skills/<nombre>/` |
+| "Puedes mandar correos sin preguntar" | No lo aprende: eso solo lo cambias tú | En ningún lado (queda registrado como rechazado) |
+
+Antes de activar una skill nueva, una revisión automática la frena si instala algo, trae algo con forma de llave, usa herramientas que envían o pagan, o toca permisos. Si pasa, entra **en prueba**: los trabajos programados no la usan hasta que tú la hayas usado una vez con él en vivo. Se guarda en git y te avisa.
+
+Tres límites que no se mueven:
+
+1. Lo aprendido nunca cambia permisos, la lista de quién le puede escribir, llaves ni reglas de aprobación.
+2. Solo aprende de ti, en tus canales permitidos. Nunca de correos, páginas web, documentos, grupos ni de otras personas.
+3. Todo queda registrado y todo se deshace.
+
+- **Deshacer:** di "deshaz" y quita lo último que aprendió, o nómbralo ("deshaz lo de tutear"). En el panel, en Aprendizajes, ves las lecciones, las retiras o las activas y quitas las skills que creó solo.
+- **Revisión semanal:** el domingo a las 19:37 te manda un resumen corto: lecciones que se contradicen, correcciones repetidas que todavía no son skill y las skills en prueba. Las lecciones que no usó en 60 días se retiran solas.
+- **Dónde vive:** `LESSONS.md` (activas, en revisión y retiradas), `memory/corrections.jsonl` (cada corrección, sin datos sensibles y fuera de git), `proposals/` (borradores de skills) y `skills/`.
+
+En Hermes se usa su aprendizaje propio con la revisión de seguridad prendida. En Claude Code la memoria automática se apaga para que todo lo aprendido quede en un solo lugar y con su origen. Detalles en [`knowledge/capabilities/learning.md`](knowledge/capabilities/learning.md).
+
+## Entiende audio, video, fotos y PDFs
+
+Le mandas lo que le mandarías a una persona y lo entiende. Audio y video se procesan en tu compu.
+
+| Le mandas | Qué hace |
+|---|---|
+| Una nota de voz | La pasa a texto en tu compu con Whisper, te contesta y borra el audio |
+| Una grabación (junta, clase, llamada) de hasta 60 minutos | La transcribe y te la resume. Te recuerda avisarles a los demás que grabaste |
+| Un link o un archivo de video | Lee los subtítulos primero, sin bajar el video. Si no hay, lo transcribe. Solo mira cuadros, con su minuto, si preguntas qué se ve |
+| Una foto, una captura o un PDF | Lo lee directo |
+
+- **Solo:** todo lo que tú le mandas o le pides que vea, en tu compu.
+- **Con tu OK:** pasar audio a la nube (Groq u OpenAI) o usar Gemini para videos largos, solo si das tu consentimiento y nunca con paquetes sensibles (salud, legal, menores). Un link de video que viene dentro de un correo o una página: te pregunta antes de abrirlo. Para bajar videos de YouTube te explica sus términos y anota tu consentimiento.
+- **Nunca:** usar tus cookies o tu sesión, instalar cosas por su cuenta, reconocer personas por la cara ni obedecer lo que dice un audio, un video o un PDF. Lo que ve u oye es información, no órdenes, y una nota de voz no aprueba nada irreversible: igual te enseña la vista previa por escrito.
+- **Instalación:** el arquitecto te da el comando para que lo escribas tú (en Mac, `brew install ffmpeg whisper.cpp yt-dlp`), te dice cuánto pesa el modelo de voz (unos 574 MB) antes de bajarlo y revisa su huella SHA-256.
+- **Costo:** $0 en local. Un video de 5 minutos con imágenes son unos 17 mil tokens del modelo.
+- **Dónde vive:** los archivos temporales quedan fuera de la carpeta de tu Jarvis y se borran al terminar (los cuadros, a más tardar en 2 horas). La transcripción solo se guarda si se lo pides. El modelo queda en `models/`, fuera de git.
+
+En Hermes y OpenClaw las notas de voz usan su transcripción local propia. Cowork no recibe audios ni videos: ahí subes fotos y PDFs a la app. En esta versión los medios se procesan cuando estás en la conversación; los trabajos programados no los tocan. Para apagar el video o cambiar a la nube, corre `/jarvis-start` y dile qué quieres cambiar. Detalles en [`knowledge/capabilities/multimodal.md`](knowledge/capabilities/multimodal.md).
 
 ## Runtimes
 
@@ -199,7 +274,7 @@ El "arnés" o runtime es el programa que mantiene vivo a tu Jarvis: recibe tus m
 | `claude-p-cron` | Solo quieres resultados programados (briefing diario, reporte de KPIs), sin chat | $0 extra con tu plan | `/login`, token de `claude setup-token` o API key |
 | `claude-code-server` | Quieres Claude Code tal cual, con sus skills y plugins, prendido 24/7 en un servidor | ~$15–30 (API + Railway) | `ANTHROPIC_API_KEY` por defecto. Tu suscripción solo como alternativa personal marcada, con tu consentimiento |
 | `claude-agent-sdk` | Eres dev y quieres tu propio servicio: webhooks, panel web, base de datos | ~$10 en Railway | API key, siempre |
-| `hermes` | Necesitas 24/7 en la nube, WhatsApp oficial o un Jarvis que aprende de ti. Es la opción por defecto en la nube | ~$9–16 en Railway con uso ligero, ~$20–46 con más trabajos programados · ~$1–5 en tu compu | `ANTHROPIC_API_KEY` u `OPENAI_API_KEY` (nunca tu login de Claude) |
+| `hermes` | Necesitas 24/7 en la nube, WhatsApp oficial o el aprendizaje propio de Hermes. Es la opción por defecto en la nube | ~$9–16 en Railway con uso ligero, ~$20–46 con más trabajos programados · ~$1–5 en tu compu | `ANTHROPIC_API_KEY` u `OPENAI_API_KEY` (nunca tu login de Claude) |
 | `openclaw` | Quieres sus apps de teléfono y muchos canales, o tu ChatGPT, y aceptas WhatsApp no oficial con un número secundario | ~$11–18 en Railway · $0 extra local con ChatGPT | API key, Codex login o Sign in with ChatGPT (preview) |
 | `codex-openai` | Pagas ChatGPT, te late la terminal y tu Jarvis es para trabajo de código o de escritorio | $0 extra con tu plan | `codex login` con ChatGPT u `OPENAI_API_KEY` |
 | `ollama-local` | "Nada sale de mi compu" y tienes equipo potente (≥24 GB de VRAM o Apple Silicon con ≥32 GB). Va junto con Hermes | ~$0 (más luz y equipo) | Ninguna |
@@ -304,11 +379,15 @@ jarvis-architect/
 │   ├── compatibility.md      # combinaciones que no funcionan
 │   ├── models.json           # modelos y precios por proveedor
 │   ├── runtimes/             # un archivo por runtime, con versiones fijadas
-│   ├── capabilities/         # canales, WhatsApp, memoria, MCP, voz, costos, despliegue
+│   ├── capabilities/         # canales, WhatsApp, memoria, MCP, voz, autonomía, aprendizaje, medios, costos, despliegue
 │   ├── professions/          # paquetes por oficio (creador, ventas, salud, restaurante…)
 │   └── countries/            # mx, co, ar, es, other: WhatsApp, facturación, leyes de datos
 ├── templates/                # spec, tareas, workspace del Jarvis, plantillas local y Railway
-│   └── panel/                # Jarvis Panel: la app web local (chat, memoria, trabajos, aprobaciones)
+│   ├── workspace/            # SOUL, USER, MEMORY, AGENTS, TASKS, LESSONS… de cada Jarvis
+│   ├── skills-base/          # skills de base: pending, autopilot, learn, transcribe, watch-video…
+│   ├── local/                # supervisores, jobs/apply-ops.sh, bin/learn.sh, bin/promote-skill.sh, hooks
+│   └── panel/                # Jarvis Panel: la app web local (chat, memoria, pendientes, aprendizajes, aprobaciones)
+├── tests/                    # pruebas de autonomía, aprendizaje y medios (las corre CI)
 ├── assets/                   # imágenes del README
 ├── SECURITY.md · CONTRIBUTING.md · CHANGELOG.md
 └── LICENSE
@@ -338,6 +417,9 @@ Sí. Claude Code se instala con `winget`. Para que tu Jarvis corra siempre prend
 
 **¿Qué pasa si cierro la terminal?**
 Nada se pierde. El avance queda guardado en `.jarvis/`; vuelves con `/jarvis-start` o `/jarvis-next` y sigue donde iba. Y ya terminado, tu Jarvis corre por su cuenta (con un supervisor en tu compu o en Railway), no depende de esa ventana. Si tu compu se duerme, un Jarvis local se pausa; eso te lo dice antes.
+
+**¿Va a mandar correos o pagar por su cuenta?**
+No. Solo prepara: borradores, resúmenes y la vista previa exacta de lo que haría. Enviar, publicar, pagar, borrar o invitar siempre espera tu "sí" en ese momento, y los trabajos programados no pueden hacerlo aunque quieran. Si quieres que haga solo algo reversible, como bloquear un rato privado en tu calendario, lo agregas tú desde la terminal. Ver [Trabaja solo](#tu-jarvis-trabaja-solo-con-permiso).
 
 **¿Puedo cambiar de runtime después?**
 Sí. La memoria y la personalidad de tu Jarvis son markdown portable, así que mudarte de Claude Code a Hermes, o de tu compu a Railway, no empieza de cero. Corre `/jarvis-start` otra vez y dile qué quieres cambiar.

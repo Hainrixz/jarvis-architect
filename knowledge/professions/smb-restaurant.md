@@ -102,6 +102,18 @@ Pack skills (week one = at most 3):
 | `delivery-payout-check` | From delivery-app statements, totals orders, commissions, promos and net payout per app; flags differences vs. the POS | None |
 | `customer-faq` (only with the customer bot) | Answers hours, location, menu, reservations and the invoice-portal link from `MEMORY.md`; hands off to a human for complaints, allergies and refunds | Reservations created = `IRR-06`; any refund = `IRR-03` |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** supplier reorders are **L2** previews (items, quantities, amount) that stop at
+  `needs_ok`; placing the order is IRR-03 and needs "sí, ejecuta T-NNNN". Waiting on a supplier is
+  `who:other` + `waiting`.
+- **Learning:** corrections to order quantities or supplier preferences become lessons.
+- **Media:** photos of tickets, invoices and the menu are read with `Read`; a voice note
+  ("se acabó el aguacate") goes through `transcribe` into a task.
+
 ## Guardrails
 
 - **Irreversible list for this pack** (adds to `knowledge/security-checklist.md` §1): menu, price

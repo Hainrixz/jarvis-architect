@@ -19,6 +19,11 @@
     <symbol id="i-memory" viewBox="0 0 24 24"><path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M14 3v4h4 M8.5 12h7 M8.5 15.5h7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/></symbol>
     <symbol id="i-jobs" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-approvals" viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.4-3.1 8.2-7.5 9.5-4.4-1.3-7.5-5.1-7.5-9.5V6z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M8.8 12.2l2.2 2.2 4.3-4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-tasks" viewBox="0 0 24 24"><path d="M4 6.5l1.6 1.6L8.5 5 M4 12.5l1.6 1.6 2.9-3.1 M4 18.5l1.6 1.6 2.9-3.1 M11.5 7h8.5 M11.5 13h8.5 M11.5 19h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-learn" viewBox="0 0 24 24"><path d="M12 3.5l1.9 4.6 4.6 1.9-4.6 1.9L12 16.5l-1.9-4.6L5.5 10l4.6-1.9z M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12 M15 6v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5 M4 9h10.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-status" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5 M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></symbol>
@@ -81,7 +86,9 @@
     <nav class="sidebar" id="nav" data-i18n-aria="nav.label" aria-label="Secciones">
       <ul class="nav-list">
         <li><a class="nav-item" href="#/chat" data-nav="chat"><svg aria-hidden="true"><use href="#i-chat"/></svg><span data-i18n="nav.chat">Chat</span></a></li>
+        <li><a class="nav-item" href="#/tasks" data-nav="tasks"><span class="nav-icon-wrap"><svg aria-hidden="true"><use href="#i-tasks"/></svg><span class="badge" id="tasks-badge" hidden>0</span></span><span data-i18n="nav.tasks">Pendientes</span></a></li>
         <li><a class="nav-item" href="#/memory" data-nav="memory"><svg aria-hidden="true"><use href="#i-memory"/></svg><span data-i18n="nav.memory">Memoria</span></a></li>
+        <li><a class="nav-item" href="#/learning" data-nav="learning"><svg aria-hidden="true"><use href="#i-learn"/></svg><span data-i18n="nav.learning">Aprendizajes</span></a></li>
         <li><a class="nav-item" href="#/jobs" data-nav="jobs"><svg aria-hidden="true"><use href="#i-jobs"/></svg><span data-i18n="nav.jobs">Trabajos</span></a></li>
         <li><a class="nav-item" href="#/approvals" data-nav="approvals"><span class="nav-icon-wrap"><svg aria-hidden="true"><use href="#i-approvals"/></svg><span class="badge" id="approvals-badge" hidden>0</span></span><span data-i18n="nav.approvals">Aprobaciones</span></a></li>
         <li><a class="nav-item" href="#/status" data-nav="status"><svg aria-hidden="true"><use href="#i-status"/></svg><span data-i18n="nav.status">Estado</span></a></li>
@@ -118,6 +125,73 @@
           </div>
           <p class="composer-hint" id="chat-hint" data-i18n="chat.hint">Enter para enviar · Shift+Enter para salto de línea</p>
         </form>
+      </section>
+
+      <!-- TASKS (Pendientes) -->
+      <section class="view view-tasks" data-view="tasks" aria-labelledby="tasks-title" hidden>
+        <div class="view-head view-head-row">
+          <div>
+            <h1 class="view-title" id="tasks-title" data-i18n="tasks.title">Pendientes</h1>
+            <p class="view-intro" data-i18n="tasks.intro">Lo que tienes pendiente tú y lo que Jarvis va preparando solo. Nada se envía ni se paga sin tu sí.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" type="button" id="tasks-refresh">
+            <svg aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="status.refresh">Actualizar</span>
+          </button>
+        </div>
+        <div class="pilot" id="pilot" data-state="unknown">
+          <div class="pilot-main">
+            <span class="pilot-dot" aria-hidden="true"></span>
+            <div class="pilot-text">
+              <p class="pilot-title" id="pilot-title"></p>
+              <p class="pilot-sub muted small" id="pilot-sub"></p>
+            </div>
+          </div>
+          <dl class="pilot-stats" id="pilot-stats"></dl>
+          <button class="btn btn-sm" type="button" id="pilot-toggle"></button>
+        </div>
+        <div class="segmented" id="tasks-filter" role="tablist" data-i18n-aria="tasks.filterLabel" aria-label="Filtrar"></div>
+        <ul class="task-list" id="tasks-list"></ul>
+        <div class="parse-errors" id="tasks-errors" hidden>
+          <h2 class="section-title" data-i18n="tasks.errorsTitle">Líneas que no entendí</h2>
+          <p class="muted small" data-i18n="tasks.errorsSub">Están en TASKS.md tal cual. Jarvis no las toca hasta que se corrijan.</p>
+          <ul class="raw-list" id="tasks-errors-list"></ul>
+        </div>
+      </section>
+
+      <!-- LEARNING (Aprendizajes) -->
+      <section class="view view-learning" data-view="learning" aria-labelledby="learning-title" hidden>
+        <div class="view-head view-head-row">
+          <div>
+            <h1 class="view-title" id="learning-title" data-i18n="learning.title">Aprendizajes</h1>
+            <p class="view-intro" data-i18n="learning.intro">Lo que Jarvis aprendió de tus correcciones. Se aplica solo y siempre se puede deshacer. Nunca aprende permisos.</p>
+          </div>
+          <button class="btn btn-ghost btn-sm" type="button" id="learning-refresh">
+            <svg aria-hidden="true"><use href="#i-refresh"/></svg><span data-i18n="status.refresh">Actualizar</span>
+          </button>
+        </div>
+        <div class="learn-block">
+          <div class="learn-head">
+            <h2 class="section-title" data-i18n="learning.skillsTitle">Habilidades que creó solo</h2>
+            <p class="muted small" data-i18n="learning.skillsSub">Revisadas por un lint automático y guardadas en git. Las nuevas quedan en prueba: los trabajos automáticos no las usan hasta que tú las uses una vez.</p>
+          </div>
+          <ul class="card-list" id="skills-list"></ul>
+        </div>
+        <div class="learn-block">
+          <div class="learn-head">
+            <h2 class="section-title" data-i18n="learning.lessonsTitle">Lecciones</h2>
+            <p class="muted small" data-i18n="learning.lessonsSub">Reglas cortas que Jarvis lee antes de cada tarea.</p>
+          </div>
+          <div class="segmented" id="lessons-filter" role="tablist" data-i18n-aria="learning.filterLabel" aria-label="Filtrar"></div>
+          <ul class="lesson-list" id="lessons-list"></ul>
+          <div class="parse-errors" id="lessons-errors" hidden>
+            <h2 class="section-title" data-i18n="tasks.errorsTitle">Líneas que no entendí</h2>
+            <ul class="raw-list" id="lessons-errors-list"></ul>
+          </div>
+        </div>
+        <details class="digest" id="digest" hidden>
+          <summary><span data-i18n="learning.digest">Último resumen semanal</span> <span class="muted small mono" id="digest-name"></span></summary>
+          <pre class="memory-pre digest-pre" id="digest-pre" tabindex="0"></pre>
+        </details>
       </section>
 
       <!-- MEMORY -->

@@ -119,6 +119,18 @@ Pack skills (max 3 in week one):
 | `proposal-draft` | From call notes + `memory/agency/services.md`: scope, deliverables, timeline, price from the agency's price list only (never invent prices) | Sending IRR-01 |
 | `content-calendar` | Week of post ideas per client in their tone with dates; output is an approval table | Scheduling/publishing IRR-02 |
 
+### Autonomy, learning and media hooks
+
+Defaults come from `knowledge/capabilities/autonomy.md`, `knowledge/capabilities/learning.md` and
+`knowledge/capabilities/multimodal.md`. What this pack adds:
+
+- **Autonomy:** client follow-ups are **L2**; deliverables waiting on the client (approvals,
+  assets) are `who:other` + `waiting`, one task per client, never mixed across clients
+  (multi-client isolation above).
+- **Learning:** lessons are scoped per client skill or `ámbito:general`; a correction for one
+  client never becomes a general rule without the owner saying so.
+- **Media:** `watch-video --detail balanced` for campaign references the owner sends.
+
 ## Guardrails
 
 - **Never cross client data** (see isolation rules). A prompt or report that names two clients'

@@ -42,6 +42,14 @@ Simple scheduled jobs with no chat at all are better served by `runtimes/claude-
 | tmux (keeps the interactive session alive) | 3.7c | Homebrew stable; on Linux the distro package is fine | https://formulae.brew.sh/api/formula/tmux.json | 2026-10-06 |
 | gitleaks (secret scan, SEC-17) | 8.30.1 | Homebrew stable | https://formulae.brew.sh/api/formula/gitleaks.json | 2026-10-06 |
 | Node.js | ≥ 22, **only** if Claude Code is installed via npm | LTS | https://code.claude.com/docs/en/setup#install-with-npm | 2026-10-06 |
+| **Media:** whisper.cpp (`whisper-cli`, `transcribe` and `watch-video` skills) | **1.9.5** (Homebrew formula `whisper.cpp`, old name `whisper-cpp`; release tag `v1.9.5`, source tarball sha256 `ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720`). Bottles: Apple Silicon macOS and Linux; Intel Macs build from source | Homebrew stable | https://formulae.brew.sh/api/formula/whisper.cpp.json · https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.5 | 2026-10-06 |
+| **Media:** ffmpeg + ffprobe | **9.0.2** (Homebrew `ffmpeg`); Windows: winget `Gyan.FFmpeg`, version recorded at install | Homebrew stable | https://formulae.brew.sh/api/formula/ffmpeg.json | 2026-10-06 |
+| **Media:** yt-dlp (captions and video for `watch-video`) | **Latest only, by policy**: 2026.08.19 on the check date (GitHub tag; Homebrew writes it `2026.8.19`). Sites change often and old releases stop working, so it is never held back; `/jarvis-doctor` flags it when the installed release is more than 30 days behind the latest GitHub release | Homebrew stable / GitHub latest | https://formulae.brew.sh/api/formula/yt-dlp.json · https://github.com/yt-dlp/yt-dlp/releases | 2026-10-06 |
+| **Media:** Whisper model (default) | `ggml-large-v3-turbo-q5_0.bin`, 574041195 bytes, sha256 `394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2`. Download from the pinned repo commit: `https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin` into `<jarvis>/models/` | HF commit `5359861c` | https://huggingface.co/ggerganov/whisper.cpp/tree/main (API `tree/main`, LFS oid = sha256) | 2026-10-06 |
+| **Media:** Whisper model (slow/Intel machines) | `ggml-small.bin`, 487601967 bytes, sha256 `1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b` (same commit) | HF commit `5359861c` | same | 2026-10-06 |
+| **Media:** Whisper model (CI and `tests/media/run.sh` only) | `ggml-base-q5_1.bin`, 59707625 bytes, sha256 `422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898` (same commit; hash re-computed locally on download, 2026-10-06) | HF commit `5359861c` | same | 2026-10-06 |
+
+Homebrew can't install an exact older version, so the media rows above are floors: install what `brew` ships (≥ the row), then record `brew list --versions whisper.cpp ffmpeg yt-dlp` and the model's `shasum -a 256` line in RUNBOOK.md § Medios. A model whose hash doesn't match is deleted and downloaded again; it is never used. Pipeline and limits: `knowledge/capabilities/multimodal.md`.
 
 **Security floor: Claude Code ≥ 2.1.283.**
 - CLI advisories (each checked on its advisory page, 2026-10-06): CVE-2026-103012 (managed settings skipped when a stored API key was preferred, published 2026-09-29, fixed in 2.1.260, the highest fixed version); CVE-2026-103435 (symlink TOCTOU file write, published 2026-10-05, fixed in 2.1.129); CVE-2026-55607 (sandbox escape via git worktree) and CVE-2026-54316 (WebFetch exfiltration via huggingface.co), both fixed in 2.1.163. Source: [GitHub advisories](https://github.com/anthropics/claude-code/security/advisories).
@@ -125,6 +133,8 @@ Jarvis folder (default `~/jarvis-<slug>/`, outside the Architect repo). Example 
 ├── bin/jarvis-up.sh           # start/watchdog (idempotent)
 ├── jobs/                      # run-job.sh + <job>.md/.tools/.model (capabilities/scheduling.md)
 ├── bin/jarvis-restart.sh      # nightly restart (memory-leak cap)
+├── bin/learn.sh bin/promote-skill.sh bin/hooks/   # learning ledger, skill promotion, 3 hooks (capabilities/learning.md)
+├── LESSONS.md proposals/      # learned lessons; skill drafts (not a load path)
 ├── logs/                      # audit.jsonl, launchd/systemd out/err (gitignored)
 ├── .env                       # chmod 600, gitignored: MCP secrets only
 ├── .env.example
@@ -184,7 +194,10 @@ The model goes in as a Claude Code **alias** (`sonnet`, `opus`, `haiku`) chosen 
   "permissions": {
     "allow": [
       "Read(./**)",
-      "Edit(./MEMORY.md)", "Edit(./memory/**)", "Edit(./HEARTBEAT.md)",
+      "Edit(./MEMORY.md)", "Edit(./memory/**)",
+      "Edit(./LESSONS.md)", "Edit(./proposals/**)", "Write(./proposals/**)",
+      "Bash(./bin/learn.sh *)", "Bash(./bin/promote-skill.sh *)",
+      "Bash(bin/learn.sh *)", "Bash(bin/promote-skill.sh *)",
       "mcp__plugin_telegram_telegram__reply",
       "mcp__plugin_telegram_telegram__react",
       "mcp__plugin_telegram_telegram__download_attachment"
@@ -203,15 +216,32 @@ The model goes in as a Claude Code **alias** (`sonnet`, `opus`, `haiku`) chosen 
     ]
   },
   "hooks": {
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/bin/hooks/capture-correction.sh" }] }
+    ],
     "PreToolUse": [
-      { "matcher": "Bash|Write|Edit", "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.sh" }] }
+      { "matcher": "Bash|Write|Edit", "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/guard.sh" }] },
+      { "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|Skill", "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/bin/hooks/protect-paths.sh" }] }
     ],
     "PostToolUse": [
       { "matcher": "*", "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/audit.sh" }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "${CLAUDE_PROJECT_DIR}/bin/hooks/learn-nudge.sh" }] }
     ]
   }
 }
 ```
+
+Learning hooks (`knowledge/capabilities/learning.md`; scripts copied from `templates/local/bin/`, `chmod 700`):
+`capture-correction.sh` opens a `C-NNNN` record for an owner correction and hands the model the next
+step; `learn-nudge.sh` reminds it once if a record is still open; `protect-paths.sh` denies writes to
+SOUL/AGENTS/TOOLS/HEARTBEAT/CLAUDE.md, `.claude/`, live `skills/`, `bin/`, `jobs/`, `approvals/`,
+`logs/` and `.env*`, denies lessons that carry permissions, and enforces skill probation. A hook
+`deny` wins over the `ask` rules above, so the owner edits those files by hand (AGENTS.md § 6).
+Every hook exits silently in `-p` jobs (`permission_mode: dontAsk`). Live check at build: from the
+owner's Telegram send "no, así no: más corto" and confirm `tail -n1 memory/corrections.jsonl`
+shows `"channel": "telegram"` (fallbacks in `learning.md` § 8).
 
 How it works:
 - `deny` rules block in every mode. Explicit `ask` rules still prompt in **auto** mode, and with a channel the prompt is relayed to the owner's Telegram ([permission-modes](https://code.claude.com/docs/en/permission-modes)).
@@ -228,6 +258,7 @@ How it works:
     "enabled": true,
     "allowUnsandboxedCommands": false,
     "failIfUnavailable": true,
+    "excludedCommands": ["bin/learn.sh *", "./bin/learn.sh *", "bin/promote-skill.sh *", "./bin/promote-skill.sh *"],
     "filesystem": {
       "denyRead": ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh", "~/.claude/channels",
                    "~/.claude/.credentials.json", "~/.codex", "~/Library/Keychains", "~/**/.env"]
@@ -265,6 +296,13 @@ Do not paste the line above literally: `"...": ...` is a placeholder and makes t
 
 ### Notes on both settings files
 
+- `excludedCommands` takes only `bin/learn.sh` and `bin/promote-skill.sh` out of the sandbox. The sandbox
+  write-protects `.claude/skills` with no exemption (an `allowWrite` entry doesn't lift it,
+  [sandboxing](https://code.claude.com/docs/en/sandboxing) § Protected paths), and those two scripts are
+  the only writers of learned skills (lint, probation, git commit, undo). An excluded call still goes
+  through the permission rules, a call chained with anything else stays sandboxed, and
+  `protect-paths.sh` denies chaining and any edit of `bin/`. Live check at build: `bin/promote-skill.sh
+  promote <test-skill>` from the session prints `Skill nueva:`; exit 6 means the entries are missing.
 - Passing `allowUnsandboxedCommands: false` through `--settings` makes the sandbox admin-required. Repo files can then no longer widen `allowedDomains` or `excludedCommands`, and `strictAllowlist` is honored only from user or `--settings` scope ([sandboxing](https://code.claude.com/docs/en/sandboxing)).
 - Add domains only for what the profile needs. The channel plugin and MCP servers run **outside** the sandbox, so `api.telegram.org` doesn't belong here.
 - **Web research recipe** (creator trend brief, any "busca noticias" job): `WebSearch` is a server-side tool and doesn't touch `allowedDomains`. Add `"WebSearch"` to `permissions.allow`. For `WebFetch`, add `WebFetch(domain:<site>)` allow rules only for the handful of sources the person names (they join the strict allowlist); any other domain stays unlisted, so the channel session relays an `ask` and a `dontAsk` job is denied and works from search snippets instead. Never `WebFetch` with no domain, never a wildcard egress rule. The job's `.tools` lists them explicitly, e.g. `WebSearch,WebFetch,Read`. Results are untrusted data (SEC-12).
@@ -326,6 +364,7 @@ You are the personal assistant described in the files below. Follow them in this
 @AGENTS.md
 @TOOLS.md
 @MEMORY.md
+@LESSONS.md
 
 Heartbeat checks live in HEARTBEAT.md — read it only when a heartbeat job runs.
 Older memory lives in memory/ — read on demand, never import.
@@ -337,10 +376,11 @@ Older memory lives in memory/ — read on demand, never import.
 | `USER.md` | Imported. Owner profile, timezone, and the owner's **numeric** Telegram ID for proactive messages. An ID isn't a secret; never put a token here |
 | `AGENTS.md` | Imported. Operating rules: approvals, routing, when to use `cheap`/`main`/`max` (`/model` aliases) |
 | `TOOLS.md` | Imported. Which MCP servers exist, their trust tier, read-only vs. write |
-| `MEMORY.md` | Imported. Durable facts. Jarvis appends with Edit (allowed). Keep it under ~200 lines and roll older entries into `memory/YYYY-MM.md`. Each entry carries provenance `[owner]` / `[email]` / `[web]` (SEC-13) |
+| `MEMORY.md` | Imported. Durable facts. Jarvis appends with Edit (allowed). Keep it under ~200 lines and roll older entries into `memory/YYYY-MM.md`. Each entry ends with a provenance tag and a date, `[src:owner/telegram] [YYYY-MM-DD]`; entries from untrusted sources say so (`[src:email:untrusted → approved]`, `[src:web:untrusted → approved]`). Format: `capabilities/memory.md` (SEC-13) |
+| `LESSONS.md` | Imported. Behaviour lessons from the owner's corrections, written by the skill `learn` and committed by `bin/learn.sh` (format and rules: `capabilities/learning.md`). Learned skills enter `.claude/skills/` and `skills/` only through `bin/promote-skill.sh`, on probation |
 | `HEARTBEAT.md` | **Not** imported. Read by the heartbeat skill only |
-| Skills | `.claude/skills/<name>/SKILL.md` (project scope; Agent Skills format: `name`, `description`, body). Ship `remember` and `morning-briefing` from `templates/skills-base/` + the profession pack's skills (`workspace-writer` writes pack skills that have no template from their one-line spec in the pack). `heartbeat` only if the spec has a heartbeat job |
-| Auto memory | **Disabled** (`autoMemoryEnabled: false`), so memory stays in portable, reviewable, git-versioned `MEMORY.md` instead of machine-local `~/.claude/projects/<project>/memory/` ([memory](https://code.claude.com/docs/en/memory#auto-memory)) |
+| Skills | `.claude/skills/<name>/SKILL.md` (project scope; Agent Skills format: `name`, `description`, body). Ship `remember`, `learn` and `morning-briefing` from `templates/skills-base/` + the profession pack's skills (`workspace-writer` writes pack skills that have no template from their one-line spec in the pack). `heartbeat` only if the spec has a heartbeat job |
+| Auto memory | **Disabled** (`autoMemoryEnabled: false`), so memory stays in portable, reviewable, git-versioned `MEMORY.md` instead of machine-local `~/.claude/projects/<project>/memory/` ([memory](https://code.claude.com/docs/en/memory#auto-memory)). The portable learning loop (`LESSONS.md`, `capabilities/learning.md`) replaces it |
 | `CLAUDE.local.md` | Not used. Gitignored in case the person adds one |
 
 ## Channels
@@ -384,6 +424,23 @@ The job list comes from the spec (§ jobs), never from a fixed body: the profess
 Credential for the jobs: the owner's stored `/login` (no `--bare`). If the forced run fails with an auth error because the LaunchAgent can't reach the keychain login, the fallback is the owner's `claude setup-token` (auth-matrix row `claude-p-cron`, consent logged in spec §7): the **owner** runs it in their own terminal and writes `CLAUDE_CODE_OAUTH_TOKEN=` into `jobs/.env.jobs` (mode 600, gitignored), which only `run-job.sh` sources. Never in `.env`: `jarvis-up.sh` sources `.env`, and the token would outrank the channel session's `/login` and break Remote Control. The token can't use claude.ai connectors, so those jobs need MCP servers in `.mcp.json`.
 
 Off-minutes (`3`, `7`, `17`, `43`) avoid the `:00`/`:30` jitter. Unattended runs **deny** send/pay/delete (SEC-15): `--permission-mode dontAsk` + read-only `.tools`, and each job prompt says "drafts and digests only; never call a send/pay/delete tool". Laptop-only owners hear it once at the gate: "si a la hora del briefing tu compu está cerrada, llega cuando la abras; si estaba apagada, ese día no llega".
+
+### Autonomy
+
+Rules: `capabilities/autonomy.md`. The autopilot is one more `run-job.sh` job, wired as in
+`capabilities/scheduling.md` § Autopilot on this wrapper: `.claude/skills/autopilot/SKILL.md`
+(prompt `/autopilot`, write mode A), `jobs/autopilot.tools` = `Read,Grep,Glob` plus read-only MCP
+tools, `jobs/autopilot.model` = `cheap`, and `jobs/autopilot.post` + `jobs/apply-ops.sh` copied
+verbatim from `templates/local/jobs/` (`chmod 700`). LaunchAgent `com.jarvis.autopilot` (or a
+systemd timer) at `13 10,13,16 * * 1-5`. The job never writes; the post hook applies its ops block
+and only the remaining note reaches Telegram. `jq` is required (`/usr/bin/jq` on recent macOS, otherwise `brew install jq`).
+
+- The channel session changes `TASKS.md` only through the `pending` skill (Edit on `TASKS.md` and
+  `tasks/`; it creates `STOP_AUTOPILOT` on "pausa el piloto").
+- `jobs/` stays on the protected-paths deny list, so the model can never edit `apply-ops.sh` or a
+  `.post` hook.
+- Pause: `touch STOP_AUTOPILOT` (or the chat). Resume: `rm STOP_AUTOPILOT` in the terminal, or the
+  panel with its confirm. Never from chat (SEC-35).
 
 ### Tools / MCP
 - `.mcp.json` in the Jarvis folder, one block per server, version pinned, secrets by reference:

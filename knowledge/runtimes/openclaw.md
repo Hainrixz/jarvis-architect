@@ -53,6 +53,7 @@ say so in one line when you recommend the ChatGPT-plan route, and log the person
 | Node.js to install | **24.21.0** (LTS "Krypton", 2026-09-07). 26.10.0 "Current" is also accepted; the docs call Node 26 "recommended" | LTS | https://nodejs.org/dist/index.json · `brew info node@24` | 2026-10-06 |
 | npm | ≥ 11.16 (needed for `--allow-scripts`) | — | https://docs.openclaw.ai/install | 2026-10-06 |
 | Homebrew cask `openclaw` | 2026.9.5, `auto_updates`. This is the desktop app, **not** the pinned CLI path | — | `brew info --cask openclaw` | 2026-10-06 |
+| **Media:** local audio for `tools.media.audio` (`whisper-cli` first in the local CLI list) + `watch-video` skill | whisper.cpp 1.9.5, ffmpeg 9.0.2, yt-dlp latest and the Whisper model + SHA-256, exactly as in `knowledge/runtimes/claude-code-local.md` § Pinned versions. Native `tools.media.video` (Google/Moonshot/Qwen) stays off unless spec §7 records consent | Homebrew stable | https://docs.openclaw.ai/nodes/media-understanding · `knowledge/capabilities/multimodal.md` | 2026-10-06 |
 
 **Security floor (BLOCKER below it).** The accepted versions are:
 - **2026.8.34 or 2026.8.35** (the extended-stable line), or
@@ -233,6 +234,11 @@ The person generates the gateway token without it ever reaching the screen or th
       groups: { "*": { requireMention: true } },   // SEC-02: if a group is ever allowed, mention-gated
     },
   },
+
+  // Learning (knowledge/capabilities/learning.md): dreaming is ON by default and promotes notes into
+  // MEMORY.md with no review, so it is off; the portable loop (LESSONS.md + skill learn) replaces it.
+  // memoryFlush before compaction (agents.defaults.compaction.memoryFlush) stays at its default (on).
+  plugins: { entries: { "memory-core": { config: { dreaming: { enabled: false } } } } },
 }
 ```
 Key names follow the docs as read on 2026-10-06. The exec-approval page calls `tools.exec.mode`
@@ -311,6 +317,13 @@ needs Full Disk Access, so explain that before enabling it.
 - The `memory_search` tool does hybrid vector-plus-keyword search over a local SQLite index (the
   default backend). Honcho and LanceDB are optional backends.
 - Nothing external is needed for one person. On Railway the volume holds everything.
+- **Learning** (`knowledge/capabilities/learning.md`): dreaming off (config above), `LESSONS.md` in
+  the workspace, read at the start of every task per `AGENTS.md` § 9, written by the skill `learn`.
+  `templates/local/bin/` goes to `<workspace>/bin/` (the scripts treat their parent folder as the
+  Jarvis root). With `sandbox.workspaceAccess: "ro"` the sandboxed exec can't write the workspace:
+  live check at build time with "no, así no: más corto" → an `L-` line appears and
+  `bin/learn.sh commit` answers `ok`. If it doesn't, the gateway-side file tools write
+  `LESSONS.md`, and the weekly `bin/learn.sh review`, run from the host, commits it.
 
 Source: https://docs.openclaw.ai/concepts/memory
 
@@ -329,6 +342,23 @@ openclaw automations list        # then: run <jobId> (test now) · disable <jobI
   never to chat. So cron jobs must not need them: keep briefings read-only.
 
 Sources: https://docs.openclaw.ai/automation/cron-jobs, https://docs.openclaw.ai/gateway/heartbeat
+
+**Autonomy** (→ `knowledge/capabilities/autonomy.md`). The autopilot is an isolated automation;
+the heartbeat stays the sensor (`NO_REPLY`, `activeHours`) and only reads `TASKS.md`:
+```bash
+openclaw automations add --name "autopilot" --cron "13 10,13,16 * * 1-5" --tz "America/Mexico_City" \
+  --session isolated --model "<cheap slot>" \
+  --message "Corre la skill autopilot sobre TASKS.md. Si no cambió nada, responde solo NO_REPLY." \
+  --announce --channel telegram --to "123456789"
+openclaw automations run <jobId>      # forced run at build time
+```
+- Write mode C: the agent's file tools edit `TASKS.md`, `drafts/` and `tasks/` in the workspace.
+  The automation's tool policy denies exec and every send tool (keys in § Security hardening),
+  proven by a forced run that asks for a send.
+- Pause: `openclaw automations disable <jobId>`, or "pausa el piloto" in chat (creates
+  `STOP_AUTOPILOT`, checked first by the skill). Resume: `openclaw automations enable <jobId>` /
+  `rm STOP_AUTOPILOT` from the terminal or the Control UI, never from chat.
+- Recurring work stays an automation, never heartbeat scratch (§ Scheduling above).
 
 **Tools / MCP.**
 - Tool policy is enforced before the model call, so a denied tool's schema is never sent.

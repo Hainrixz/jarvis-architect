@@ -62,11 +62,12 @@ const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
 /* State                                                               */
 /* ------------------------------------------------------------------ */
 
-const VIEWS = ["chat", "memory", "jobs", "approvals", "status"];
-const MEMORY_ORDER = ["SOUL.md", "USER.md", "MEMORY.md", "HEARTBEAT.md", "AGENTS.md", "TOOLS.md"];
+const VIEWS = ["chat", "tasks", "memory", "learning", "jobs", "approvals", "status"];
+const MEMORY_ORDER = ["SOUL.md", "USER.md", "MEMORY.md", "TASKS.md", "LESSONS.md", "HEARTBEAT.md", "AGENTS.md", "TOOLS.md"];
 const APPROVAL_TTL_MS = 5 * 60 * 1000;
 const HEALTH_EVERY_MS = 20_000;
 const APPROVALS_EVERY_MS = 10_000;
+const TASKS_EVERY_MS = 30_000;
 const HISTORY_CAP = 120;
 
 const state = {
@@ -77,7 +78,7 @@ const state = {
   jarvisName: "Jarvis",
   health: null,
   healthOk: null,
-  timers: { health: 0, approvals: 0, tick: 0 },
+  timers: { health: 0, approvals: 0, tick: 0, tasks: 0 },
   chat: {
     sessionId: session.get(KEY.sessionId) || null,
     history: loadHistory(),
@@ -87,6 +88,8 @@ const state = {
   memory: { files: [], current: null, original: "", editable: false, dirty: false, saving: false },
   jobs: [],
   approvals: { items: [], renderedKey: "" },
+  tasks: { data: null, filter: "open" },
+  learning: { data: null, filter: "active" },
   log: [],
 };
 
@@ -139,6 +142,9 @@ function applyI18n() {
   // Re-render whatever view is open so dynamic text switches language too.
   if (state.view === "memory") { renderMemoryList(); if (state.memory.current) renderMemoryHeader(); }
   if (state.view === "jobs") renderJobs();
+  if (state.view === "tasks") renderTasks();
+  if (state.view === "learning") renderLearning();
+  updateTasksBadge();
   if (state.view === "approvals") { state.approvals.renderedKey = ""; renderApprovals(); }
   if (state.view === "status") { renderStats(); renderLog(); }
 }
@@ -319,9 +325,10 @@ async function api(path, { method = "GET", body, signal } = {}) {
 function errorText(e) {
   if (!(e instanceof ApiError)) return (e && e.message) || String(e);
   if (e.status === 0) return t("err.network");
-  if (e.status === 403) return t("err.forbidden");
-  if (e.status === 413) return t("err.tooBig");
   const b = e.body;
+  // A 403 with its own code (lvl_raise, who_to_jarvis, not_a_file…) says why; a bare one does not.
+  if (e.status === 403 && !(b && typeof b.error === "string" && b.error !== "forbidden" && b.message)) return t("err.forbidden");
+  if (e.status === 413) return t("err.tooBig");
   // The server answers in Spanish; in other languages translate the known error codes.
   if (state.lang !== "es" && b && typeof b.error === "string") {
     const k = `err.code.${b.error}`;
@@ -427,6 +434,7 @@ function startApp() {
   onRoute();
   refreshHealth();
   refreshApprovals();
+  loadTasks({ quiet: true });
   startPolling();
 }
 
@@ -435,12 +443,14 @@ function startPolling() {
   state.timers.health = setInterval(() => { if (!document.hidden) refreshHealth(); }, HEALTH_EVERY_MS);
   state.timers.approvals = setInterval(() => { if (!document.hidden) refreshApprovals(); }, APPROVALS_EVERY_MS);
   state.timers.tick = setInterval(tickCountdowns, 1000);
+  state.timers.tasks = setInterval(() => { if (!document.hidden) loadTasks({ quiet: true }); }, TASKS_EVERY_MS);
 }
 
 function stopPolling() {
   clearInterval(state.timers.health);
   clearInterval(state.timers.approvals);
   clearInterval(state.timers.tick);
+  clearInterval(state.timers.tasks);
 }
 
 function currentRoute() {
@@ -484,6 +494,8 @@ function showView(name) {
   }
   if (name === "memory") loadMemoryList();
   if (name === "jobs") loadJobs();
+  if (name === "tasks") { renderTasks(); loadTasks(); }
+  if (name === "learning") { renderLearning(); loadLearning(); }
   if (name === "approvals") { state.approvals.renderedKey = ""; renderApprovals(); refreshApprovals(); }
   if (name === "status") { renderStats(); refreshHealth(); loadLog(); }
 }
@@ -1234,6 +1246,408 @@ async function decide(a, decision, card) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Pendientes (TASKS.md + autopilot)                                   */
+/* ------------------------------------------------------------------ */
+
+const TASK_FILTERS = {
+  open: (t) => ["todo", "doing", "waiting", "blocked", "needs_ok"].includes(t.state),
+  needs_ok: (t) => t.state === "needs_ok",
+  inbox: (t) => t.state === "inbox",
+  closed: (t) => t.state === "done" || t.state === "dropped",
+};
+const TASK_STATES = ["inbox", "todo", "doing", "waiting", "needs_ok", "blocked", "done", "dropped"];
+const LEVELS = ["L0", "L1", "L2", "L3"];
+
+/** "2026-10-08" or "2026-10-08T09:30" -> local Date (date-only means local midnight). */
+function parseLocalDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?$/.exec(String(s || ""));
+  if (!m) return null;
+  return new Date(+m[1], +m[2] - 1, +m[3], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0);
+}
+function isoDay(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function shortDate(s) {
+  const d = parseLocalDate(s);
+  if (!d) return String(s);
+  const opts = { weekday: "short", day: "numeric", month: "short" };
+  if (/T/.test(s)) Object.assign(opts, { hour: "2-digit", minute: "2-digit" });
+  try { return d.toLocaleString(state.lang === "es" ? "es-MX" : "en-US", opts); } catch { return String(s); }
+}
+function isOverdue(t) {
+  if (!t.due || TASK_FILTERS.closed(t)) return false;
+  const d = parseLocalDate(t.due);
+  if (!d) return false;
+  if (!/T/.test(t.due)) d.setDate(d.getDate() + 1); // a date-only due is overdue from the next day
+  return d.getTime() <= Date.now();
+}
+function money(n) {
+  if (typeof n !== "number" || !Number.isFinite(n)) return t("pilot.noLog");
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  } catch { return `$${n.toFixed(2)}`; }
+}
+/** run-job.sh stamps "2026-10-06T1013" (local time). */
+function stampDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})(\d{2})/.exec(String(s || ""));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : toDate(s);
+}
+
+async function loadTasks({ quiet = false } = {}) {
+  try {
+    const data = await api("api/tasks");
+    state.tasks.data = data || null;
+  } catch (e) {
+    if (!quiet && e.status !== 401) toast(errorText(e), "error");
+  }
+  updateTasksBadge();
+  if (state.view === "tasks") renderTasks();
+}
+
+function updateTasksBadge() {
+  const n = state.tasks.data ? Number(state.tasks.data.needs_ok) || 0 : 0;
+  const badge = $("#tasks-badge");
+  const link = $('.nav-item[data-nav="tasks"]');
+  badge.hidden = n === 0;
+  badge.textContent = n > 99 ? "99+" : String(n);
+  badge.setAttribute("aria-hidden", "true");
+  if (n) link.setAttribute("aria-label", `${t("nav.tasks")}, ${t("nav.tasksBadge", { n })}`);
+  else link.removeAttribute("aria-label");
+}
+
+function renderSegmented(root, options, current, onPick) {
+  root.replaceChildren();
+  for (const o of options) {
+    const b = el("button", { class: "seg", type: "button", role: "tab", "aria-selected": String(o.key === current) },
+      el("span", { text: o.label }), el("span", { class: "seg-count", text: String(o.count) }));
+    b.addEventListener("click", () => onPick(o.key));
+    root.append(b);
+  }
+}
+
+function renderPilot() {
+  const a = state.tasks.data && state.tasks.data.autopilot;
+  const box = $("#pilot");
+  const toggle = $("#pilot-toggle");
+  if (!a) { box.hidden = true; return; }
+  box.hidden = false;
+  const mode = a.stopped ? "stopped" : a.paused ? "paused" : "on";
+  box.dataset.state = mode;
+  $("#pilot-title").textContent = t(`pilot.${mode}`);
+  $("#pilot-sub").textContent = t(`pilot.${mode}Sub`);
+  const stats = $("#pilot-stats");
+  stats.replaceChildren();
+  const stat = (label, value, cls, title) =>
+    stats.append(el("div", { class: "pilot-stat" }, el("dt", { text: label }), el("dd", { class: cls || null, title: title || null, text: value })));
+  if (a.last_run) {
+    const when = stampDate(a.last_run.at);
+    stat(t("pilot.lastRun"), `${when ? relTime(when) : a.last_run.at} · ${a.last_run.ok ? t("pilot.runOk") : t("pilot.runFail")}`, a.last_run.ok ? "ok" : "bad", when ? absTime(when) : null);
+  } else {
+    stat(t("pilot.lastRun"), a.has_run_log ? t("pilot.never") : t("pilot.noLog"));
+  }
+  stat(t("pilot.costToday"), a.cost_today === null ? t("pilot.noLog") : t("pilot.costSplit", { total: money(a.cost_today), pilot: money(a.autopilot_cost_today) }), "mono");
+  stat(t("pilot.actionsToday"), String(a.actions_today ?? 0), "mono");
+  toggle.hidden = !!a.stopped;
+  toggle.className = a.paused ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm";
+  toggle.replaceChildren(icon(a.paused ? "i-play" : "i-pause"), el("span", { text: a.paused ? t("pilot.resume") : t("pilot.pause") }));
+}
+
+async function togglePilot() {
+  const a = state.tasks.data && state.tasks.data.autopilot;
+  if (!a) return;
+  const resume = !!a.paused;
+  if (resume) {
+    const ok = await confirmDialog({ title: t("pilot.confirmTitle"), body: t("pilot.confirmBody"), ok: t("pilot.confirmOk"), cancel: t("jobs.cancel") });
+    if (!ok) return;
+  }
+  const btn = $("#pilot-toggle");
+  btn.disabled = true;
+  try {
+    const next = await api("api/autopilot", { method: "POST", body: resume ? { action: "resume", confirm: true } : { action: "pause" } });
+    if (state.tasks.data) state.tasks.data.autopilot = next;
+    toast(resume ? t("pilot.resumeDone") : t("pilot.pauseDone"));
+    renderPilot();
+  } catch (e) {
+    if (e.status !== 401) toast(errorText(e), "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function taskSort(a, b) {
+  const rank = (x) => (x.state === "needs_ok" ? 0 : isOverdue(x) ? 1 : x.due ? 2 : 3);
+  return rank(a) - rank(b)
+    || String(a.due || "9999").localeCompare(String(b.due || "9999"))
+    || (Number(a.prio) || 9) - (Number(b.prio) || 9)
+    || a.id.localeCompare(b.id);
+}
+
+function renderTasks() {
+  renderPilot();
+  const data = state.tasks.data;
+  const list = $("#tasks-list");
+  list.replaceChildren();
+  const tasks = data && Array.isArray(data.tasks) ? data.tasks : [];
+  const filterRoot = $("#tasks-filter");
+  filterRoot.hidden = !(data && data.exists);
+  if (data && data.exists) {
+    renderSegmented(filterRoot,
+      Object.keys(TASK_FILTERS).map((k) => ({ key: k, label: t(`tasks.f.${k}`), count: tasks.filter(TASK_FILTERS[k]).length })),
+      state.tasks.filter,
+      (k) => { state.tasks.filter = k; renderTasks(); });
+  }
+  if (!data || !data.exists) {
+    list.append(el("li", { class: "empty-card", text: t("tasks.noFile") }));
+  } else {
+    const shown = tasks.filter(TASK_FILTERS[state.tasks.filter]).sort(taskSort);
+    if (!shown.length) list.append(el("li", { class: "empty-card", text: t("tasks.empty") }));
+    for (const task of shown) list.append(taskCard(task));
+  }
+  const errs = data && Array.isArray(data.errors) ? data.errors : [];
+  $("#tasks-errors").hidden = !errs.length;
+  renderRawErrors($("#tasks-errors-list"), errs);
+}
+
+function renderRawErrors(root, errs) {
+  root.replaceChildren();
+  for (const e of errs) {
+    root.append(el("li", { class: "raw-item" },
+      el("span", { class: "raw-meta", text: `${t("tasks.errorLine", { n: e.line })} · ${e.reason || ""}` }),
+      el("code", { class: "raw-line", text: e.raw })));
+  }
+}
+
+function stateTagClass(s) {
+  if (s === "needs_ok") return "tag tag-bad";
+  if (s === "blocked") return "tag tag-warn";
+  if (s === "done") return "tag tag-ok";
+  if (s === "doing") return "tag tag-accent";
+  return "tag";
+}
+
+function taskCard(task) {
+  const li = el("li", { class: "task", "data-state": task.state, "data-task": task.id });
+  const main = el("div", { class: "task-main" });
+  main.append(el("div", { class: "task-top" },
+    el("span", { class: "task-id", text: task.id }),
+    el("span", { class: "task-title", text: task.title })));
+  const tags = el("div", { class: "task-tags" });
+  tags.append(el("span", { class: stateTagClass(task.state), text: t(`tasks.st.${task.state}`) }));
+  tags.append(el("span", { class: `tag tag-who-${task.who}`, text: t(`tasks.who.${task.who}`) }));
+  tags.append(el("span", { class: "tag tag-lvl", title: t(`tasks.lvl.${task.lvl}`), text: task.lvl }));
+  const meta = [];
+  if (task.due) meta.push(el("span", { class: isOverdue(task) ? "task-meta overdue" : "task-meta", text: t(isOverdue(task) ? "tasks.overdue" : "tasks.due", { d: shortDate(task.due) }) }));
+  if (task.next) meta.push(el("span", { class: "task-meta", text: t("tasks.next", { d: shortDate(task.next) }) }));
+  if (task.prio) meta.push(el("span", { class: "task-meta", text: t("tasks.prio", { n: task.prio }) }));
+  if (task.dep) meta.push(el("span", { class: "task-meta mono", text: t("tasks.dep", { id: task.dep }) }));
+  if (task.tries && Number(task.tries) > 0) meta.push(el("span", { class: "task-meta", text: t("tasks.tries", { n: task.tries }) }));
+  for (const m of meta) tags.append(m);
+  main.append(tags);
+  if (task.state === "needs_ok") main.append(el("p", { class: "task-hint", text: t("tasks.needsOkHint", { id: task.id }) }));
+  else if (task.state === "inbox" && /^email:untrusted/.test(task.src || "")) main.append(el("p", { class: "task-hint", text: t("tasks.fromUntrusted") }));
+  li.append(main);
+
+  const actions = el("div", { class: "task-actions" });
+  const stateSel = el("select", { class: "select", "aria-label": t("tasks.stateLabel", { id: task.id }) });
+  for (const s of TASK_STATES) stateSel.append(el("option", { value: s, selected: s === task.state, text: t(`tasks.st.${s}`) }));
+  stateSel.addEventListener("change", () => patchTask(task, { state: stateSel.value }, li));
+  actions.append(stateSel);
+
+  const idx = LEVELS.indexOf(task.lvl);
+  if (idx > 0) {
+    const lvlSel = el("select", { class: "select select-narrow", "aria-label": t("tasks.lvlLabel", { id: task.id }), title: t("tasks.lvlLabel", { id: task.id }) });
+    for (const l of LEVELS.slice(0, idx + 1)) lvlSel.append(el("option", { value: l, selected: l === task.lvl, text: l }));
+    lvlSel.addEventListener("change", () => patchTask(task, { lvl: lvlSel.value }, li));
+    actions.append(lvlSel);
+  }
+
+  if (!TASK_FILTERS.closed(task)) {
+    const snooze = el("select", { class: "select", "aria-label": t("tasks.snoozeLabel", { id: task.id }) });
+    snooze.append(el("option", { value: "", text: t("tasks.snooze") }));
+    snooze.append(el("option", { value: "1", text: t("tasks.snoozeTomorrow") }));
+    snooze.append(el("option", { value: "7", text: t("tasks.snoozeWeek") }));
+    if (task.next) snooze.append(el("option", { value: "clear", text: t("tasks.clearNext") }));
+    snooze.addEventListener("change", () => {
+      const v = snooze.value;
+      if (!v) return;
+      let next = null;
+      if (v !== "clear") { const d = new Date(); d.setDate(d.getDate() + Number(v)); next = isoDay(d); }
+      patchTask(task, { next }, li);
+    });
+    actions.append(snooze);
+    if (task.state === "inbox") {
+      const confirm = el("button", { class: "btn btn-ghost btn-sm", type: "button" }, icon("i-check"), el("span", { text: t("tasks.confirmInbox") }));
+      confirm.addEventListener("click", () => patchTask(task, { state: "todo" }, li));
+      actions.append(confirm);
+    }
+    const done = el("button", { class: "btn btn-primary btn-sm", type: "button" }, icon("i-check"), el("span", { text: t("tasks.markDone") }));
+    done.addEventListener("click", () => patchTask(task, { state: "done" }, li));
+    actions.append(done);
+  }
+  li.append(actions);
+  return li;
+}
+
+async function patchTask(task, patch, li) {
+  const data = state.tasks.data;
+  if (!data) return;
+  const controls = $$("button, select", li);
+  controls.forEach((c) => { c.disabled = true; });
+  try {
+    const r = await api(`api/tasks/${encodeURIComponent(task.id)}`, { method: "POST", body: { patch, base_mtime: data.mtime_ms, base_sha: data.sha } });
+    toast(t("tasks.saved", { id: task.id }));
+    if (r && r.task) {
+      const i = data.tasks.findIndex((x) => x.id === task.id);
+      if (i !== -1) data.tasks[i] = r.task;
+      data.mtime_ms = r.mtime_ms;
+      data.sha = r.sha;
+      data.needs_ok = data.tasks.filter((x) => x.state === "needs_ok").length;
+    }
+    updateTasksBadge();
+    renderTasks();
+  } catch (e) {
+    if (e.status === 409) { toast(t("tasks.conflict"), "error"); loadTasks(); }
+    else {
+      if (e.status !== 401) toast(errorText(e), "error");
+      renderTasks();
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Aprendizajes (LESSONS.md + learned skills)                          */
+/* ------------------------------------------------------------------ */
+
+async function loadLearning() {
+  try {
+    state.learning.data = await api("api/learning");
+  } catch (e) {
+    if (e.status !== 401) toast(errorText(e), "error");
+  }
+  if (state.view === "learning") renderLearning();
+}
+
+function renderLearning() {
+  const data = state.learning.data;
+  // Skills
+  const sl = $("#skills-list");
+  sl.replaceChildren();
+  const skills = data && Array.isArray(data.skills) ? data.skills : [];
+  if (!skills.length) sl.append(el("li", { class: "empty-card", text: t("learning.skillsEmpty") }));
+  for (const s of skills) sl.append(skillCard(s));
+
+  // Lessons
+  const lessons = data && data.lessons;
+  const ll = $("#lessons-list");
+  ll.replaceChildren();
+  const filterRoot = $("#lessons-filter");
+  filterRoot.hidden = !(lessons && lessons.exists);
+  if (!lessons || !lessons.exists) {
+    ll.append(el("li", { class: "empty-card", text: t("learning.noFile") }));
+  } else {
+    renderSegmented(filterRoot,
+      ["active", "review", "retired"].map((k) => ({ key: k, label: t(`learning.f.${k}`), count: (lessons[k] || []).length })),
+      state.learning.filter,
+      (k) => { state.learning.filter = k; renderLearning(); });
+    const items = lessons[state.learning.filter] || [];
+    if (!items.length) ll.append(el("li", { class: "empty-card", text: t("learning.lessonsEmpty") }));
+    for (const l of items) ll.append(lessonCard(l));
+  }
+  const errs = lessons && Array.isArray(lessons.errors) ? lessons.errors : [];
+  $("#lessons-errors").hidden = !errs.length;
+  renderRawErrors($("#lessons-errors-list"), errs);
+
+  // Digest
+  const dg = data && data.digest;
+  $("#digest").hidden = !dg;
+  if (dg) {
+    $("#digest-name").textContent = dg.name;
+    $("#digest-pre").textContent = dg.content;
+  }
+}
+
+function skillCard(s) {
+  const card = el("li", { class: "card skill-card", "data-reverted": String(!!s.reverted) });
+  const tag = s.reverted
+    ? el("span", { class: "tag", text: t("learning.reverted") })
+    : s.probation
+      ? el("span", { class: "tag tag-warn", title: t("learning.probationHint"), text: t("learning.probation") })
+      : el("span", { class: "tag tag-ok", text: t("learning.live") });
+  card.append(el("div", { class: "card-top" }, el("h3", { class: "card-title mono", text: s.name }), tag));
+  if (s.summary) card.append(el("p", { class: "card-desc", text: s.summary }));
+  const meta = el("div", { class: "card-meta" });
+  if (s.promoted_at) meta.append(el("span", { class: "card-meta-item", title: absTime(s.promoted_at), text: t(s.improved ? "learning.improved" : "learning.created", { when: relTime(s.promoted_at) }) }));
+  if (s.reverted && s.reverted_at) meta.append(el("span", { class: "card-meta-item", title: absTime(s.reverted_at), text: t("learning.revertedAt", { when: relTime(s.reverted_at) }) }));
+  if (s.commit) meta.append(el("span", { class: "card-meta-item mono", text: s.commit.slice(0, 8) }));
+  if (s.probation && !s.reverted) meta.append(el("span", { class: "card-meta-item", text: t("learning.probationHint") }));
+  card.append(meta);
+  if (!s.reverted) {
+    const undo = el("button", { class: "btn btn-ghost btn-sm", type: "button" }, icon("i-undo"), el("span", { text: t("learning.undo") }));
+    undo.addEventListener("click", () => revertSkill(s, undo));
+    card.append(el("div", { class: "card-actions" }, undo));
+  }
+  return card;
+}
+
+async function revertSkill(s, btn) {
+  const ok = await confirmDialog({ title: t("learning.undoTitle", { name: s.name }), body: t("learning.undoBody"), ok: t("learning.undoOk"), cancel: t("jobs.cancel") });
+  if (!ok) return;
+  btn.disabled = true;
+  try {
+    await api(`api/learning/skills/${encodeURIComponent(s.name)}/revert`, { method: "POST", body: { confirm: true } });
+    toast(t("learning.undoDone", { name: s.name }));
+  } catch (e) {
+    if (e.status !== 401) toast(errorText(e), "error");
+  } finally {
+    btn.disabled = false;
+    loadLearning();
+  }
+}
+
+function lessonCard(l) {
+  const li = el("li", { class: "lesson", "data-section": l.section });
+  const main = el("div", { class: "lesson-main" });
+  main.append(el("p", { class: "lesson-rule", text: l.rule }));
+  const meta = el("div", { class: "lesson-meta" });
+  meta.append(el("span", { class: "mono", text: l.id }));
+  if (l.scope) meta.append(el("span", { text: t("learning.scope", { s: l.scope }) }));
+  if (l.src) meta.append(el("span", { class: "mono", text: l.src }));
+  if (l.date) meta.append(el("span", { text: shortDate(l.date) }));
+  if (typeof l.uses === "number") meta.append(el("span", { text: t("learning.uses", { n: l.uses }) }));
+  main.append(meta);
+  if (l.section === "review") main.append(el("p", { class: "task-hint", text: t("learning.reviewHint") }));
+  li.append(main);
+  const actions = el("div", { class: "task-actions" });
+  if (l.section !== "retired") {
+    const b = el("button", { class: "btn btn-ghost btn-sm", type: "button", text: t("learning.retire") });
+    b.addEventListener("click", () => moveLesson(l, "retire", li));
+    actions.append(b);
+  }
+  if (l.section !== "active") {
+    const b = el("button", { class: "btn btn-primary btn-sm", type: "button", text: t("learning.activate") });
+    b.addEventListener("click", () => moveLesson(l, "activate", li));
+    actions.append(b);
+  }
+  li.append(actions);
+  return li;
+}
+
+async function moveLesson(l, op, li) {
+  const lessons = state.learning.data && state.learning.data.lessons;
+  if (!lessons) return;
+  $$("button", li).forEach((b) => { b.disabled = true; });
+  try {
+    await api(`api/learning/lessons/${encodeURIComponent(l.id)}/${op}`, { method: "POST", body: { base_mtime: lessons.mtime_ms, base_sha: lessons.sha } });
+    toast(t(op === "retire" ? "learning.retired" : "learning.activated", { id: l.id }));
+  } catch (e) {
+    if (e.status === 409) toast(t("learning.conflict"), "error");
+    else if (e.status !== 401) toast(errorText(e), "error");
+  }
+  loadLearning();
+}
+
+/* ------------------------------------------------------------------ */
 /* Status + audit log                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -1338,6 +1752,11 @@ function bindEvents() {
     if (current) current.focus();
   });
 
+  // Pendientes / Aprendizajes
+  $("#tasks-refresh").addEventListener("click", () => loadTasks());
+  $("#pilot-toggle").addEventListener("click", togglePilot);
+  $("#learning-refresh").addEventListener("click", () => loadLearning());
+
   // Status
   $("#status-refresh").addEventListener("click", () => { refreshHealth(); loadLog(); });
 
@@ -1351,7 +1770,7 @@ function bindEvents() {
 
   // Catch up right away when the tab comes back.
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && state.started) { refreshHealth(); refreshApprovals(); }
+    if (!document.hidden && state.started) { refreshHealth(); refreshApprovals(); loadTasks({ quiet: true }); }
   });
 }
 

@@ -16,7 +16,7 @@ Last verified: 2026-10-06
 | `compatibility.md` | Known-bad combinations and what to do instead | `CMP-NN` |
 | `models.json` | Model slots per provider + prices + `verified_at` | — |
 | `runtimes/<id>.md` | One harness each. **The only markdown place where versions are pinned.** | `claude-code-local` · `claude-code-server` · `claude-p-cron` · `claude-agent-sdk` · `hermes` · `openclaw` · `codex-openai` · `ollama-local` · `cowork` |
-| `capabilities/<id>.md` | One capability each | `channels` · `whatsapp` · `memory` · `tools-mcp` · `scheduling` · `voice` · `skills` · `deploy-local` · `deploy-railway` · `costs` · `web-ui` |
+| `capabilities/<id>.md` | One capability each | `channels` · `whatsapp` · `memory` · `tools-mcp` · `scheduling` · `voice` · `skills` · `deploy-local` · `deploy-railway` · `costs` · `web-ui` · `autonomy` · `learning` · `multimodal` |
 | `professions/<id>.md` | Profession packs | `creator` · `developer` · `founder` · `sales` · `student` · `lawyer-accountant` · `health` · `real-estate` · `smb-restaurant` · `ecommerce` · `coach` · `agency` · `teacher` |
 | `countries/<cc>.md` | Country packs | `mx` · `co` · `ar` · `es` · `other` |
 

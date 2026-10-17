@@ -5,6 +5,10 @@
 
 Last verified: 2026-10-06
 
+> **Not a Jarvis's `TASKS.md`.** This file is the Architect's **build ledger**: the steps to build and
+> verify one Jarvis. It has nothing to do with the owner's own task list inside the finished Jarvis
+> (`templates/workspace/TASKS.md`, rules in `knowledge/capabilities/autonomy.md`). Never mix the two.
+
 Adapted from The Architect's `tasks-schema.md`, with one addition: **`user_action` tasks**, because
 setting up a personal assistant always needs the human (creating a bot, a key, a spend cap).
 

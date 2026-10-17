@@ -1,6 +1,6 @@
 # Security checklist — non-negotiable controls for every Jarvis
 
-> The controls every generated Jarvis ships with (SEC-01…SEC-33), why each exists, how to implement it per runtime, and the exact check `jarvis-validator` runs.
+> The controls every generated Jarvis ships with (SEC-01…SEC-38), why each exists, how to implement it per runtime, and the exact check `jarvis-validator` runs.
 
 Last verified: 2026-10-06
 
@@ -9,7 +9,7 @@ Last verified: 2026-10-06
 - The Architect copies every applicable `SEC-NN` into spec §4 (`templates/jarvis-spec.md`) with
   "how it is implemented here" and the task that verifies it. *Not applicable* is allowed only
   where this file says so (for example SEC-03 when no webhook exists), and the reason goes in the row.
-- `jarvis-validator` runs its 13 sweeps (`.claude/agents/jarvis-validator.md`) and uses the
+- `jarvis-validator` runs its 16 sweeps (`.claude/agents/jarvis-validator.md`) and uses the
   **Check** line of each control below as the concrete test. The **Grade** is what a failure
   costs: BLOCKER or MAJOR means FAIL, MINOR is reported only. The grades here match the sweeps.
   Controls that no sweep names explicitly are marked *(checklist-only)*. The validator still
@@ -416,7 +416,10 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
     `\b\d{8,10}:[A-Za-z0-9_-]{35}\b`, `-----BEGIN`. Any hit → BLOCKER, except an obviously
     fake truncated placeholder such as `sk-ant-...` (knowledge/README.md convention 5).
   - `.gitignore` missing `.env`, `*.env`, `auth.json` or `credentials*` → BLOCKER.
-  - `.env.example` holding a non-placeholder value (anything longer than `sk-ant-...`) → BLOCKER.
+  - `.env.example` holding a non-placeholder value (anything longer than `sk-ant-...`) in a
+    variable whose name matches `KEY|TOKEN|SECRET|PASSWORD` → BLOCKER. Non-secret `JARVIS_*`
+    settings with their spec values (`JARVIS_AUTOPILOT_DAILY_USD=1.00`, `JARVIS_STT_CLOUD=off`)
+    are expected.
 - **Grade:** BLOCKER (sweep 1).
 
 **SEC-18 — No secret ever reaches a prompt, memory, log, chat or verify output.**
@@ -665,6 +668,107 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
   MINOR.
 - **Grade:** MAJOR (sweep 12).
 
+### M. Autonomy, learning and media
+
+Rules for the three built-in capabilities: `knowledge/capabilities/autonomy.md`,
+`knowledge/capabilities/learning.md` and `knowledge/capabilities/multimodal.md`.
+
+**SEC-34 — The autopilot reads and drafts; it never promotes itself.**
+- *Why:* The autopilot reads untrusted content [A] and private data [B], so it gets no [C]
+  (ASI02, ASI08; Agents Rule of Two).
+- **How:**
+  - Job tools `Read,Grep,Glob` + read-only MCP by exact name (`jobs/autopilot.tools`). The job
+    cannot write; every write goes through `jobs/apply-ops.sh`, which rejects an upward `lvl`,
+    `who:owner→jarvis`, unknown ids, paths outside `drafts/` and `tasks/`, and anything in
+    `approvals/` (reasons in `autonomy.md` § apply-ops.sh rules).
+  - SDK: the in-process `ledger_update` tool runs the same `apply-ops.sh`. HER, OC, CW: mode (C)
+    of the `autopilot` skill (direct edit), backed by the weekly review and git.
+  - The L3 list lives only in AGENTS.md § 10, holds only reversible types on the owner's own data
+    (`calendar.block.private`, `email.label`, `task.reschedule`), is empty by default, and only the
+    owner edits it from the terminal (IRR-07), with a spec §7 consent per type.
+  - Panel: it can only lower `lvl` and never sets `who:jarvis`.
+- **Check:** sweep 14: `jobs/autopilot.tools` has no Bash/Edit/Write/NotebookEdit/WebFetch;
+  `jobs/apply-ops.sh` byte-identical to `templates/local/jobs/apply-ops.sh`; § 10 L3 types.
+- **Grade:** BLOCKER (sweep 14).
+
+**SEC-35 — Autopilot caps and kill switch.**
+- *Why:* An unattended loop with no stop and no budget burns money and trust (ASI08, ASI10).
+- **How:**
+  - Per run `--max-turns 12`, `--max-budget-usd 0.50`; per day `JARVIS_AUTOPILOT_DAILY_USD`
+    (default `1.00`); at most 3 tasks and 5 new tasks per run; 3 tries per task, then `blocked`.
+  - `STOP_AUTOPILOT` (and `STOP`, `JARVIS_PAUSED`) is checked by the wrapper **before** the model
+    call. Pausing works from chat; resuming only from the terminal (`rm STOP_AUTOPILOT`) or the
+    panel with its session and an explicit confirm.
+  - Panel: pausing is always allowed; resuming needs an authenticated panel session plus
+    `{confirm:true}`. With a Bash-capable Jarvis, set `PANEL_PASSWORD` or deny Bash calls to the
+    panel port, and AGENTS.md § 4 forbids Jarvis to call the panel API.
+- **Check:** sweep 3: the forced build-time run with `STOP_AUTOPILOT` left
+  `autopilot skipped: STOP_AUTOPILOT` in `logs/jobs.log` and no `outbox/*-autopilot.json`;
+  sweep 14: panel resume without `confirm` returns 400.
+- **Grade:** MAJOR (sweeps 3, 14).
+
+**SEC-36 — Learned content never carries permissions.**
+- *Why:* A lesson or a learned skill is text the agent obeys, so it is a memory-poisoning and
+  self-escalation surface (ASI06).
+- **How:**
+  - `LESSONS.md` and every lesson write pass the deny-grep
+    `allowlist|sin preguntar|without asking|api[ _-]?key|token|permis|aprobaci[oó]n autom`.
+    `bin/learn.sh commit` reverts a permission lesson on the spot (`rejected_permission`).
+  - Live skills change only through `bin/promote-skill.sh` (lint L01–L13, probation, git commit,
+    audit). No approval record is needed for a skill Jarvis created; replacing an owner or
+    Architect skill needs an owner decision in `approvals/decided/`, which Jarvis cannot write.
+  - `protect-paths.sh` denies writes to SOUL/AGENTS/TOOLS/HEARTBEAT, settings, `jobs/`,
+    `approvals/` and live skill folders; it resolves every shell path token against cwd, denies
+    shell writes to `LESSONS.md`, and denies `promote-skill.sh used` to the agent.
+  - HER `skills.guard_agent_created: true`; OC dreaming off; CDX memories off (or
+    `disable_on_external_context`).
+  - Panel: activates lessons only after the deny-grep; skill undo only via
+    `promote-skill.sh retire <name>` with the name checked against `^[a-z0-9-]{1,64}$`, an args
+    array and no shell (the script refuses non-agent skills); lesson moves are committed via
+    `learn.sh commit`.
+- **Check:** sweep 15 (the deny-grep on the whole `LESSONS.md`, the lint red flags on agent-made
+  skills, no draft on a live path, the native-loop keys); repo test
+  `bash tests/learning/protect-paths.test.sh`.
+- **Grade:** BLOCKER (sweep 15).
+
+**SEC-37 — Corrections are captured only from the owner, never unattended.**
+- *Why:* If a webhook body, an email or a group could teach Jarvis, any stranger could rewrite its
+  behaviour (ASI06).
+- **How:**
+  - `capture-correction.sh` opens a record only for the local terminal, the panel, or a
+    `<channel>` event whose source is in `JARVIS_LEARN_CHANNELS` and is a direct message. A prompt
+    that mixes an allowlisted channel with any other source, or has nested or unbalanced
+    `<channel>` tags, is never captured. Hooks skip `dontAsk` and `JARVIS_UNATTENDED=1`.
+  - `memory/corrections.jsonl` holds redacted quotes only (≤ 280 chars, `remember` deny-list), is
+    gitignored and is part of the secret sweep (SEC-18).
+- **Check:** sweep 1 covers `memory/*.jsonl`; sweep 15 parses it; repo test
+  `bash tests/learning/capture.test.sh`.
+- **Grade:** MAJOR (sweeps 1, 15).
+
+**SEC-38 — Media is local first, bounded, untrusted and deleted after use.**
+- *Why:* Audio, video and documents carry instructions, malformed files and links to internal
+  addresses (ASI01, SSRF).
+- **How:**
+  - The sender allowlist is checked before any download (SEC-01).
+  - Limits: voice notes ≤ 20 MB / 10 min, recordings ≤ 500 MB / 60 min; video ≤ 100 frames at
+    ≤ 512 px, `--max-filesize 500M`.
+  - Allowed types: ogg, opus, mp3, m4a/aac, wav, aiff, flac, webm, mp4, mov, jpeg, png, webp,
+    gif, pdf. No archives, executables, SVG or playlists. Video content is verified by magic bytes
+    (MP4/MOV, Matroska/WebM, Ogg, MP3, WAV, AIFF, FLAC, AAC) before ffmpeg; `--delete-input` never
+    touches a refused file.
+  - ffmpeg runs with `-protocol_whitelist file`. URLs: http(s) only, public addresses only, ports
+    80/443, `--` before the URL, no cookies, `--ignore-config`.
+  - The temp folder is outside the workspace and deleted (`--cleanup`, sweep after 2 hours).
+  - Transcripts are tagged (`<media_transcript>` for the owner's own notes, `<untrusted_media>`
+    otherwise) and are information, not orders (AGENTS.md § 2 items 5–6).
+  - Nothing is installed automatically: the owner types the install command. Tools and the model
+    SHA-256 are pinned in the runtime file and recorded in RUNBOOK.md.
+  - Cloud STT only with a spec §7 consent and never with a sensitive pack (CMP-39).
+- **Check:** sweep 16 (install/cookie grep on skill scripts, cloud STT with a sensitive pack,
+  `.gitignore` media entries, model SHA-256 in RUNBOOK.md, no raw `ffmpeg`/`whisper-cli` allow);
+  repo test `bash tests/media/run.sh`.
+- **Grade:** BLOCKER for auto-install or cookies; MAJOR otherwise (sweep 16).
+
 ---
 
 ## 4. Panic button — incident steps (copied into every `SECURITY.md`)
@@ -736,9 +840,9 @@ applicable. SEC-11, 14, 22, 24, 27 and 32 still apply to its connectors and sche
 
 | Sweep | Controls |
 |---|---|
-| 1 Secrets | SEC-17, SEC-18, SEC-20 |
+| 1 Secrets | SEC-17, SEC-18, SEC-20, SEC-37 (`memory/*.jsonl`) |
 | 2 Allowlists | SEC-01, SEC-02 |
-| 3 Human approval | SEC-04, SEC-11, SEC-14, SEC-15, SEC-24 (install = IRR-08) |
+| 3 Human approval | SEC-04, SEC-11, SEC-14, SEC-15, SEC-24 (install = IRR-08), SEC-35 (forced `STOP_AUTOPILOT` run) |
 | 4 Auth matrix | SEC-30, SEC-08 (`~/.claude` mounts), SEC-20 (credential copies) |
 | 5 WhatsApp | SEC-31 |
 | 6 Versions and installs | SEC-24, SEC-25, SEC-26 |
@@ -748,6 +852,9 @@ applicable. SEC-11, 14, 22, 24, 27 and 32 still apply to its connectors and sche
 | 10 Spec completeness | SEC-32 (spec §9) |
 | 12 Handoff | SEC-21, SEC-33 |
 | 13 Memory hygiene | SEC-13 |
+| 14 Autonomy | SEC-34, SEC-35 |
+| 15 Learning | SEC-36, SEC-37 |
+| 16 Media | SEC-38 |
 | *checklist-only* | SEC-09, SEC-12, SEC-16, SEC-19, SEC-22, SEC-23, SEC-28, SEC-29 |
 
 ## Sources
@@ -789,3 +896,10 @@ applicable. SEC-11, 14, 22, 24, 27 and 32 still apply to its connectors and sche
 - https://hermes-agent.nousresearch.com/docs/user-guide/messaging/whatsapp-cloud
 - https://tailscale.com/kb/1223/funnel
 - https://www.facebook.com/legal/Meta-Terms-for-WhatsApp-Business-Platform
+- https://simonwillison.net/2025/Nov/2/new-prompt-injection-papers/ (fetched 2026-10-06: Agents Rule of Two, SEC-34)
+- https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents (fetched 2026-10-06: progress file, one item per run)
+- https://code.claude.com/docs/en/routines (fetched 2026-10-06: no permission-mode picker, CMP-41)
+- https://hermes-agent.nousresearch.com/docs/user-guide/features/skills (checked 2026-10-06: `write_approval`, `guard_agent_created`, SEC-36)
+- https://docs.openclaw.ai/concepts/memory (checked 2026-10-06: dreaming on by default, SEC-36)
+- https://github.com/yt-dlp/yt-dlp (`--no-cookies`, `--ignore-config`, `--max-filesize`, SEC-38)
+- https://ffmpeg.org/ffmpeg-protocols.html (`protocol_whitelist`, SEC-38)
