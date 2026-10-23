@@ -867,11 +867,12 @@ export function createStore({ jarvisHome, memoryDir, approvalTtlMs = 5 * 60 * 10
       } else if (cur.file === path.join(home, 'LESSONS.md') && !(await exists(path.join(home, 'STOP')))) {
         const r = await runJarvisScript('bin/learn.sh', ['commit', to === 'active' ? 'activate' : 'retire', id]);
         if (!r.missing) {
-          if (r.code === 3) {
-            // learn.sh rejected it as permission-like and restored the committed file; make sure the
-            // panel's own write is gone too.
+          if (r.code === 3 || r.code === 5) {
+            // learn.sh rejected it (3: permission-like, 5: an @path import) and restored the committed
+            // file; make sure the panel's own write is gone too.
             const now = await readLedger('LESSONS.md');
             if (!now.missing && now.text === out) await writeLedger(cur, cur.text);
+            if (r.code === 5) throw new StoreError(422, 'import_line', 'bin/learn.sh rechazó el cambio: LESSONS.md no lleva imports @ruta. LESSONS.md quedó como estaba.');
             throw new StoreError(422, 'permission_like', 'bin/learn.sh rechazó el cambio: esa lección habla de permisos, llaves o de actuar sin preguntar. LESSONS.md quedó como estaba.');
           }
           committed = r.code === 0;

@@ -7,12 +7,21 @@
 # owner's rules, permissions, jobs or the learning scripts themselves. Denied for Write/Edit and for
 # shell commands that would modify them:
 #   SOUL.md AGENTS.md TOOLS.md HEARTBEAT.md CLAUDE.md CLAUDE.local.md .mcp.json mcp.jobs.json
-#   .claude/ .agents/ skills/ bin/ jobs/ approvals/ logs/ .git/ .env* memory/corrections.jsonl
+#   .claude/ .agents/ skills/ bin/ jobs/ approvals/ logs/ .git/ panel/ vendor/ voices/ .env*
+#   memory/corrections.jsonl* memory/.corrections.lock, any .gitignore / .gitattributes
 #   ~/.claude/settings*.json ~/.claude/channels/ ~/.hermes/config.yaml ~/.openclaw/openclaw.json ~/.codex/config.toml
+#   the unsandboxed side: ~/.local/share/jarvis-voice/ (speaker engine), ~/.config/systemd/user/,
+#   ~/Library/LaunchAgents/, ~/.local/bin/ and the shell profiles
 # Live skills change only through `bin/promote-skill.sh` (lint + probation + git) and every learning
 # change can be undone with `bin/learn.sh undo`; those two scripts are the only allowed shell entry.
-# LESSONS.md / MEMORY.md writes that carry a permission ("sin preguntar", "allowlist", …) are denied.
+# `promote-skill.sh promote` is allowed only for a proposal that is a single SKILL.md (+ PROPOSAL.md)
+# whose frontmatter passes the strict grammar below; `learn.sh weekly/review` belong to the timer.
+# LESSONS.md / MEMORY.md writes that carry a permission ("sin preguntar", "allowlist", …) are denied,
+# and no write may add an `@path` import to LESSONS.md, MEMORY.md, USER.md or memory/ (they load
+# into every session). Both checks compare the whole file before and after the edit.
 # Skill tool: a skill on probation is denied in unattended runs; its first attended use ends probation.
+# These regex checks are the second line: the OS sandbox (`sandbox.filesystem.denyWrite: ["."]`,
+# knowledge/runtimes/claude-code-local.md) is what keeps shell writes out of the workspace.
 # Output: hookSpecificOutput.permissionDecision "deny" + reason, or nothing (no decision).
 # Fails closed: unreadable input or no python → exit 2 (blocks the tool call). bash 3.2 compatible.
 set -euo pipefail
@@ -50,16 +59,31 @@ unattended = os.environ.get("JARVIS_UNATTENDED") == "1" or mode in ("dontAsk", "
 
 EXACT = {"SOUL.md", "AGENTS.md", "TOOLS.md", "HEARTBEAT.md", "CLAUDE.md", "CLAUDE.local.md",
          ".mcp.json", "mcp.jobs.json", "memory/corrections.jsonl"}
-PREFIX = (".claude/", ".agents/", "skills/", "bin/", "jobs/", "approvals/", "logs/", ".git/")
+# panel/, vendor/ (source builds such as whisper.cpp) and voices/ hold code or settings that run
+# outside the sandbox (the panel service, the speaker), so Jarvis never edits them.
+PREFIX = (".claude/", ".agents/", "skills/", "bin/", "jobs/", "approvals/", "logs/", ".git/",
+          "panel/", "vendor/", "voices/")
 OUTSIDE = [os.path.join(HOME, ".claude", "settings.json"), os.path.join(HOME, ".claude", "settings.local.json"),
            os.path.join(HOME, ".claude", "channels") + os.sep, os.path.join(HOME, ".hermes", "config.yaml"),
            os.path.join(HOME, ".hermes", ".env"), os.path.join(HOME, ".openclaw", "openclaw.json"),
-           os.path.join(HOME, ".codex", "config.toml"), os.path.join(HOME, ".codex", "auth.json")]
+           os.path.join(HOME, ".codex", "config.toml"), os.path.join(HOME, ".codex", "auth.json"),
+           # what runs unsandboxed or at login: the speaker engine, service units, ~/.local/bin, profiles
+           os.path.join(HOME, ".local", "share", "jarvis-voice") + os.sep,
+           os.path.join(HOME, ".config", "systemd", "user") + os.sep,
+           os.path.join(HOME, "Library", "LaunchAgents") + os.sep, os.path.join(HOME, ".local", "bin") + os.sep,
+           os.path.join(HOME, ".bashrc"), os.path.join(HOME, ".bash_profile"), os.path.join(HOME, ".profile"),
+           os.path.join(HOME, ".zshrc"), os.path.join(HOME, ".zprofile")]
 WHY = "lo cambia solo el dueño (AGENTS.md §6); las skills nuevas entran con bin/promote-skill.sh"
 # validator sweep 15 deny-grep (LESSONS.md) and the narrower memory guard (MEMORY.md)
 LESSON_BAD = re.compile(r"allowlist|sin preguntar|without asking|api[ _-]?key|token|permis|aprobaci[oó]n autom", re.I)
 MEMORY_BAD = re.compile(r"sin preguntar|without asking|sin (pedir )?(permiso|confirmaci[oó]n)|allowlist|"
                         r"lista de permitidos|aprobaci[oó]n autom", re.I)
+# Claude Code memory imports: `@path` at the start of a line or after whitespace (emails don't match)
+IMPORT = re.compile(r"(?m)(?:^|\s)@\S")
+# frontmatter keys a learned skill may carry (same list as lint L14 in bin/promote-skill.sh)
+SKILL_KEYS = ("name", "description", "metadata", "allowed-tools", "disable-model-invocation", "argument-hint",
+              "created-by", "license", "source", "version", "probation")
+SHELL_PRE = re.compile(r"!`|^\s*```!|^\s*!\s*\S", re.M)   # skill `!` preprocessing (lint L15)
 
 def resolve(p):
     p = os.path.expanduser(str(p))
@@ -77,6 +101,10 @@ def classify(abs_path):
     rel = os.path.relpath(abs_path, ROOT).replace(os.sep, "/")
     base = rel.rsplit("/", 1)[-1]
     if rel in EXACT or rel.startswith(PREFIX) or rel + "/" in PREFIX or base.startswith(".env"):
+        return "protected"
+    # the corrections ledger with its lock and temp files, and git rules at any depth
+    if rel.startswith("memory/corrections.jsonl") or rel == "memory/.corrections.lock" \
+            or base in (".gitignore", ".gitattributes"):
         return "protected"
     if rel == "LESSONS.md":
         return "lessons"
@@ -104,6 +132,50 @@ if tool in ("Write", "Edit", "MultiEdit", "NotebookEdit"):
              "Registra la petición con `bin/learn.sh close <C-id> permission_request rejected_permission`.")
     if kind == "memoryfile" and MEMORY_BAD.search(new_text(ti)):
         deny("la memoria guarda hechos, no permisos (AGENTS.md §6).")
+    rel_w = os.path.relpath(a, ROOT).replace(os.sep, "/") if a.startswith(ROOT + os.sep) else ""
+    if kind in ("lessons", "memoryfile") or rel_w.startswith("memory/") or rel_w == "USER.md":
+        # Rebuild the file as it will be and check the whole result, not only the new text: two small
+        # edits can't assemble an import or split a denied word across them.
+        try:
+            before = open(a, encoding="utf-8").read()
+        except OSError:
+            before = ""
+        after = before
+        if tool == "Write":
+            after = ti.get("content") or ""
+        else:
+            steps = ti.get("edits") if tool == "MultiEdit" else [ti]
+            for e in steps or []:
+                if not isinstance(e, dict):
+                    continue
+                old, new = e.get("old_string") or "", e.get("new_string") or ""
+                if old and old in after:
+                    after = after.replace(old, new) if e.get("replace_all") else after.replace(old, new, 1)
+                else:
+                    after = after + "\n" + new        # can't place it: check the new text anyway
+        # before vs after: the base files already name "allowlist" in their own rules, so only what
+        # the edit adds is denied (one more import or one more match).
+        grew = lambda rx: len(rx.findall(after)) > len(rx.findall(before))
+        if grew(IMPORT):
+            deny("la memoria y las lecciones no llevan imports `@ruta` (cargarían otros archivos en cada sesión).")
+        if kind == "lessons" and grew(LESSON_BAD):
+            deny("una lección nunca da permisos ni toca allowlists, llaves o aprobaciones (AGENTS.md §6).")
+        if kind == "memoryfile" and grew(MEMORY_BAD):
+            deny("la memoria guarda hechos, no permisos (AGENTS.md §6).")
+    # tasks/archive/ only holds tasks that existed (TASKS.md, the archive, tasks/T-NNNN.md): an
+    # invented high id would exhaust the autopilot's numbering
+    if rel_w.startswith("tasks/archive/"):
+        seen = " ".join(os.listdir(os.path.join(ROOT, "tasks"))) if os.path.isdir(os.path.join(ROOT, "tasks")) else ""
+        for f in [os.path.join(ROOT, "TASKS.md")] + [os.path.join(ROOT, "tasks", "archive", x) for x in
+                                                     (os.listdir(os.path.join(ROOT, "tasks", "archive"))
+                                                      if os.path.isdir(os.path.join(ROOT, "tasks", "archive")) else [])]:
+            try:
+                seen += " " + open(f, encoding="utf-8").read()
+            except OSError:
+                pass
+        top = max([int(x) for x in re.findall(r"T-(\d{4})", seen)] or [0])
+        if any(int(x) > top + 1 for x in re.findall(r"T-(\d{4})", new_text(ti))):
+            deny("el archivo solo guarda tareas que ya existieron en TASKS.md (id mayor al último).")
     sys.exit(0)
 
 if tool == "Skill":
@@ -132,8 +204,54 @@ r = re.escape(ROOT)
 #    one of them: probation ends only through a real attended Skill call (below) or the owner's panel.
 entry = re.fullmatch(r"\s*(?:\./|" + r + r"/)?bin/(promote-skill|learn)\.sh((?:\s+[A-Za-z0-9._:-]+)*)\s*", cmd)
 if entry and (os.path.realpath(cwd) == ROOT or cmd.strip().startswith(ROOT + "/")):
-    if entry.group(1) == "promote-skill" and (entry.group(2).split() or [""])[0] == "used":
+    args = entry.group(2).split() or [""]
+    if entry.group(1) == "promote-skill" and args[0] == "used":
         deny("el periodo de prueba termina solo cuando el dueño usa la skill en vivo (o desde el panel), no por comando.")
+    # weekly/review start a paid job with no cap and rewrite LESSONS.md: only the Sunday timer runs them
+    if entry.group(1) == "learn" and args[0] in ("weekly", "review"):
+        deny("`learn.sh weekly/review` lo corre solo el temporizador del domingo, no Jarvis.")
+    # promote-skill runs outside the sandbox: the proposal must be one plain SKILL.md (+ PROPOSAL.md,
+    # the evidence the script reads and never installs) with known frontmatter keys and no `!` shell
+    # preprocessing. bin/promote-skill.sh lints the same rules (L09, L14, L15) once more.
+    if entry.group(1) == "promote-skill" and args[0] == "promote":
+        if len(args) < 2 or not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", args[1]):
+            deny("nombre de skill inválido.")
+        sk = os.path.join(ROOT, "proposals", "skills", args[1])
+        skf, pf = os.path.join(sk, "SKILL.md"), os.path.join(sk, "PROPOSAL.md")
+        try:
+            entries = os.listdir(sk)
+            extra = [e for e in entries if e != "SKILL.md"]
+            if "SKILL.md" not in entries or extra not in ([], ["PROPOSAL.md"]) or os.path.islink(sk) \
+                    or os.path.islink(skf) or not os.path.isfile(skf) \
+                    or (extra and (os.path.islink(pf) or not os.path.isfile(pf))):
+                deny("una skill aprendida es solo un SKILL.md (sin carpetas, enlaces, scripts ni otros archivos).")
+            body = open(skf, encoding="utf-8").read()
+        except OSError:
+            deny("no encuentro proposals/skills/<nombre>/SKILL.md.")
+        fm = re.match(r"\A---\n(.*?)\n---\n", body, re.S)
+        if not fm:
+            deny("la propuesta no tiene frontmatter válido.")
+        # Strict line grammar: column 0 holds only a known `key:` (once); everything else is indented
+        # with spaces and never starts with YAML syntax that builds hidden keys ("hooks":, ? hooks,
+        # <<:, {…}, anchors, aliases, tags). Only description may be a block scalar.
+        bad, keys = [], []
+        for ln in fm.group(1).split("\n"):
+            if not ln.strip():
+                continue
+            if "\t" in ln or "\r" in ln or ln.strip() in ("---", "..."):
+                bad.append(ln[:30]); continue
+            if not ln.startswith(" "):
+                m = re.match(r"([a-z-]+):( |$)", ln)
+                if not m or m.group(1) not in SKILL_KEYS or m.group(1) in keys \
+                        or (re.match(r"[a-z-]+:\s*[{[&*!|>]", ln) and m.group(1) != "description"):
+                    bad.append(ln[:30])
+                if m:
+                    keys.append(m.group(1))
+            elif ln.lstrip()[:1] in ("\"", "'", "?", "<", "{", "[", "&", "*", "!"):
+                bad.append(ln[:30])
+        if bad or SHELL_PRE.search(body):
+            deny("la propuesta trae frontmatter no permitido o preprocesado de shell ("
+                 + " | ".join(bad or ["!`"]) + ").")
     sys.exit(0)
 # 2. the two media skill scripts, started exactly as their SKILL.md says (the only media entries in
 #    settings). Only the script path is exempt: its arguments are still checked below, so an --out
@@ -142,6 +260,11 @@ media = re.match(r"\s*(?:bash\s+(?:\./)?\.claude/skills/transcribe/scripts/trans
                  r"|python3\s+-I\s+(?:\./)?\.claude/skills/watch-video/scripts/watch\.py)(?=\s|$)", cmd)
 if media and os.path.realpath(cwd) == ROOT:
     cmd = "media-script" + cmd[media.end():]
+# 2b. the voice-out script (knowledge/capabilities/voice.md § Speaker), same rule: only running it is
+#     exempt; bin/speak.sh itself stays protected from Write/Edit and shell edits.
+speak = re.match(r"\s*(?:\./)?bin/speak\.sh(?=\s|$)", cmd)
+if speak and os.path.realpath(cwd) == ROOT:
+    cmd = "speak-script" + cmd[speak.end():]
 # 3. the panel's API is the owner's (resume the autopilot, approve, undo): never from Jarvis's shell
 if re.search(r"(?i)x-jarvis-panel|/api/(autopilot|tasks|learning|approvals|memory|jobs|chat|login)\b", cmd):
     deny("la API del panel es solo para el dueño (reanudar el piloto, aprobar, deshacer): ábrelo tú en el panel.")
