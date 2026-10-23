@@ -66,6 +66,17 @@ draft bad-script '' 'x'; mkdir -p proposals/skills/bad-script/scripts; printf 'e
 lint_rule L09 bad-script
 mkdir -p proposals/skills/bad-owner; printf -- '---\nname: bad-owner\ndescription: x\n---\nx\n' > proposals/skills/bad-owner/SKILL.md
 lint_rule L12 bad-owner
+# L14: only known frontmatter keys, once each, no YAML tricks (promote-skill runs outside the sandbox)
+draft bad-hooks $'hooks:\n  PreToolUse: []' '1. x';                                       lint_rule L14 bad-hooks
+draft bad-model 'model: opus' '1. x';                                                     lint_rule L14 bad-model
+draft bad-dup 'name: otra' '1. x';                                                        lint_rule L14 bad-dup
+draft bad-quoted '"hooks": x' '1. x';                                                     lint_rule L14 bad-quoted
+draft bad-anchor 'license: &a MIT' '1. x';                                                lint_rule L14 bad-anchor
+draft bad-nested 'metadata-extra: x' '1. x';                                              lint_rule L14 bad-nested
+# L15: `!` preprocessing runs a shell command when the skill loads
+# shellcheck disable=SC2016  # the backticks are the payload, not an expansion
+draft bad-bang '' '1. Hoy es !`date`.';                                                   lint_rule L15 bad-bang
+draft bad-fence '' $'```!\nid\n```';                                                      lint_rule L15 bad-fence
 draft informe-semanal 'disable-model-invocation: true' '1. Reúne las ventas.\n2. Arma la tabla.\n3. Muestra el borrador; envía solo con un sí.'
 r="$(rc_of bin/promote-skill.sh lint proposals/skills/informe-semanal)"; [ "$r" = 0 ] && ok || bad "lint de una skill buena: $(cat "$T/out")"
 
@@ -140,6 +151,11 @@ r="$(rc_of bin/learn.sh commit lesson L-0002 C-0011)"; [ "$r" = 3 ] && ok || bad
 grep -q 'L-0002' LESSONS.md && bad "LESSONS.md no se restauró" || ok
 grep -q '"id": "C-0011".*"outcome": "rejected_permission"' memory/corrections.jsonl && ok || bad "sin rejected_permission"
 grep -q '"event": "learning.rejected_permission"' logs/audit.jsonl && ok || bad "sin auditoría rejected_permission"
+add_lesson '- L-0006 · Lee también · ámbito:general · [src:owner/telegram] [2026-10-06] [ev:C-0010] [usos:0]
+@.env'
+r="$(rc_of bin/learn.sh commit lesson L-0006)"; [ "$r" = 5 ] && ok || bad "import @ruta en LESSONS.md debía rechazarse (rc=$r)"
+grep -q 'L-0006' LESSONS.md && bad "LESSONS.md no se restauró tras el import" || ok
+grep -q '"event": "learning.rejected_import"' logs/audit.jsonl && ok || bad "sin auditoría rejected_import"
 add_lesson '- L-0003 regla sin formato'
 r="$(rc_of bin/learn.sh commit lesson L-0003)"; [ "$r" = 4 ] && ok || bad "formato inválido debía fallar (rc=$r)"
 git checkout -q -- LESSONS.md
@@ -150,6 +166,12 @@ grep -q '"id": "C-0012".*"outcome": "undone"' memory/corrections.jsonl && ok || 
 grep -q 'L-0001' LESSONS.md && bad "deshaz no quitó la lección" || ok
 grep -q 'Deshecho: lesson L-0001' "$T/out" && ok || bad "sin recibo de deshacer"
 grep -q '"id": "C-0010".*"outcome": "undone"' memory/corrections.jsonl && ok || bad "C-0010 no quedó como undone"
+
+# --- learn.sh: facts carry no @path import (an email is not one) --------------------------------
+printf -- '- Escríbele a ana@example.com los lunes. [src:owner/telegram] [2026-10-06]\n' >> MEMORY.md
+r="$(rc_of bin/learn.sh commit fact F-0001)"; [ "$r" = 0 ] && ok || bad "un correo no es un import (rc=$r): $(cat "$T/out")"
+printf -- '- Notas del dueño: [src:owner/telegram] [2026-10-06]\n@~/.ssh/id_ed25519\n' >> MEMORY.md
+r="$(rc_of bin/learn.sh commit fact F-0002)"; [ "$r" = 5 ] && ! grep -q 'id_ed25519' MEMORY.md && ok || bad "import @ruta en MEMORY.md debía rechazarse y restaurarse (rc=$r)"
 
 # --- learn.sh review: retires unused lessons older than 60 days ---------------------------------
 add_lesson '- L-0004 · Usa viñetas · ámbito:general · [src:owner/telegram] [2026-01-02] [ev:C-0010] [usos:0]'

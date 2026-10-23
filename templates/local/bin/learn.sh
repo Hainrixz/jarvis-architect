@@ -91,7 +91,7 @@ finally:
 PYEOF
 }
 
-check_change() {  # check_change <kind> <file>: exit 0 ok · 3 permission content · 4 format problem
+check_change() {  # check_change <kind> <file>: exit 0 ok · 3 permission content · 4 format problem · 5 @import
   local added
   added="$(git diff -U0 HEAD -- "$2" 2>/dev/null | grep -E '^\+[^+]' | cut -c2- || true)"
   [ -n "$added" ] || added="$( [ -n "$(git ls-files -- "$2")" ] || cat "$2" )"
@@ -105,6 +105,10 @@ else:  # validator sweep 15 deny-grep
     bad = re.compile(r"allowlist|sin preguntar|without asking|api[ _-]?key|token|permis|aprobaci[oó]n autom", re.I)
 if bad.search(added):
     sys.exit(3)
+# LESSONS.md and MEMORY.md are imported into every session: an added `@path` line would make the
+# runtime load another (unreviewed) file, or a secret, each time. Emails don't match (no space before @).
+if re.search(r"(?m)(?:^|\s)@\S", added):
+    sys.exit(5)
 text = open(path, encoding="utf-8").read()
 text = re.sub(r"<!--.*?-->", "", text, flags=re.S)
 problems = []
@@ -154,6 +158,11 @@ case "$cmd" in
       [ -n "$cid" ] && close_c "$cid" permission_request rejected_permission
       audit learning.rejected_permission "${cid:-$ref}" "" "$file"
       die "rechazado: lo aprendido nunca da permisos ni toca allowlists, llaves o aprobaciones (AGENTS.md §6). $file quedó como estaba." 3
+    fi
+    if [ "$rc" = 5 ]; then
+      if [ -n "$(git ls-files -- "$file")" ]; then git checkout -q HEAD -- "$file"; fi
+      audit learning.rejected_import "${cid:-$ref}" "" "$file"
+      die "rechazado: $file no lleva imports @ruta (cargarían otros archivos en cada sesión). $file quedó como estaba." 5
     fi
     [ "$rc" = 0 ] || exit 4
     git add -- "$file"

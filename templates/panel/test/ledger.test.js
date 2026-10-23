@@ -491,6 +491,14 @@ describe('Aprendizajes API', () => {
       assert.equal(r.status, 422);
       assert.equal(await fs.readFile(file, 'utf8'), before);
 
+      // learn.sh rejects an @path import (exit 5) -> 422 import_line, file restored the same way
+      await fs.writeFile(learn, 'echo "rechazado: import" >&2; exit 5\n');
+      j = await (await s.api('/api/learning')).json();
+      r = await s.api('/api/learning/lessons/L-0003/activate', { method: 'POST', body: { base_mtime: j.lessons.mtime_ms } });
+      assert.equal(r.status, 422);
+      assert.equal((await r.json()).error, 'import_line');
+      assert.equal(await fs.readFile(file, 'utf8'), before);
+
       // any other failure keeps the change and says it is not committed
       await fs.writeFile(learn, 'echo "la carpeta del Jarvis no es un repo git" >&2; exit 2\n');
       j = await (await s.api('/api/learning')).json();

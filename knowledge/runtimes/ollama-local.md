@@ -562,7 +562,7 @@ ollama list | grep -q "^${JARVIS_LOCAL_MODEL:-qwen3.6:27b}" && echo ok
 
 # 5. Context is >= 64K once loaded, and the model is not spilling to CPU
 ollama run "${JARVIS_LOCAL_MODEL:-qwen3.6:27b}" "Responde solo: OK" >/dev/null
-curl -fsS http://127.0.0.1:11434/api/ps | python3 -c '
+curl -fsS http://127.0.0.1:11434/api/ps | python3 -I -c '
 import json,sys; m=json.load(sys.stdin)["models"]
 assert m and all(x.get("context_length",0)>=64000 for x in m), "context < 64K"
 assert all(x["size_vram"]>=0.9*x["size"] for x in m), "spilling to CPU"' && echo ok
@@ -572,7 +572,7 @@ curl -fsS http://127.0.0.1:11434/api/chat -d '{"model":"'"${JARVIS_LOCAL_MODEL:-
  "messages":[{"role":"user","content":"What time is it in Mexico City? Use the tool."}],
  "tools":[{"type":"function","function":{"name":"get_time","description":"Current time in a city",
  "parameters":{"type":"object","properties":{"city":{"type":"string"}},"required":["city"]}}}]}' \
- | python3 -c 'import json,sys; assert json.load(sys.stdin)["message"].get("tool_calls"), "no tool call"' && echo ok
+ | python3 -I -c 'import json,sys; assert json.load(sys.stdin)["message"].get("tool_calls"), "no tool call"' && echo ok
 
 # 7. No cloud models installed (private mode)
 ! ollama list | grep -q ':cloud' && echo ok

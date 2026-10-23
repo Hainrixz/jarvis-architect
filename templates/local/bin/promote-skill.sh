@@ -100,6 +100,34 @@ else:
 def field(k):
     mm = re.search(r"^" + re.escape(k) + r":[ \t]*(.*)$", fm, re.M)
     return mm.group(1).strip().strip("'\"") if mm else None
+native = os.environ.get("JARVIS_LINT_NATIVE") == "1"   # skills a runtime wrote itself (Hermes skills-learned/)
+# L14: strict frontmatter grammar. This script runs outside the sandbox and the runtime loads every
+# key, so a learned skill may carry only known keys (hooks:, model:, context:, agent:, shell: would
+# give it powers). Column 0 holds only `key:` once; indented lines never start with YAML syntax that
+# builds hidden keys ("hooks":, ? hooks, <<:, {…}, anchors, aliases, tags); only description may be
+# a block scalar. Same rules as bin/hooks/protect-paths.sh. Native skills: only the risky keys.
+SKILL_KEYS = ("name", "description", "metadata", "allowed-tools", "disable-model-invocation", "argument-hint",
+              "created-by", "license", "source", "version", "probation")
+RISKY_KEYS = ("hooks", "model", "context", "agent", "shell", "permissions", "permissionMode")
+seen_keys = []
+for i, ln in enumerate(fm.split("\n"), 2):
+    if not ln.strip():
+        continue
+    if "\t" in ln or "\r" in ln or ln.strip() in ("---", "..."):
+        err("L14", f"SKILL.md:{i} frontmatter con tabulador, CR o separador YAML"); continue
+    if not ln.startswith(" "):
+        k = re.match(r"([A-Za-z-]+):( |$)", ln)
+        key = k.group(1) if k else ""
+        if native:
+            if not k or key in RISKY_KEYS:
+                err("L14", f"SKILL.md:{i} clave de frontmatter no permitida")
+        elif not k or key not in SKILL_KEYS or key in seen_keys:
+            err("L14", f"SKILL.md:{i} clave de frontmatter no permitida o repetida")
+        elif re.match(r"[a-z-]+:\s*[{[&*!|>]", ln) and key != "description":
+            err("L14", f"SKILL.md:{i} valor YAML con sintaxis no permitida")
+        seen_keys.append(key)
+    elif not native and ln.lstrip()[:1] in ("\"", "'", "?", "<", "{", "[", "&", "*", "!"):
+        err("L14", f"SKILL.md:{i} línea de frontmatter con sintaxis YAML no permitida")
 fname = field("name")
 if fname != name or not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name) or len(name) > 64:
     err("L02", "name debe ser igual a la carpeta (a-z, 0-9, guiones, ≤64)")
@@ -108,7 +136,6 @@ if name in protected or name.lower() in ("synced",) or name.startswith("anthropi
 desc = field("description") or ""
 if not (1 <= len(desc) <= 1024):
     err("L03", "description vacía o de más de 1024 caracteres")
-native = os.environ.get("JARVIS_LINT_NATIVE") == "1"   # skills a runtime wrote itself (Hermes skills-learned/)
 if not native and not re.search(r"^\s+created-by:\s*agent\s*$", fm, re.M):
     err("L12", "metadata.created-by: agent es obligatorio en una skill aprendida")
 # allowed-tools: never shell, writes, bare fetch, wildcards or send/spend tools
@@ -156,6 +183,9 @@ for dp, dns, fns in os.walk(d):
                 err("L10", f"{rel}:{i} caracteres invisibles o de dirección")
             if "<!--" in line:
                 err("L10", f"{rel}:{i} comentario HTML (instrucciones ocultas)")
+            # L15: `!` preprocessing runs a shell command when the skill loads, before any permission check
+            if re.search(r"!`|^\s*```!|^\s*!\s*\S", line):
+                err("L15", f"{rel}:{i} preprocesado de shell (!`…`, ```! o línea que empieza con !)")
             if re.search(r"[A-Za-z0-9+/]{120,}={0,2}", line):
                 err("L10", f"{rel}:{i} bloque tipo base64")
 if text.count("\n") > 500:
