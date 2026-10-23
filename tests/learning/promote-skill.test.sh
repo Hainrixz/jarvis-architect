@@ -165,5 +165,32 @@ ls memory/weekly/learning-*.md >/dev/null 2>&1 && ok || bad "sin reporte semanal
 git status --porcelain | grep -v '^??' | grep -q . && bad "review dejó cambios sin commit" || ok
 r="$(rc_of bin/learn.sh undo L-0004)"; [ "$r" = 0 ] && grep -q 'L-0004 · Usa viñetas · ámbito:general · \[src:owner/telegram\] \[2026-01-02\] \[ev:C-0010\] \[usos:0\]$' LESSONS.md && ok || bad "undo de la revisión: $(cat "$T/out")"
 
+# --- SEC-17: commits skip .git/hooks (--no-verify) but scan with gitleaks when it is installed ---
+# A stub gitleaks flags a marker word, so the test needs no real secret and no real gitleaks.
+mkdir -p "$T/fakebin"
+cat > "$T/fakebin/gitleaks" <<'STUB'
+#!/usr/bin/env bash
+case "$1" in
+  git) git diff --cached | grep -q 'MARCADOR-SECRETO' && exit 1; exit 0 ;;
+  dir) grep -rq 'MARCADOR-SECRETO' "$2" && exit 1; exit 0 ;;
+esac
+exit 0
+STUB
+chmod +x "$T/fakebin/gitleaks"
+printf '{"id":"C-0013","ts":"2026-10-06T10:20:00-06:00","session":"s","channel":"telegram","actor":"owner","trigger":"regex:correction","hint":"correction","quote":"firma así","class":null,"outcome":"pending","ref":null}\n' >> memory/corrections.jsonl
+git add -A && git commit -qm "pre-secret"
+add_lesson '- L-0006 · Firma con MARCADOR-SECRETO · ámbito:general · [src:owner/telegram] [2026-10-06] [ev:C-0013] [usos:0]'
+r="$(PATH="$T/fakebin:$PATH" rc_of bin/learn.sh commit lesson L-0006 C-0013)"; [ "$r" = 7 ] && ok || bad "lección con secreto debía rechazarse (rc=$r) $(cat "$T/out")"
+grep -q 'L-0006' LESSONS.md && bad "LESSONS.md no se restauró tras el secreto" || ok
+git log -1 --format=%s | grep -q 'L-0006' && bad "se hizo commit de un secreto" || ok
+git diff --cached --quiet && ok || bad "quedó algo en el índice tras el rechazo"
+grep -q '"event": "learning.rejected_secret"' logs/audit.jsonl && ok || bad "sin auditoría rejected_secret"
+grep -q '"id": "C-0013".*"outcome": "ignored"' memory/corrections.jsonl && ok || bad "C-0013 no quedó cerrada"
+add_lesson '- L-0007 · Firma con tu nombre · ámbito:general · [src:owner/telegram] [2026-10-06] [ev:C-0013] [usos:0]'
+r="$(PATH="$T/fakebin:$PATH" rc_of bin/learn.sh commit lesson L-0007)"; [ "$r" = 0 ] && ok || bad "lección limpia con gitleaks presente: $(cat "$T/out")"
+draft con-secreto '' '1. Usa MARCADOR-SECRETO en el encabezado.'
+r="$(JARVIS_MAX_PROMOTIONS_PER_DAY=99 PATH="$T/fakebin:$PATH" rc_of bin/promote-skill.sh promote con-secreto)"; [ "$r" = 7 ] && ok || bad "propuesta con secreto debía rechazarse (rc=$r) $(cat "$T/out")"
+[ -f proposals/skills/con-secreto/SKILL.md ] && [ ! -e skills/con-secreto ] && [ ! -e .claude/skills/con-secreto ] && ok || bad "la propuesta con secreto se movió a medias"
+
 echo "promote-skill.test.sh: $pass ok, $fail fallas"
 [ "$fail" = 0 ]

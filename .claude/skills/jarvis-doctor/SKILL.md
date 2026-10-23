@@ -22,7 +22,7 @@ Load the `jarvis-start` skill's rules (never read secrets; ask before any change
 | Runtime health | `claude doctor` · `hermes doctor` / `hermes --version` · `openclaw doctor` · `ollama list` |
 | Version ≥ security floor | compare installed version with the floor in the runtime file; floor broken = 🔴 |
 | Channel reachable | ask the owner to send "ping"; check the log line |
-| Allowlist intact | grep the channel config for wildcards / `open` policies (fail on any) |
+| Allowlist intact | grep the channel config for wildcards / `open` policies (fail on any). Claude Code, read-only: `python3 -I -c 'import json,os;a=json.load(open(os.path.expanduser("~/.claude/channels/telegram/access.json")));print(a["dmPolicy"],len(a["allowFrom"]),len(a.get("pending",{})),len(a.get("groups",{})))'` must print `allowlist 1 0 0` (`bin/telegram-access.sh` refuses to run inside Claude Code, so never call it from here; changes are the owner's, outside the session); after a plugin update, re-check that the plugin's `skills/access/SKILL.md` § State shape still matches what the script writes (drift = 🟡, tell the owner to pair by hand until fixed) |
 | Secrets not in git | `git -C <dir> ls-files | grep -E '\.env$|auth\.json|credentials'` must be empty |
 | Recent errors | last 50 log lines, summarised in ≤3 lines (never paste raw logs) |
 | Scheduled jobs | last run time of each job |
@@ -52,7 +52,7 @@ Load the `jarvis-start` skill's rules (never read secrets; ask before any change
    for d in skills/*/; do grep -q 'created-by: agent' "$d/SKILL.md" 2>/dev/null && { bin/promote-skill.sh lint "$d" >/dev/null || echo "lint fails: $d"; }; done
    grep '"learning.review"' logs/audit.jsonl | tail -1 | jq -r .ts
    # Media (knowledge/capabilities/multimodal.md)
-   command -v whisper-cli ffmpeg yt-dlp
+   for c in whisper-cli ffmpeg yt-dlp; do command -v "$c" >/dev/null || echo "missing $c"; done   # one name per call
    shasum -a 256 models/ggml-*.bin                               # compare with the runtime file's pin
    yt-dlp --version; gh api repos/yt-dlp/yt-dlp/releases/latest --jq .tag_name 2>/dev/null
    ls "${TMPDIR:-/tmp}" | grep -c '^jarvis-watch-'

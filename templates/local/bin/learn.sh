@@ -6,7 +6,8 @@
 #   bin/learn.sh commit <lesson|fact|retire|activate> <ref> [C-id]
 #                                    after the model edited LESSONS.md (lesson/retire/activate) or MEMORY.md
 #                                    (fact): checks it, commits only that file, audits learning.<kind>.
-#                                    A change that carries a permission is reverted (rejected_permission).
+#                                    A change that carries a permission is reverted (rejected_permission);
+#                                    one gitleaks flags as a secret is reverted too (exit 7, learning.rejected_secret).
 #   bin/learn.sh undo [ref]          "deshaz": git-reverts the newest learning commit (or the newest whose
 #                                    subject names <ref>: L-0007, C-0031, a skill name) → learning.undo
 #   bin/learn.sh review              weekly, deterministic, no model: retires lessons with usos:0 older than
@@ -42,6 +43,11 @@ PYEOF
 
 need_git() {
   git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "la carpeta del Jarvis no es un repo git (paso 1 de questions/4-construir.md)" 2
+}
+secret_scan() {  # SEC-17: 0 = staged changes clean (or gitleaks not installed) · 1 = refuse. Commits below
+  # use --no-verify so no arbitrary .git/hooks run; this explicit scan replaces the pre-commit hook.
+  command -v gitleaks >/dev/null 2>&1 || return 0
+  gitleaks git --pre-commit --staged --redact --no-banner >/dev/null 2>&1
 }
 idargs() { [ -n "$(git config user.email 2>/dev/null || true)" ] || printf '%s\n' -c user.name=Jarvis -c user.email=jarvis@localhost; }
 git_id() {  # git with a fallback identity when none is configured
@@ -158,6 +164,13 @@ case "$cmd" in
     [ "$rc" = 0 ] || exit 4
     git add -- "$file"
     if git diff --cached --quiet -- "$file"; then echo "sin cambios en $file"; exit 0; fi
+    if ! secret_scan; then
+      git reset -q -- "$file"
+      if [ -n "$(git ls-files -- "$file")" ]; then git checkout -q HEAD -- "$file"; fi
+      [ -n "$cid" ] && close_c "$cid" keep ignored
+      audit learning.rejected_secret "${cid:-$ref}" "" "$file"
+      die "rechazado: $file traía algo que parece una llave, token o contraseña (gitleaks). Quedó como estaba; los secretos nunca van en la memoria." 7
+    fi
     msg="learning: $kind $ref"; [ -n "$cid" ] && msg="$msg ($cid)"
     git_id commit -q --no-verify -m "$msg" -- "$file" >/dev/null
     sha="$(git rev-parse --short HEAD)"
@@ -317,9 +330,14 @@ PYEOF
     snap=(LESSONS.md "$path"); [ -d skills-learned ] && snap+=(skills-learned)
     git add -A -- "${snap[@]}" 2>/dev/null || true
     if ! git diff --cached --quiet -- "${snap[@]}" 2>/dev/null; then
-      msg="learning: weekly review $(basename "$path" .md)"; [ -n "$retired" ] && msg="$msg retire $retired"
-      git_id commit -q --no-verify -m "$msg" -- "${snap[@]}" >/dev/null 2>&1 || true
-      sha="$(git rev-parse --short HEAD)"
+      if secret_scan; then
+        msg="learning: weekly review $(basename "$path" .md)"; [ -n "$retired" ] && msg="$msg retire $retired"
+        git_id commit -q --no-verify -m "$msg" -- "${snap[@]}" >/dev/null 2>&1 || true
+        sha="$(git rev-parse --short HEAD)"
+      else
+        git reset -q -- "${snap[@]}" 2>/dev/null || true
+        audit learning.rejected_secret "$(basename "$path" .md)" "" "weekly snapshot not committed"
+      fi
     fi
     audit learning.review "$(basename "$path" .md)" "$sha" "retired=${retired:-none}"
     echo "$path" ;;

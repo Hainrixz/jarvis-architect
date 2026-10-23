@@ -242,6 +242,12 @@ case "$cmd" in
         || die "no puedo escribir en $d (en Claude Code el sandbox protege .claude/skills: bin/promote-skill.sh y bin/learn.sh van en sandbox.excludedCommands de launch-settings.json y headless-settings.json); nada cambió, la propuesta sigue en $src" 6
       rm -f -- "$probe"
     done
+    # SEC-17: commits here use --no-verify (no arbitrary .git/hooks), so scan the proposal before
+    # anything moves. Skipped only when gitleaks isn't installed.
+    if command -v gitleaks >/dev/null 2>&1 && ! gitleaks dir "$src" --redact --no-banner >/dev/null 2>&1; then
+      audit learning.rejected_secret "$name" "" "$src"
+      die "la propuesta $src trae algo que parece una llave, token o contraseña (gitleaks); nada cambió. Quítalo y vuelve a intentar" 7
+    fi
     paths=()
     for d in $(live_dirs); do
       mkdir -p "$d"

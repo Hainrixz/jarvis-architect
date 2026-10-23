@@ -285,7 +285,7 @@ jobs:
         run: |
           shellcheck --version | head -2
           shellcheck -s bash templates/local/bin/*.sh templates/local/bin/hooks/*.sh \
-            templates/skills-base/*/scripts/*.sh tests/learning/*.sh tests/media/run.sh
+            templates/skills-base/*/scripts/*.sh tests/learning/*.sh tests/channels/*.sh tests/media/run.sh
           python3 -I -c "import ast,sys;[ast.parse(open(p).read(),p) for p in sys.argv[1:]]" \
             templates/skills-base/watch-video/scripts/watch.py tests/autonomy/parse_tasks.py
 
@@ -303,6 +303,9 @@ jobs:
           bash tests/learning/capture.test.sh
           bash tests/learning/protect-paths.test.sh
           bash tests/learning/promote-skill.test.sh
+
+      - name: Channels (owner-only Telegram access script)
+        run: bash tests/channels/telegram-access.test.sh
 
   media:
     name: Media pipeline (skips what the runner lacks)

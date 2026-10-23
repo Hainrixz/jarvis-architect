@@ -114,6 +114,11 @@ owner message (allowlisted channel) ──► capture ──► classify (skill 
   the 60-line cap. It commits only `LESSONS.md` (`learning: lesson L-0007 (C-0031)`), closes the
   record and appends `learning.lesson` to the audit. A lesson that carries a permission is
   **reverted from git on the spot**, closed `rejected_permission` and audited, exit 3.
+- **Secrets (SEC-17):** the scripts commit with `--no-verify` so no arbitrary `.git/hooks` run, and
+  scan explicitly instead when `gitleaks` is installed: `learn.sh commit` scans the staged change
+  (a hit is reverted, the record closed `ignored`, `learning.rejected_secret` audited, exit 7),
+  `learn.sh review` leaves a flagged weekly snapshot uncommitted, and `promote-skill.sh promote`
+  scans the proposal folder before anything moves (exit 7, nothing changes).
 - **Fact:** `remember` writes `MEMORY.md`, then `bin/learn.sh commit fact <tema> C-0031`.
 - **"deshaz":** `bin/learn.sh undo [L-0007|skill-name|C-0031]` finds the newest learning commit
   (or the newest naming the ref) that was not already reverted, runs `git revert`, commits

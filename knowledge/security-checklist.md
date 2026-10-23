@@ -131,8 +131,9 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
 - *Why:* Strangers who find the bot get the agent's tools (ASI03). Consumer Terms forbid making
   an account available to others (https://www.anthropic.com/legal/consumer-terms).
 - **How:**
-  - CC: pair, then `/telegram:access policy allowlist` (the plugin drops non-allowlisted senders
-    silently, https://code.claude.com/docs/en/channels).
+  - CC: pair, then set policy `allowlist` with `bin/telegram-access.sh` from a terminal outside
+    the session (the plugin drops non-allowlisted senders silently,
+    https://code.claude.com/docs/en/channels; why outside: SEC-04).
   - HER: `TELEGRAM_ALLOWED_USERS=123456789` (also `DISCORD_ALLOWED_USERS`,
     `WHATSAPP_CLOUD_ALLOWED_USERS`, `WHATSAPP_ALLOWED_USERS`, `GATEWAY_ALLOWED_USERS`). Never
     `GATEWAY_ALLOW_ALL_USERS`, `WHATSAPP_ALLOW_ALL_USERS` or `WHATSAPP_CLOUD_ALLOW_ALL_USERS`
@@ -189,7 +190,11 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
 - *Why:* "Never approve a pairing request that arrived through the bot itself"
   (https://code.claude.com/docs/en/channels). This is a social-engineering route (ASI09).
 - **How:**
-  - CC: run `/telegram:access` only in the local session.
+  - CC: the owner runs `bin/telegram-access.sh` (from `templates/local/bin/`) in a terminal
+    **outside** the Jarvis session. Inside the session, `guard.sh`, `protect-paths.sh` and the
+    sandbox deny every write to `access.json`, so `/telegram:access pair|policy` fails there by
+    design; the script refuses to run when `CLAUDECODE` is set and `Bash(*telegram-access*)` is
+    denied.
   - HER: approve pairing codes in the CLI (codes expire after 1 h and lock out after 5 failures,
     per Hermes docs).
   - OC: approve pairing in the CLI or local UI.
@@ -295,9 +300,9 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
     Add the ask rule `Bash(dangerouslyDisableSandbox:true)`. Add deny rules for `Bash(rm -rf *)`,
     `Bash(git push --force*)`, `Bash(curl * | *sh*)`, `Bash(sudo *)`. A `PreToolUse` hook that
     exits 2 blocks the rest (https://code.claude.com/docs/en/hooks). Also set
-    `permissions.disableBypassPermissionsMode: true` so nobody can enter bypass mode
-    (https://code.claude.com/docs/en/settings-reference, checked 2026-10-06; older docs showed
-    the string `"disable"`, so use whatever the runtime file pins).
+    `permissions.disableBypassPermissionsMode: "disable"` (type: the string `"disable"`, not a
+    boolean) so nobody can enter bypass mode and `--dangerously-skip-permissions` is rejected
+    (https://code.claude.com/docs/en/settings-reference, checked 2026-10-22).
   - SDK: a PreToolUse hook denial **applies even in `bypassPermissions` mode**, so it is the
     hard policy layer (https://code.claude.com/docs/en/agent-sdk/permissions).
   - HER: `approvals.mode: manual` or `smart`, **never `off`**, plus `approvals.deny` glob
@@ -536,8 +541,15 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
     first lines, and the person runs it with `! bash .jarvis/cache/<file>`.
   - Project settings deny `sudo` and pipe-to-shell.
 - **Check:** grep `tasks.json`, scripts and docs for `curl[^|\n]*\|\s*(ba)?sh`,
-  `wget[^|\n]*\|\s*(ba)?sh`, `irm[^|\n]*\|\s*iex`, `\bsudo\s`. Any hit in a command the agent
-  runs → BLOCKER. A hit inside a "do not do this" warning is fine.
+  `wget[^|\n]*\|\s*(ba)?sh`, `irm[^|\n]*\|\s*iex`, `\bsudo\s`.
+  - Pipe-to-shell anywhere (agent, script, job, or a command the person is told to type) →
+    BLOCKER.
+  - `sudo` in a command the agent runs, or in a script or scheduled job → BLOCKER.
+  - `sudo` in a command the **person** types themselves is fine when it is an OS package manager
+    or system step that a runtime or deploy file prescribes (`sudo apt install …`,
+    `sudo apt install --only-upgrade claude-code`, `sudo loginctl enable-linger`, editing
+    `/etc/wsl.conf`). Any other person-typed `sudo` → MAJOR.
+  - A hit inside a "do not do this" warning is fine.
 - **Grade:** BLOCKER (sweep 6).
 
 ### I. Cost & abuse limits
@@ -822,7 +834,7 @@ something the owner does in a browser or terminal. Jarvis never runs them on its
 
 | Control area | Claude Code (CC) | Agent SDK | Hermes | OpenClaw | Railway (host) |
 |---|---|---|---|---|---|
-| Allowlist (01) | `/telegram:access policy allowlist` | `from.id` check in code | `TELEGRAM_ALLOWED_USERS` etc. | `dmPolicy: allowlist` + `allowFrom` | — |
+| Allowlist (01) | `bin/telegram-access.sh policy allowlist` (owner, outside the session) | `from.id` check in code | `TELEGRAM_ALLOWED_USERS` etc. | `dmPolicy: allowlist` + `allowFrom` | — |
 | Sandbox (07–09) | `sandbox.enabled` + `allowUnsandboxedCommands:false` + `failIfUnavailable:true` + `denyRead` + `allowedDomains` | container, non-root | `terminal.backend: docker`, SSRF block | `agents.defaults.sandbox.mode` + Docker | container per service |
 | Hard deny (10) | `permissions.deny` + PreToolUse hook | PreToolUse hook (wins over bypass) | hardline blocklist + `approvals.deny` | tool policy, no `tools.elevated` | — |
 | Approval (14–15) | `permissions.ask` + channel permission relay; cron: `dontAsk` + `--allowedTools` | `canUseTool`; jobs: `dontAsk` | `approvals.mode: manual`; `cron_mode: deny` | approval policy (key: check live) | — |
@@ -863,7 +875,7 @@ applicable. SEC-11, 14, 22, 24, 27 and 32 still apply to its connectors and sche
 - https://code.claude.com/docs/en/channels
 - https://code.claude.com/docs/en/hooks
 - https://code.claude.com/docs/en/cli-reference (fetched 2026-10-06: `claude auth logout`, `--max-budget-usd`, `--max-turns`)
-- https://code.claude.com/docs/en/settings-reference (fetched 2026-10-06: `permissions.disableBypassPermissionsMode`, sandbox keys)
+- https://code.claude.com/docs/en/settings-reference (fetched 2026-10-06: sandbox keys; re-checked 2026-10-22: `permissions.disableBypassPermissionsMode` type is the string `"disable"`)
 - https://code.claude.com/docs/en/agent-sdk/cost-tracking (fetched 2026-10-06: `maxBudgetUsd` / `max_budget_usd`)
 - https://platform.claude.com/settings/keys
 - https://code.claude.com/docs/en/agent-sdk/permissions

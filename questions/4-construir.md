@@ -37,7 +37,10 @@ Write `.jarvis/tasks.json`:
   4. Provider spend cap set (user_action) **before** the first model call. Subscription runtimes:
      "Extra usage" off, postcondition `person-confirmed` (logged with date in spec §7). Skipped only
      for `ollama-local` with no cloud key (SEC-27 N/A, SEC-28 limits instead).
-  5. Owner-only allowlist on every channel, proven by a rejection test.
+  5. Owner-only allowlist on every channel, proven by a rejection test (a done task whose verify
+     is that test: a second account gets no reply). Claude Code tracks pair with
+     `bin/telegram-access.sh` (copied from `templates/local/bin/` before the pairing task) in a
+     terminal **outside** the session; `/telegram:access pair|policy` fails inside it by design.
   6. Human-approval gate for irreversible actions (send, pay, delete, post, stamp an invoice).
   7. Sandbox / permission profile for the runtime (see its *Security hardening* section).
   8. At least one scheduled job.
@@ -85,8 +88,9 @@ Write `.jarvis/tasks.json`:
       `JARVIS_WHISPER_MODEL`, `JARVIS_STT_CLOUD=off` (or the consented vendor), and
       `JARVIS_SENSITIVE_PACK=1` for `health`, `lawyer-accountant` and minors' packs. Hermes uses
       its native `stt.provider: local`, OpenClaw `tools.media.audio` with `whisper-cli` first.
-      Verify: `command -v ffmpeg whisper-cli yt-dlp`, the hash matches, and
-      `grep -qE '[0-9a-f]{64}' RUNBOOK.md`.
+      Verify: `for c in ffmpeg whisper-cli yt-dlp; do command -v "$c" >/dev/null || exit 1; done`
+      (one name per call: `command -v a b c` exits 0 as long as the **last** name exists, so it
+      hides a missing tool), the hash matches, and `grep -qE '[0-9a-f]{64}' RUNBOOK.md`.
 
 Show the person the task list as a short numbered list (titles only), mark the ones that need
 them with 👤, and say the estimated time. Then start.

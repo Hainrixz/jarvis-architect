@@ -191,13 +191,15 @@ store them as numbers or strings, never as 32-bit ints.
 | Email | The owner's address + sender authentication check | — |
 
 **Never approve a pairing request that arrived through the bot itself** — approvals happen in the
-local terminal only ([channels](https://code.claude.com/docs/en/channels); SEC-04).
+owner's own terminal only, outside the Jarvis session on Claude Code
+([channels](https://code.claude.com/docs/en/channels); SEC-04).
 
 ### Per runtime
 
 | Runtime | Telegram | Discord / Slack | Check |
 |---|---|---|---|
-| `claude-code-local` / `claude-code-server` | Token file `~/.claude/channels/telegram/.env` written by the person in an editor (never `/telegram:configure <token>`: it puts the token in the transcript) → `claude --channels plugin:telegram@claude-plugins-official` → DM bot → `/telegram:access pair <code>` typed in the local terminal → **`/telegram:access policy allowlist`** | `/discord:access pair <code>` → `/discord:access policy allowlist` | Rejection test (below). Access file: `~/.claude/channels/<plugin>/access.json` (per the plugin's ACCESS.md; `runtimes/claude-code-local.md` § Channels) |
+| `claude-code-local` | Token file `~/.claude/channels/telegram/.env` written by the person in an editor (never `/telegram:configure <token>`: it puts the token in the transcript) → `claude --channels plugin:telegram@claude-plugins-official` → DM bot → in a terminal **outside** the session: `bin/telegram-access.sh status` (compare the code) → `bin/telegram-access.sh pair <code>` → **`bin/telegram-access.sh policy allowlist`**. `/telegram:access pair|policy` fails inside the session by design (the Jarvis can't edit its own allowlist) | Discord: same script with `TELEGRAM_STATE_DIR=~/.claude/channels/discord` (shape **UNVERIFIED**, see `runtimes/claude-code-local.md` § Channels) | Rejection test (below). Access file: `~/.claude/channels/<plugin>/access.json` (per the plugin's ACCESS.md; `runtimes/claude-code-local.md` § Channels) |
+| `claude-code-server` | Static `access.json` written from `OWNER_TELEGRAM_ID` with `TELEGRAM_ACCESS_MODE=static`: no pairing on the server (`runtimes/claude-code-server.md` § Channels) | `/discord:access pair <code>` from the `railway ssh` terminal → `/discord:access policy allowlist` | Rejection test (below) |
 | `hermes` | `TELEGRAM_ALLOWED_USERS=123456789` in `~/.hermes/.env` (0600) | `DISCORD_ALLOWED_USERS`, `SLACK_ALLOWED_USERS=U01ABC2DEF3`; `GATEWAY_ALLOWED_USERS` as catch-all. Pairing: `hermes pairing approve <platform> <code>`, `hermes pairing list`, `hermes pairing revoke` | Default denies anyone not allowlisted or paired ([Hermes messaging](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/)). **Never** `GATEWAY_ALLOW_ALL_USERS=true` |
 | `openclaw` | `channels.telegram.dmPolicy: "allowlist"` + `allowFrom: [123456789]` (numeric; `tg:` prefix normalised). Start with `pairing` (default) to learn the ID, then switch to `allowlist` | Same keys per channel (`dmPolicy`, `allowFrom`, `groupPolicy`, `requireMention`) | `openclaw doctor --fix` converts old `@username` entries to numeric IDs; `openclaw security audit`. **Never** `dmPolicy: "open"` or `allowFrom: ["*"]` ([access control](https://docs.openclaw.ai/channels/telegram/access-control)) |
 | `claude-agent-sdk` (own adapter) | Hard-coded check on `message.from.id` against `OWNER_TELEGRAM_ID` env var **before** any model call; drop silently and log the denial | Same for Discord user ID / Slack member ID | Unit test with a fake update from another ID |
