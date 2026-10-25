@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Jarvis Panel — frontend.
 // Plain ES module, no build step, no CDN. Loaded with CSP default-src 'self'.
 // Rules this file keeps:

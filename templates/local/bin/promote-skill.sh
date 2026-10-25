@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # bin/promote-skill.sh: the only way a learned skill goes live. Deterministic: no model involved.
 # Canonical copy: templates/local/bin/ in Jarvis Architect. Rules: knowledge/capabilities/learning.md
 # § Skills that write themselves, knowledge/capabilities/skills.md § 6, SEC-36.

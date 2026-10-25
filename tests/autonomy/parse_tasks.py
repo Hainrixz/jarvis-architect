@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 """Validate Jarvis TASKS.md files against the one task grammar.
 
 Usage:  python3 -I tests/autonomy/parse_tasks.py [--template] [--json] FILE [FILE ...]

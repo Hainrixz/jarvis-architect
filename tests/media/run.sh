@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # tests/media/run.sh — offline tests for the transcribe and watch-video skills.
 #
 #   bash tests/media/run.sh

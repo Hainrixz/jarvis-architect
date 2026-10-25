@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // agent-sdk adapter: Claude Agent SDK (@anthropic-ai/claude-agent-sdk), for servers.
 // The SDK is an OPTIONAL dependency: the architect runs `npm install @anthropic-ai/claude-agent-sdk`
 // inside panel/ only when this adapter is chosen. It authenticates with ANTHROPIC_API_KEY from

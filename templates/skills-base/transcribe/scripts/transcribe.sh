@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # transcribe.sh: voice note or recording -> text, local first (whisper.cpp + ffmpeg).
 # Part of the Jarvis `transcribe` skill (templates/skills-base/transcribe/SKILL.md).
 # Rules: knowledge/capabilities/multimodal.md, SEC-38. bash 3.2 compatible (macOS).

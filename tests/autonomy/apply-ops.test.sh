@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # tests/autonomy/apply-ops.test.sh: fixture tests for the autonomy write path.
 #   1. parse_tasks.py accepts the template and good fixtures, rejects every bad-*.md fixture;
 #   2. apply-ops.sh applies every fixtures/ops/ok-*.json (exit 0, TASKS.md still parses);

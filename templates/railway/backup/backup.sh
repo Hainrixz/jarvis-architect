@@ -1,4 +1,7 @@
 #!/bin/sh
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # backup/backup.sh — dump the pgvector database to the Railway bucket, prune old dumps, exit.
 # Needs: DATABASE_URL (reference to pgvector DATABASE_URL_PRIVATE), AWS_ACCESS_KEY_ID,
 # AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION, ENDPOINT, BUCKET, BACKUP_RETENTION_DAYS.

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # bin/learn.sh: the learning ledger. Every learning change is checked, git-committed, audited and undoable.
 # Canonical copy: templates/local/bin/ in Jarvis Architect. Rules: knowledge/capabilities/learning.md, SEC-36/37.
 #

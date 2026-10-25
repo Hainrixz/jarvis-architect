@@ -10,6 +10,7 @@ description: >-
   una acción L3", "enséñale una skill", "agrega video", "que entienda audios".
 argument-hint: "[what to add]"
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 
 # /jarvis-add
 

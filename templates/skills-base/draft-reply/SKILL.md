@@ -5,6 +5,7 @@ license: MIT
 metadata:
   source: jarvis-architect/templates/skills-base
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 <!--
 TEMPLATE — filled by .claude/agents/workspace-writer.md; delete this comment block when copying.
 Variables: {{owner_first_name}} owner's first name · {{signature}} how the owner signs, e.g.

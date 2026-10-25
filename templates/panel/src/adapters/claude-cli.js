@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // claude-cli adapter: runs the owner's own, unmodified `claude` binary inside JARVIS_HOME.
 //
 // Auth: this uses whatever login the owner already has on THIS machine (Claude subscription

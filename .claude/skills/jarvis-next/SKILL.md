@@ -6,6 +6,7 @@ description: >-
   "resume my build". ES — "sigue", "siguiente paso", "continuamos", "dónde me quedé".
 argument-hint: "[--list | --task T07 | --done T07]"
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 
 # /jarvis-next — continue the build
 

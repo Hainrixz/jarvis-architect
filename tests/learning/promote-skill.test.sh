@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # tests/learning/promote-skill.test.sh: promote-skill.sh lint rules, automatic promotion on probation,
 # owner-skill protection, rate limit, probation end, retire; learn.sh commit / permission rejection /
 # undo / weekly review. Uses a throwaway git repo. Offline. Run: bash tests/learning/promote-skill.test.sh

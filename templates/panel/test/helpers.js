@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Shared test helpers: temp JARVIS_HOME + in-process server on a random loopback port.
 import fs from 'node:fs/promises';
 import os from 'node:os';

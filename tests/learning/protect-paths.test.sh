@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # tests/learning/protect-paths.test.sh: protect-paths.sh (PreToolUse) denies writes to the owner's rule
 # files, live skills, settings, jobs, approvals and the learning scripts; lets learning write LESSONS.md,
 # MEMORY.md, memory/ and proposals/; blocks permission content in lessons; enforces skill probation.

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Jarvis Panel — password login, session cookies, rate limiting and CSRF.
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';

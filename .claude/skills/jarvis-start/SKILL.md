@@ -13,6 +13,7 @@ argument-hint: "[optional: what you do and what you want your Jarvis for]"
 # allowed-tools is deliberately omitted: that grant is turn-scoped and cannot cover a multi-turn
 # interview. The session's normal permissions (.claude/settings.json) apply instead.
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 
 # Jarvis Architect
 

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Jarvis Panel — file operations inside JARVIS_HOME: memory, jobs, approvals, audit log.
 // Every path is built from a fixed allowlist or a validated id; nothing from the request
 // is ever joined into a path unchecked.

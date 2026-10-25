@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 """watch.py: give Jarvis eyes and ears on a video (URL or local file), local first.
 
 Part of the Jarvis `watch-video` skill (templates/skills-base/watch-video/SKILL.md).
@@ -382,7 +385,7 @@ def audit(event):
 
 def main(argv):
     load_dotenv()
-    ap = argparse.ArgumentParser(prog="watch.py", add_help=True)
+    ap = argparse.ArgumentParser(epilog='Hecho por Enrique Rocha (@soyenriquerocha) · tododeia.com', prog="watch.py", add_help=True)
     ap.add_argument("--detail", choices=["transcript", "balanced", "visual"], default="transcript")
     ap.add_argument("--start")
     ap.add_argument("--end")

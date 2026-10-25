@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // openai-compatible adapter: POST {base}/chat/completions with stream:true.
 // Works with the Hermes API server (http://127.0.0.1:8642/v1, key = API_SERVER_KEY),
 // Ollama (http://127.0.0.1:11434/v1, no key) and LM Studio. Conversation history lives in

@@ -6,6 +6,7 @@ description: >-
   ES — "hazlo ya", "rápido", "arma mi Jarvis sin tantas preguntas", "modo express".
 argument-hint: "[what you do + what Jarvis should do]"
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 
 # Jarvis Architect — modo express
 

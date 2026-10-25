@@ -7,6 +7,7 @@ description: >-
   "revisa versiones".
 argument-hint: "[runtime id | models | policies | all]"
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 
 # /jarvis-refresh
 

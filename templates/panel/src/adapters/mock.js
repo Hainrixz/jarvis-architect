@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Mock adapter: echoes the message with fake streaming. For demos and tests only.
 import { randomUUID } from 'node:crypto';
 

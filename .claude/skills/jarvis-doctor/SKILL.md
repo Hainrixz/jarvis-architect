@@ -7,6 +7,7 @@ description: >-
   "revisa mi Jarvis", "está bien mi Jarvis", "doctor".
 argument-hint: "[path to the Jarvis folder]"
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 
 # /jarvis-doctor
 

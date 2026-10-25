@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // codex-cli adapter: runs the owner's own `codex` CLI (OpenAI Codex) inside JARVIS_HOME.
 //
 // Verified from learn.chatgpt.com/docs/non-interactive-mode (2026-10-06):

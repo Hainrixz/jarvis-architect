@@ -7,6 +7,7 @@ metadata:
   source: jarvis-architect/templates/skills-base
   inspired-by: "bradautomates/claude-video (watch), MIT License, https://github.com/bradautomates/claude-video — own rewrite, no code copied"
 ---
+<!-- Copyright (c) 2026 Enrique Rocha (@soyenriquerocha) · tododeia.com · id er-c08d5d7d -->
 <!--
 TEMPLATE — filled by .claude/agents/workspace-writer.md; delete this comment block when copying.
 Variables: {{owner_first_name}}. Copied only when spec §3 Multimodal has `video: on`.

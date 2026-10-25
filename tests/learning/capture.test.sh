@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # tests/learning/capture.test.sh: capture-correction.sh (UserPromptSubmit) and learn-nudge.sh (Stop).
 # 20 owner phrases ES/EN (positive and negative) plus channel, group, unattended, redaction,
 # repeat and nudge cases. Offline, no model, no keys. Run: bash tests/learning/capture.test.sh

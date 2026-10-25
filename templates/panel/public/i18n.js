@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Jarvis Panel — all UI strings in one place.
 // Spanish is the default. To add a language, copy the `es` block and translate.
 // Placeholders use {name} and are filled by t(key, {name: "..."}).

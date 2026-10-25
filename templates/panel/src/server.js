@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Jarvis Panel — HTTP server (Hono on Node). Run: npm start (reads panel/.env if present).
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';

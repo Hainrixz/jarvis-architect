@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # bin/hooks/protect-paths.sh: Claude Code PreToolUse hook (matcher "Write|Edit|MultiEdit|NotebookEdit|Bash|Skill").
 # Canonical copy: templates/local/bin/hooks/ in Jarvis Architect. Rules: knowledge/capabilities/learning.md,
 # AGENTS.md §6, SEC-36 in knowledge/security-checklist.md.

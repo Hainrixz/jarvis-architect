@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Pendientes (TASKS.md + autopilot) and Aprendizajes (LESSONS.md + learned skills).
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';

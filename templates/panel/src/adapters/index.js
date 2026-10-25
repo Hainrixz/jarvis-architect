@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+// SPDX-License-Identifier: MIT
+// id: er-c08d5d7d
 // Adapter factory. Every adapter implements:
 //   { name, async health() -> {ok, detail},
 //     async *chat({message, sessionId, signal}) yields {type:'delta', text} ... then {type:'done', sessionId} }

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Enrique Rocha (@soyenriquerocha)
+# SPDX-License-Identifier: MIT
+# id: er-c08d5d7d
 # jobs/apply-ops.sh: apply one autopilot ops block to TASKS.md, all or nothing.
 # Canonical copy: templates/local/jobs/apply-ops.sh (rules: knowledge/capabilities/autonomy.md).
 # Installed verbatim into every Jarvis that writes TASKS.md through a scheduled job, chmod 700.
