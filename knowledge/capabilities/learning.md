@@ -113,7 +113,11 @@ owner message (allowlisted channel) ──► capture ──► classify (skill 
   The script checks the added lines against the sweep-15 deny-grep, the line format, unique ids and
   the 60-line cap. It commits only `LESSONS.md` (`learning: lesson L-0007 (C-0031)`), closes the
   record and appends `learning.lesson` to the audit. A lesson that carries a permission is
-  **reverted from git on the spot**, closed `rejected_permission` and audited, exit 3.
+  **reverted from git on the spot**, closed `rejected_permission` and audited, exit 3. An added
+  `@path` line (a Claude Code import: `LESSONS.md` and `MEMORY.md` load into every session, so it
+  would pull in another file or a secret each time) is reverted the same way, audited
+  `learning.rejected_import`, exit 5. `protect-paths.sh` already denies the edit that adds one to
+  `LESSONS.md`, `MEMORY.md`, `USER.md` or `memory/`; the script is the second check.
 - **Fact:** `remember` writes `MEMORY.md`, then `bin/learn.sh commit fact <tema> C-0031`.
 - **"deshaz":** `bin/learn.sh undo [L-0007|skill-name|C-0031]` finds the newest learning commit
   (or the newest naming the ref) that was not already reverted, runs `git revert`, commits
@@ -159,6 +163,12 @@ instead, and probation plus undo as the safety net.
 | L10 | Invisible or bidi Unicode, HTML comments, base64-looking blobs |
 | L12 | `metadata.created-by: agent` missing |
 | L13 | `SKILL.md` > 500 lines, > 20 files or > 64 KB |
+| L14 | Frontmatter outside the strict grammar: a top-level key not in `name description metadata allowed-tools disable-model-invocation argument-hint created-by license source version probation` (so no `hooks:`, `model:`, `context:`, `agent:`, `shell:`), a repeated key, tabs or CR, an indented line starting with YAML syntax (`"`, `'`, `?`, `<`, `{`, `[`, `&`, `*`, `!`), or a non-description value starting with `{ [ & * ! \| >`. Native runtime skills (`JARVIS_LINT_NATIVE=1`) are checked only for the risky keys |
+| L15 | `!` preprocessing anywhere: `` !`cmd` ``, a ```` ```! ```` block, or a line starting with `!` (Claude Code runs it when the skill loads, before any permission check) |
+
+`protect-paths.sh` adds one rule before the script runs: when Jarvis calls `promote-skill.sh promote <name>`,
+the proposal must be exactly `SKILL.md` (+ `PROPOSAL.md`), no folders, links or other files, and it
+re-checks L14/L15 on it. Live learned skills are one file; supporting files stay an owner decision.
 
 **Probation.** A promoted skill carries `.probation` until the owner has used it once in an attended
 session. `protect-paths` (matcher includes `Skill`) **denies** it in unattended runs, and its first
@@ -191,7 +201,7 @@ with a commit; `bin/learn.sh undo <name>` reverts either a promotion or a retire
 | Nudges (`memory.nudge_interval`, `skills.creation_nudge_interval`) and the background self-improvement review | Periodically ask the agent what to save | `learn-nudge.sh` (Stop) + the weekly review |
 | `skill_manage` (create / edit / patch / delete) + `/learn` | Procedural memory: the agent writes its own skills | Skill `learn` § 3 → `promote-skill.sh` |
 | `skills.write_approval` (default `false`) | `true` stages every write in `~/.hermes/pending/skills/` (`/skills pending`, `/skills approve <id>`) | Off by owner decision: automatic, guarded, undoable |
-| `skills.guard_agent_created` (default `false`) | Scans agent-created skills for dangerous patterns, independent of approval | The lint L01–L13 |
+| `skills.guard_agent_created` (default `false`) | Scans agent-created skills for dangerous patterns, independent of approval | The lint L01–L15 |
 | Curator (`curator.enabled`, `interval_hours: 168`, `stale_after_days`, `archive_after_days`, `consolidate: false`) | Marks unused agent-created skills stale, archives them (never deletes; `hermes curator restore`), report in `~/.hermes/logs/curator/<ts>/REPORT.md` ([curator](https://hermes-agent.nousresearch.com/docs/user-guide/features/curator)) | `learn.sh review` retires unused lessons; `promote-skill.sh retire` |
 | `~/.hermes/skills/.usage.json` (`created_by: agent`) | Ledger of who created what | Git log `learning:` + `logs/audit.jsonl` |
 
@@ -329,6 +339,8 @@ jq -e '.autoMemoryEnabled==false and (.hooks.UserPromptSubmit|length>0) and (.ho
 grep -q '^@LESSONS.md' CLAUDE.md
 # no permission content in lessons (sweep 15)
 ! grep -Eiq 'allowlist|sin preguntar|without asking|api[ _-]?key|token|permis|aprobaci[oó]n autom' LESSONS.md
+# no @path imports in the files that load into every session (sweep 17)
+! grep -Eq '(^|[[:space:]])@[^[:space:]]' LESSONS.md MEMORY.md USER.md memory/*.md 2>/dev/null
 # every lesson line carries provenance and evidence
 ! grep -E '^- L-' LESSONS.md | grep -Ev '\[src:[^]]+\] \[[0-9]{4}-[0-9]{2}-[0-9]{2}\] \[ev:(C-[0-9]{4,}|import:[a-z-]+)\]' | grep -q .
 # no draft on a live path; every learned skill passes the lint
@@ -363,6 +375,12 @@ refused, `rejected_permission`.
   and `learn-nudge.sh` fail open (no decision): a broken capture must never block the owner.
 - Memory and lessons never change config (`SEC-13`); skills keep the supply-chain rules of
   `SEC-24`/`SEC-26` (no auto-install, no scripts in a learned skill).
+- `bin/learn.sh` and `bin/promote-skill.sh` run **outside** the sandbox (`excludedCommands`), so what
+  they read is the attack surface (`SEC-39`): a learned skill carries only known frontmatter keys
+  (L14) and no `!` preprocessing (L15), memory files carry no `@path` imports, and `learn.sh
+  weekly|review` (a paid run with no cap) starts only from the timer, never from Jarvis's shell. The
+  regex checks in `protect-paths.sh` are the second line; the sandbox's `denyWrite: ["."]`
+  (`knowledge/runtimes/claude-code-local.md`) is the first.
 
 ## Sources
 

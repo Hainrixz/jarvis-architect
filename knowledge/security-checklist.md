@@ -1,6 +1,6 @@
 # Security checklist — non-negotiable controls for every Jarvis
 
-> The controls every generated Jarvis ships with (SEC-01…SEC-38), why each exists, how to implement it per runtime, and the exact check `jarvis-validator` runs.
+> The controls every generated Jarvis ships with (SEC-01…SEC-39), why each exists, how to implement it per runtime, and the exact check `jarvis-validator` runs.
 
 Last verified: 2026-10-06
 
@@ -9,7 +9,7 @@ Last verified: 2026-10-06
 - The Architect copies every applicable `SEC-NN` into spec §4 (`templates/jarvis-spec.md`) with
   "how it is implemented here" and the task that verifies it. *Not applicable* is allowed only
   where this file says so (for example SEC-03 when no webhook exists), and the reason goes in the row.
-- `jarvis-validator` runs its 16 sweeps (`.claude/agents/jarvis-validator.md`) and uses the
+- `jarvis-validator` runs its 17 sweeps (`.claude/agents/jarvis-validator.md`) and uses the
   **Check** line of each control below as the concrete test. The **Grade** is what a failure
   costs: BLOCKER or MAJOR means FAIL, MINOR is reported only. The grades here match the sweeps.
   Controls that no sweep names explicitly are marked *(checklist-only)*. The validator still
@@ -714,7 +714,7 @@ Rules for the three built-in capabilities: `knowledge/capabilities/autonomy.md`,
   - `LESSONS.md` and every lesson write pass the deny-grep
     `allowlist|sin preguntar|without asking|api[ _-]?key|token|permis|aprobaci[oó]n autom`.
     `bin/learn.sh commit` reverts a permission lesson on the spot (`rejected_permission`).
-  - Live skills change only through `bin/promote-skill.sh` (lint L01–L13, probation, git commit,
+  - Live skills change only through `bin/promote-skill.sh` (lint L01–L15, probation, git commit,
     audit). No approval record is needed for a skill Jarvis created; replacing an owner or
     Architect skill needs an owner decision in `approvals/decided/`, which Jarvis cannot write.
   - `protect-paths.sh` denies writes to SOUL/AGENTS/TOOLS/HEARTBEAT, settings, `jobs/`,
@@ -768,6 +768,33 @@ Rules for the three built-in capabilities: `knowledge/capabilities/autonomy.md`,
   `.gitignore` media entries, model SHA-256 in RUNBOOK.md, no raw `ffmpeg`/`whisper-cli` allow);
   repo test `bash tests/media/run.sh`.
 - **Grade:** BLOCKER for auto-install or cookies; MAJOR otherwise (sweep 16).
+
+**SEC-39 — Unsandboxed components never run or trust what the sandbox can write.**
+- *Why:* The learning scripts, hooks, jobs, the panel service and the speaker run outside the
+  sandbox. If a sandboxed shell command can write a file one of them reads or executes, the sandbox is
+  only as strong as the regex hook in front of it, and regex hooks get evaded (ASI02, ASI05). Found on
+  a real build: a voice daemon executing a script inside the workspace, a hook evaded by shell
+  expansion, `@path` imports in memory, learned skills with `hooks:` frontmatter or `!` preprocessing,
+  and `python3 -c` hooks importing from the cwd.
+- **How:**
+  - Claude Code: `sandbox.filesystem.denyWrite: ["."]` plus the critical paths by name; `allowWrite`
+    only for queues outside the project (`knowledge/runtimes/claude-code-local.md`).
+  - Code that runs unsandboxed lives outside every sandbox-writable path (the speaker engine in
+    `~/.local/share/jarvis-voice/`), and Edit/Write `deny` rules plus `protect-paths.sh` cover it,
+    service units, `~/.local/bin/` and the shell profiles.
+  - Data crossing the boundary is read defensively: one `O_NOFOLLOW | O_NONBLOCK` open checked with
+    `fstat` (regular file, owner, one link, size cap), never executed, rate-limited
+    (`knowledge/capabilities/voice.md` § Speaker).
+  - Every hook and job runs Python as `python3 -I`.
+  - `bin/promote-skill.sh` lints L14 (only known frontmatter keys, strict grammar) and L15 (no `!`
+    preprocessing); `protect-paths.sh` also requires a single plain `SKILL.md` (+ `PROPOSAL.md`).
+  - No `@path` import is ever added to `LESSONS.md`, `MEMORY.md`, `USER.md` or `memory/`
+    (`protect-paths.sh` before/after check, `bin/learn.sh commit` exit 5).
+  - `bin/learn.sh weekly|review` (a paid run with no cap) only from the timer, never from Jarvis's shell.
+- **Check:** sweep 17; repo tests `bash tests/learning/protect-paths.test.sh` and
+  `bash tests/learning/promote-skill.test.sh`.
+- **Grade:** BLOCKER when an unsandboxed component executes a sandbox-writable file; MAJOR otherwise
+  (sweep 17).
 
 ---
 
@@ -855,6 +882,7 @@ applicable. SEC-11, 14, 22, 24, 27 and 32 still apply to its connectors and sche
 | 14 Autonomy | SEC-34, SEC-35 |
 | 15 Learning | SEC-36, SEC-37 |
 | 16 Media | SEC-38 |
+| 17 Unsandboxed side | SEC-39 |
 | *checklist-only* | SEC-09, SEC-12, SEC-16, SEC-19, SEC-22, SEC-23, SEC-28, SEC-29 |
 
 ## Sources

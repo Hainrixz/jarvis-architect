@@ -66,7 +66,7 @@ Telegram / WhatsApp voice note (.ogg Opus)
 | **OpenAI TTS** (`gpt-4o-mini-tts`, `tts-1`) | `tts-1` $15 per 1M chars; `gpt-4o-mini-tts` $12 per 1M audio-output tokens ([OpenAI pricing](https://developers.openai.com/api/docs/pricing)) | Multilingual; play one sample reply in the owner's language and let them approve the accent before choosing it | ~200 ms (secondary) | Cheapest cloud; fine for OpenAI-only setups |
 | **Piper** (local) | $0 | Mexican voices `es_MX-ald-medium` and `es_MX-claude-high` ([HF rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices/tree/293cad0539066f86e6bce3b9780c472cc9157489/es/es_MX)). Each voice has its own license on its model card — check it | Real time on CPU, even a Raspberry Pi | **Local default for Spanish.** Robotic but intelligible. Package `piper-tts` on PyPI, GPL-3.0-or-later, repo moved to OHF-Voice/piper1-gpl ([PyPI](https://pypi.org/project/piper-tts/), fetched 2026-10-06) |
 | **Kokoro-82M** (local) | $0 | Only `ef_dora`, `em_alex`, `em_santa`; grade C for dora/alex; VOICES.md warns non-English may be "absent or thin due to weak G2P"; **no Mexican accent** ([HF VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md)) | Fast on CPU | **Not for Spanish speakers.** Only when an English voice is acceptable |
-| **Edge TTS** (Hermes `edge` provider) | $0 | 322 voices / 74 languages per Hermes docs | Cloud | Uses Microsoft's Edge read-aloud service; it has no published terms for bot use, so offer it only as a free option the person chooses after hearing that; never a default |
+| **Edge TTS** (Hermes `edge` provider; elsewhere the `edge-tts` package, LGPLv3, [PyPI](https://pypi.org/project/edge-tts/), checked 2026-10-23) | $0 | 322 voices / 74 languages per Hermes docs; Mexican neural voices such as `es-MX-JorgeNeural` | Cloud | Uses Microsoft's Edge read-aloud service; it has no published terms for bot use, so offer it only as a free option the person chooses after hearing that; never a default. **Consent first:** read them the sentence "el texto que Jarvis te dice en voz alta se manda a Microsoft; no hay términos publicados para este uso y puede dejar de funcionar sin aviso", then log a dated spec §7 row naming the provider. Never with a sensitive pack (CMP-39). Keep Piper installed as the fallback and an off switch that is one file (`voices/engine`), so "que no salga nada de mi compu" is one step |
 
 ### Realtime voice (advanced tier)
 
@@ -94,7 +94,7 @@ Realtime needs: an always-on server (Railway, see `knowledge/capabilities/deploy
 
 | Runtime | Voice notes in | Voice replies out | Setup notes |
 |---|---|---|---|
-| `claude-code-local` / `claude-code-server` (official Telegram/Discord channel plugins) | **Voice notes arrive as attachments.** The Telegram plugin handles `message:voice` and passes `attachment_kind: voice` + a `file_id`; Claude fetches the audio with the `download_attachment` tool ([plugin source](https://github.com/anthropics/claude-plugins-official/blob/main/external_plugins/telegram/server.ts), re-checked 2026-10-06). There is no built-in transcription: add the `transcribe` skill (`templates/skills-base/transcribe/`, pipeline in `knowledge/capabilities/multimodal.md`) that runs `whisper-cli` (Homebrew `whisper.cpp` + the default GGML model from the runtime file's § Pinned versions, a `user_action` download) on the file and allowlist only that command. Discord: send one voice message during setup; if it arrives as an attachment, the same skill handles it, otherwise ask for dictated text | Can send files (documents up to 50 MB per the README), so an MP3 made by a script can be sent; it shows as an audio file, not a voice bubble | v1 default for non-technical owners: the phone keyboard's dictation button (free, Spanish, no install). The whisper.cpp skill is the add-on when they want real voice notes. Don't fork or patch the official plugin |
+| `claude-code-local` / `claude-code-server` (official Telegram/Discord channel plugins) | **Voice notes arrive as attachments.** The Telegram plugin handles `message:voice` and passes `attachment_kind: voice` + a `file_id`; Claude fetches the audio with the `download_attachment` tool ([plugin source](https://github.com/anthropics/claude-plugins-official/blob/main/external_plugins/telegram/server.ts), re-checked 2026-10-06). There is no built-in transcription: add the `transcribe` skill (`templates/skills-base/transcribe/`, pipeline in `knowledge/capabilities/multimodal.md`) that runs `whisper-cli` (Homebrew `whisper.cpp` + the default GGML model from the runtime file's § Pinned versions, a `user_action` download) on the file and allowlist only that command. Discord: send one voice message during setup; if it arrives as an attachment, the same skill handles it, otherwise ask for dictated text | Can send files (documents up to 50 MB per the README), so an MP3 made by a script can be sent; it shows as an audio file, not a voice bubble | v1 default for non-technical owners: the phone keyboard's dictation button (free, Spanish, no install). The whisper.cpp skill is the add-on when they want real voice notes. Don't fork or patch the official plugin. **Spoken replies on the PC itself:** the unsandboxed speaker in § Speaker |
 | `claude-p-cron` | No inbound channel | Optional: a scheduled job generates the morning brief as audio (TTS script) and sends it with the Telegram Bot API `sendVoice` | One cloud TTS key, or Piper locally |
 | `claude-agent-sdk` | You build it: Bot API `getFile` / WhatsApp media download → STT → agent | You build it: TTS → ffmpeg to OGG/Opus → `sendVoice` / WhatsApp audio | Full control; any STT/TTS above. Keys in `.env` |
 | `hermes` | **Native.** STT providers `local` (faster-whisper: tiny…large-v3), `groq`, `openai` (`whisper-1`, `gpt-4o-transcribe`), `mistral`, `xai`. Voice notes transcribed on Telegram, WhatsApp Cloud API and Baileys ([Hermes voice mode](https://hermes-agent.nousresearch.com/docs/user-guide/features/voice-mode), [WhatsApp Cloud](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/whatsapp-cloud)) | **Native.** TTS providers incl. `edge`, `elevenlabs`, `openai`, `piper`, `neutts`, `gemini`, others. Telegram voice bubble (Opus/OGG); WhatsApp Cloud native voice note via ffmpeg (MP3 fallback); Baileys sends MP3 attachments | Configure `stt` / `tts` / `voice` blocks in Hermes `config.yaml`; keys `GROQ_API_KEY`, `VOICE_TOOLS_OPENAI_KEY`, `ELEVENLABS_API_KEY`. Hermes' STT list does **not** include Deepgram: default to `openai` (cloud) or `local` (private). Spanish TTS: `elevenlabs` or `piper` with an es_MX voice |
@@ -112,7 +112,39 @@ Realtime needs: an always-on server (Railway, see `knowledge/capabilities/deploy
 - **Pick the voice with them.** Play 2–3 samples (ElevenLabs library filtered to Spanish/Mexico, Aura-2 Spanish voices, or Piper es_MX) and let the person choose; store the voice ID in the runtime config and the choice in `USER.md`. Accent defaults per country: `knowledge/countries/<cc>.md`.
 - **Language hint.** Set STT language to Spanish (or multilingual for Spanglish speakers) instead of auto-detect when the provider allows; short notes are often misdetected.
 - **Long audio.** Trim transcripts (OpenClaw `tools.media.audio.maxChars`) and tell the person a 10-minute voice note costs tokens like a long text.
+- **Older Piper voice files.** Some voices in the pinned `rhasspy/piper-voices` commit (for example `es_MX-ald-medium`) carry `"phoneme_type": "PhonemeType.ESPEAK"` in their `.onnx.json`, which the current `piper-tts` refuses to load (seen on a real build, 2026-10-22). Fix: change that value to `"espeak"` in the downloaded `.onnx.json` (the `.onnx` and its SHA-256 are untouched) and write the change in RUNBOOK.md § Medios. For a LatAm accent on a Spain voice (`es_ES-davefx-medium`), a copy of its `.onnx.json` with `espeak.voice` set to `es-419` works; record that copy the same way.
 - **Verify:** send a 5-second Spanish voice note from the owner account → Jarvis replies to its content; send one from a non-allowlisted account → silently dropped; if audio replies are on, the reply plays as a voice bubble on the phone.
+
+## Speaker: spoken replies on the owner's own computer
+
+For `claude-code-local` when the owner wants Jarvis to **talk out loud on the PC** (not a voice bubble on the phone). The Claude Code sandbox has no network and no audio device, so TTS can't run inside it, and taking the TTS script out of the sandbox (`excludedCommands`) would run code from the workspace outside it. The pattern that passed `jarvis-validator` on a real WSL2 build instead splits it in three:
+
+| Part | Where it lives | Runs | Can Jarvis write it? |
+|---|---|---|---|
+| `bin/speak.sh` (template written by the build) | Jarvis folder | Inside the sandbox | No (`bin/` is protected; only running it is exempt in `protect-paths.sh`) |
+| Queue `~/.local/state/jarvis/voz-cola/` | Outside the project, the only `sandbox.filesystem.allowWrite` entry | — | Yes: one text file per reply, nothing else |
+| Engine (`speak-engine.sh`, `voice-daemon.sh`, `take-text.py`, the TTS virtualenvs and voices) | `~/.local/share/jarvis-voice/` | Outside the sandbox, as a systemd user service (macOS: a LaunchAgent, UNVERIFIED) | No: `permissions.deny` Edit/Write and `protect-paths.sh` `OUTSIDE` |
+
+Rules for each part:
+
+- **`speak.sh`** strips control characters, caps the text at 1500 characters, writes it to `<queue>/<ns>-<pid>.txt.tmp` and renames it into place. It refuses when the queue folder is a symlink, and fails fast with a clear message when the daemon's `.alive` heartbeat is older than 10 s. It never synthesizes or plays anything itself.
+- **The daemon** executes only files inside the engine folder, runs `umask 077`, refuses a queue that is a symlink, speaks at most **6 texts per minute**, keeps at most **50** queued (the rest are deleted), and passes the text as one argument after `--`. It never executes, `source`s or `eval`s queue content.
+- **`take-text.py`** (run as `python3 -I`) reads each queue file with a single descriptor and deletes the name whatever happens:
+
+  ```python
+  fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)  # no symlink, no FIFO block
+  st = os.fstat(fd)                                                               # check the open file, not the name
+  ok = stat.S_ISREG(st.st_mode) and st.st_uid == os.getuid() and st.st_nlink == 1 and st.st_size <= 6000
+  data = os.read(fd, 6001) if ok else b""
+  os.close(fd); os.unlink(path)                                                   # print data only if ok
+  ```
+
+  Checking the name first (`os.path.islink`, then `open`) is a race: the file can be swapped for a link or a FIFO in between.
+- **The service unit** hardens what the engine can touch: `NoNewPrivileges=yes`, `ProtectSystem=strict`, `ProtectHome=read-only`, `PrivateTmp=yes`, `MemoryMax=1G`, and `ReadWritePaths=` only for the queue, `logs/`, the audio outbox and the engine's own `tmp/`. On WSL2 audio goes to WSLg (`PULSE_SERVER=unix:/mnt/wslg/PulseServer`); when playback fails the engine leaves the last reply as a WAV in an outbox folder and says where.
+- **The engine** never reads `.env`, logs one `voice.speak` audit line with the character count and preset (never the text), and installs each TTS engine in its own virtualenv from a lock file with exact `==` pins for every dependency. Cloud voice (Edge) needs the consent above; Piper is the local fallback when the cloud call fails or `voices/engine` is removed.
+- **Allow rules:** `Bash(bin/speak.sh *)` and `Skill(speak)`. Never `Bash(piper…)`, `Bash(edge-tts…)` or `Bash(paplay…)` on their own.
+
+Verify at build: `bin/speak.sh "Prueba"` from the session prints `ok: en cola`; `systemctl --user is-active jarvis-voice`; `ls -la ~/.local/state/jarvis/voz-cola` is mode 700 and not a link; a symlink dropped into the queue is deleted without being read; `touch .sandbox-probe` from the session still fails (the queue is the only new write).
 
 ## Security
 
@@ -124,6 +156,8 @@ Realtime needs: an always-on server (Railway, see `knowledge/capabilities/deploy
 - **Retention:** delete the downloaded audio file after transcription; keep only the transcript in memory if the person wants it. Say so in `SECURITY.md`.
 - **Spend caps:** set a usage limit on every voice provider key before it goes live (Deepgram, ElevenLabs, OpenAI; SEC-27). Realtime gets its own lower cap.
 - **WhatsApp:** voice on WhatsApp follows `knowledge/capabilities/whatsapp.md` (Cloud API by default; Baileys only with consent and a secondary number, CMP-05).
+- **The speaker is unsandboxed code** (SEC-39): it must never run a file Jarvis can write, and it treats every queued text as untrusted data (§ Speaker). Validator sweep 17 checks it.
+- **Cloud TTS sends what Jarvis says.** ElevenLabs, Aura-2, OpenAI and Edge receive the reply text; with a sensitive pack, reply in text or with Piper only.
 
 ## Sources
 
@@ -135,6 +169,10 @@ Realtime needs: an always-on server (Railway, see `knowledge/capabilities/deploy
 - OpenAI API pricing, audio and realtime (fetched 2026-10-06): https://developers.openai.com/api/docs/pricing
 - whisper.cpp Homebrew formula (fetched 2026-10-06): https://formulae.brew.sh/formula/whisper.cpp
 - piper-tts on PyPI (fetched 2026-10-06): https://pypi.org/project/piper-tts/
+- edge-tts on PyPI (license LGPLv3, checked 2026-10-23): https://pypi.org/project/edge-tts/ · https://github.com/rany2/edge-tts
+- Python `os.open` flags and `fstat` (speaker reader): https://docs.python.org/3/library/os.html#os.O_NOFOLLOW
+- systemd sandboxing options (speaker unit): https://www.freedesktop.org/software/systemd/man/latest/systemd.exec.html
+- Speaker pattern, Piper `phoneme_type` fix and the Edge consent wording: a real WSL2 build that passed `jarvis-validator` on 2026-10-23 (no public source; re-test on the next build)
 - Piper es_MX voices: https://huggingface.co/rhasspy/piper-voices/tree/293cad0539066f86e6bce3b9780c472cc9157489/es/es_MX
 - Kokoro VOICES.md: https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md
 - Hermes voice mode (fetched 2026-10-06): https://hermes-agent.nousresearch.com/docs/user-guide/features/voice-mode

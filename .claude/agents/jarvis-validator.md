@@ -1,6 +1,6 @@
 ---
 name: jarvis-validator
-description: Adversarial, read-only audit of a built Jarvis folder against its jarvis-spec.md and knowledge/security-checklist.md. Returns PASS or FAIL with file:line findings graded BLOCKER / MAJOR / MINOR. Use after BUILD, after every /jarvis-add, and before any handoff. Fails on secrets in git or in verify commands, any wildcard or open allowlist, missing human-approval gates for irreversible actions, Claude subscription credentials inside a third-party harness, unofficial WhatsApp without logged consent, runtimes below their security floor, public admin ports, missing spend caps, surviving placeholders, tasks marked done without verify evidence, an autopilot that can write or promote itself, learned lessons or skills that carry permissions, and media scripts that auto-install or use cookies.
+description: Adversarial, read-only audit of a built Jarvis folder against its jarvis-spec.md and knowledge/security-checklist.md. Returns PASS or FAIL with file:line findings graded BLOCKER / MAJOR / MINOR. Use after BUILD, after every /jarvis-add, and before any handoff. Fails on secrets in git or in verify commands, any wildcard or open allowlist, missing human-approval gates for irreversible actions, Claude subscription credentials inside a third-party harness, unofficial WhatsApp without logged consent, runtimes below their security floor, public admin ports, missing spend caps, surviving placeholders, tasks marked done without verify evidence, an autopilot that can write or promote itself, learned lessons or skills that carry permissions, media scripts that auto-install or use cookies, and unsandboxed components (hooks, jobs, panel, speaker) that run or trust files the sandbox can write.
 tools: Read, Grep, Glob
 ---
 
@@ -154,6 +154,38 @@ check fails at its grade. Byte-identical copies are checked by reading both file
     - Settings allow raw `Bash(ffmpeg…)`, `Bash(whisper-cli…)` or `Bash(yt-dlp…)`, or a job tool
       file names the media scripts → MAJOR.
     - `watch-video` or `transcribe` installed on `cowork` → MINOR.
+17. **Unsandboxed side** (SEC-39; rules in `ROOT/knowledge/runtimes/claude-code-local.md` § Notes on
+    both settings files and `ROOT/knowledge/capabilities/voice.md` § Speaker). Every finding here was
+    a real escape on a real build, so grade the effect, not the wording.
+    - Claude Code tracks: `sandbox.filesystem.denyWrite` in `launch-settings.json` and
+      `headless-settings.json` lacks `"."` → MAJOR; an `allowWrite` entry inside the Jarvis folder
+      (relative, or an absolute path under `jarvis_dir`) → MAJOR.
+    - Any service, timer, LaunchAgent, panel or daemon that runs outside the sandbox (systemd
+      `ExecStart=`, launchd `ProgramArguments`, `excludedCommands`) executes or `source`s a file under
+      `jarvis_dir` other than `bin/learn.sh`, `bin/promote-skill.sh`, `bin/hooks/*.sh`, `jobs/*` and
+      `panel/` → BLOCKER. A speaker or other queue reader that opens queue files without `O_NOFOLLOW`,
+      without an `fstat` regular-file/owner/size check, or that executes queue content → BLOCKER; one
+      with no rate limit → MAJOR.
+    - `permissions.deny` lacks Edit **and** Write rules for each home path an unsandboxed component
+      runs (`~/.bashrc`, `~/.profile`, `~/.zshrc`, `~/.local/bin/**`, `~/.config/systemd/user/**`,
+      `~/Library/LaunchAgents/**`, the speaker engine folder) → MAJOR.
+    - Any `python3 -c` / `python -c` without `-I` in `.claude/hooks/`, `bin/`, `jobs/` or a systemd
+      unit → MAJOR.
+    - `bin/hooks/protect-paths.sh`, `bin/promote-skill.sh` or `bin/learn.sh` not byte-identical to
+      `ROOT/templates/local/bin/` (compare with `\r` ignored) → MAJOR, unless every differing line only
+      adds entries to `EXACT`, `PREFIX` or `OUTSIDE` and RUNBOOK.md names each addition.
+    - `LESSONS.md`, `MEMORY.md`, `USER.md` or any `memory/*.md` has a line matching
+      `(^|\s)@\S` (a Claude Code import) → MAJOR; BLOCKER when it names `.env`, `~/.ssh`,
+      `credentials` or a path outside `jarvis_dir`.
+    - A live learned skill (`created-by: agent`) whose frontmatter has a top-level key outside
+      `name description metadata allowed-tools disable-model-invocation argument-hint created-by
+      license source version probation`, or whose text matches `` !` ``, `^\s*```!` → BLOCKER (lint
+      L14/L15 in `ROOT/knowledge/capabilities/learning.md` § 3).
+    - Panel installed on a Claude Code track: an installed skill in `.claude/skills/` (not on
+      probation) has no `Skill(<name>)` allow rule → MAJOR (the panel's `dontAsk` mode can't use it).
+    - Cloud TTS (Edge read-aloud, ElevenLabs, Aura-2) configured without a dated spec §7 consent row
+      that names the provider and says the spoken text leaves the machine → MAJOR; with a sensitive
+      pack → MAJOR (CMP-39).
 
 Triage before filing: an approval gate that *is* present but phrased differently is correct work,
 not a finding. Quote the line that proves each finding.

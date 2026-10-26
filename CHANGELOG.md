@@ -12,7 +12,37 @@ Pin refreshes from `/jarvis-refresh` go under *Changed* with their source URL.
 
 ## [Unreleased]
 
-Nothing yet.
+### Security
+
+Fixes found while building a real Jarvis (claude-code-local on WSL2 with Panel, local Whisper and
+spoken replies). `jarvis-validator` failed it six times before passing; every failure was a gap in
+the templates, now closed here so every new Jarvis ships the fix. New control **SEC-39** and
+validator **sweep 17** ("Unsandboxed side").
+
+- **Sandbox is the barrier, not a regex.** `knowledge/runtimes/claude-code-local.md`:
+  `sandbox.filesystem.denyWrite: ["."]` plus the critical paths, `allowWrite` only for queues outside
+  the project; `permissions.deny` Edit/Write for the home paths the unsandboxed side runs (shell
+  profiles, `~/.local/bin/`, systemd/launchd units, the speaker engine); `Skill(<name>)` allow rules
+  so the panel's `dontAsk` mode can use the Jarvis's skills.
+- **`python3 -I` everywhere.** The `guard.sh` / `audit.sh` hooks and every verify command in the
+  runtime files used `python3 -c`, which imports from the cwd.
+- **`protect-paths.sh`:** `promote-skill.sh promote` only for a single plain `SKILL.md`
+  (+ `PROPOSAL.md`) with a strict frontmatter grammar and no `!` preprocessing; `@path` imports and
+  denied words checked on the whole file before/after each edit of `LESSONS.md`, `MEMORY.md`,
+  `USER.md` and `memory/`; `learn.sh weekly|review` denied to the agent; the corrections lock and
+  temp files, every `.gitignore`/`.gitattributes`, `panel/`, `vendor/`, `voices/`, `tasks/archive/`
+  ids, the speaker engine, service units, `~/.local/bin/` and shell profiles protected; `bin/speak.sh`
+  may run (never be edited).
+- **`promote-skill.sh` lint:** L14 (only known frontmatter keys, once each, no YAML tricks) and L15
+  (no `!` shell preprocessing).
+- **`learn.sh commit`:** an added `@path` line is reverted, audited `learning.rejected_import`,
+  exit 5 (the panel maps it to a 422).
+- **Voice:** `knowledge/capabilities/voice.md` § Speaker (engine outside the project, queue outside
+  the project, `O_NOFOLLOW` + `fstat` reader, rate limits, hardened unit); Edge TTS consent wording;
+  the Piper `phoneme_type` fix for older voice files.
+- **WSL2:** whisper.cpp built from the pinned tag (Ubuntu 26.04's apt package is below the pin), the
+  apt ffmpeg floor, workspace trust that may not persist, CRLF checkouts.
+- **`.gitattributes`** forces LF so templates copied from a Windows clone stay byte-identical.
 
 ---
 

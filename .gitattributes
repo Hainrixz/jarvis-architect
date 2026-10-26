@@ -1,0 +1,10 @@
+# Every text file is checked out with LF, also on Windows (core.autocrlf=true). The scripts a Jarvis
+# copies from templates/ must stay byte-identical to the canonical copy (validator sweeps 14-16),
+# and bash refuses CRLF scripts.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.wav binary
+*.ogg binary

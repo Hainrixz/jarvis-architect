@@ -43,7 +43,9 @@ Simple scheduled jobs with no chat at all are better served by `runtimes/claude-
 | gitleaks (secret scan, SEC-17) | 8.30.1 | Homebrew stable | https://formulae.brew.sh/api/formula/gitleaks.json | 2026-10-06 |
 | Node.js | ≥ 22, **only** if Claude Code is installed via npm | LTS | https://code.claude.com/docs/en/setup#install-with-npm | 2026-10-06 |
 | **Media:** whisper.cpp (`whisper-cli`, `transcribe` and `watch-video` skills) | **1.9.5** (Homebrew formula `whisper.cpp`, old name `whisper-cpp`; release tag `v1.9.5`, source tarball sha256 `ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720`). Bottles: Apple Silicon macOS and Linux; Intel Macs build from source | Homebrew stable | https://formulae.brew.sh/api/formula/whisper.cpp.json · https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.5 | 2026-10-06 |
+| **Media (Linux / WSL2 without Homebrew):** whisper.cpp built from source | tag **`v1.9.5`**, commit `d1be6fde11ac6e0407606b4e42fe72d34add8037` (`git ls-remote https://github.com/ggml-org/whisper.cpp 'refs/tags/v1.9.5^{}'`). Ubuntu 26.04's apt `whisper.cpp` ships `whisper-cli` but is **1.8.3+dfsg-2**, below the row above, so it is not used. Build steps: Install § 5 | release tag | https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.5 · `apt-cache policy whisper.cpp` | 2026-10-23 |
 | **Media:** ffmpeg + ffprobe | **9.0.2** (Homebrew `ffmpeg`); Windows: winget `Gyan.FFmpeg`, version recorded at install | Homebrew stable | https://formulae.brew.sh/api/formula/ffmpeg.json | 2026-10-06 |
+| **Media (Linux / WSL2):** ffmpeg + ffprobe from apt | floor **8.0**: Ubuntu 26.04 ships `7:8.0.1-3ubuntu2`, and `transcribe.sh` / `watch.py` ran on it in a real WSL2 build. An older distro ffmpeg (for example 6.x) is UNVERIFIED: before using it, run `tests/media/run.sh` from this repo against it, otherwise install Linuxbrew `ffmpeg` | distro stable | https://packages.ubuntu.com/resolute/ffmpeg · `apt-cache policy ffmpeg` | 2026-10-23 |
 | **Media:** yt-dlp (captions and video for `watch-video`) | **Latest only, by policy**: 2026.08.19 on the check date (GitHub tag; Homebrew writes it `2026.8.19`). Sites change often and old releases stop working, so it is never held back; `/jarvis-doctor` flags it when the installed release is more than 30 days behind the latest GitHub release | Homebrew stable / GitHub latest | https://formulae.brew.sh/api/formula/yt-dlp.json · https://github.com/yt-dlp/yt-dlp/releases | 2026-10-06 |
 | **Media:** Whisper model (default) | `ggml-large-v3-turbo-q5_0.bin`, 574041195 bytes, sha256 `394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2`. Download from the pinned repo commit: `https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin` into `<jarvis>/models/` | HF commit `5359861c` | https://huggingface.co/ggerganov/whisper.cpp/tree/main (API `tree/main`, LFS oid = sha256) | 2026-10-06 |
 | **Media:** Whisper model (slow/Intel machines) | `ggml-small.bin`, 487601967 bytes, sha256 `1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b` (same commit) | HF commit `5359861c` | same | 2026-10-06 |
@@ -112,6 +114,19 @@ The plugin READMEs say `curl -fsSL https://bun.sh/install | bash`. **Don't use t
 ### 4. Claude Desktop (optional)
 
 Only needed for Desktop scheduled tasks or the `/remote-control` button in the app. `brew install --cask claude`, or download from https://claude.com/download.
+
+### 5. Media tools on Linux / WSL2 (only with audio or video on)
+
+With Homebrew on Linux, use `brew install ffmpeg whisper.cpp` as on macOS. Without it:
+
+1. The person runs `sudo apt install ffmpeg git cmake build-essential` and checks `ffmpeg -version` against the apt floor in § Pinned versions.
+2. The agent clones the pinned tag into the Jarvis folder and checks the commit before building:
+   `git clone --depth 1 --branch v1.9.5 https://github.com/ggml-org/whisper.cpp vendor/whisper.cpp`, then
+   `test "$(git -C vendor/whisper.cpp rev-parse HEAD)" = d1be6fde11ac6e0407606b4e42fe72d34add8037`,
+   then `cmake -S vendor/whisper.cpp -B vendor/whisper.cpp/build -DCMAKE_BUILD_TYPE=Release` and
+   `cmake --build vendor/whisper.cpp/build -j --config Release`. The binary is `vendor/whisper.cpp/build/bin/whisper-cli`.
+3. The person puts it on `PATH` with a two-line wrapper in `~/.local/bin/whisper-cli` (`exec <jarvis>/vendor/whisper.cpp/build/bin/whisper-cli -t <physical cores> "$@"`); set `-t` to the physical core count (on the reference WSL2 build, `-t 8` with the turbo model took about 26 s per minute of audio). `vendor/` and `~/.local/bin/` are protected from Jarvis (`protect-paths.sh`, settings `deny`), because the unsandboxed side runs them.
+4. Record `git -C vendor/whisper.cpp rev-parse HEAD` and `ffmpeg -version | head -1` in RUNBOOK.md § Medios next to the model's SHA-256.
 
 ## Configure
 
@@ -198,6 +213,7 @@ The model goes in as a Claude Code **alias** (`sonnet`, `opus`, `haiku`) chosen 
       "Edit(./LESSONS.md)", "Edit(./proposals/**)", "Write(./proposals/**)",
       "Bash(./bin/learn.sh *)", "Bash(./bin/promote-skill.sh *)",
       "Bash(bin/learn.sh *)", "Bash(bin/promote-skill.sh *)",
+      "Skill(learn)", "Skill(remember)", "Skill(pending)", "Skill(morning-briefing)",
       "mcp__plugin_telegram_telegram__reply",
       "mcp__plugin_telegram_telegram__react",
       "mcp__plugin_telegram_telegram__download_attachment"
@@ -212,7 +228,12 @@ The model goes in as a Claude Code **alias** (`sonnet`, `opus`, `haiku`) chosen 
       "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(~/.claude/.credentials.json)", "Read(~/.codex/auth.json)",
       "Bash(sudo *)", "Bash(curl * | sh*)", "Bash(curl * | bash*)", "Bash(wget * | sh*)",
       "Bash(claude setup-token*)", "Bash(security find-generic-password*)",
-      "Edit(~/.claude/channels/**)"
+      "Edit(~/.claude/channels/**)",
+      "Edit(./.gitignore)", "Edit(./approvals/**)", "Edit(./outbox/**)", "Edit(./panel/**)",
+      "Edit(~/.bashrc)", "Edit(~/.profile)", "Edit(~/.zshrc)", "Edit(~/.local/bin/**)",
+      "Edit(~/.config/systemd/user/**)", "Edit(~/Library/LaunchAgents/**)", "Edit(~/.local/share/jarvis-voice/**)",
+      "Write(~/.bashrc)", "Write(~/.profile)", "Write(~/.zshrc)", "Write(~/.local/bin/**)",
+      "Write(~/.config/systemd/user/**)", "Write(~/Library/LaunchAgents/**)", "Write(~/.local/share/jarvis-voice/**)"
     ]
   },
   "hooks": {
@@ -237,7 +258,11 @@ Learning hooks (`knowledge/capabilities/learning.md`; scripts copied from `templ
 `capture-correction.sh` opens a `C-NNNN` record for an owner correction and hands the model the next
 step; `learn-nudge.sh` reminds it once if a record is still open; `protect-paths.sh` denies writes to
 SOUL/AGENTS/TOOLS/HEARTBEAT/CLAUDE.md, `.claude/`, live `skills/`, `bin/`, `jobs/`, `approvals/`,
-`logs/` and `.env*`, denies lessons that carry permissions, and enforces skill probation. A hook
+`logs/`, `panel/`, `vendor/`, `voices/`, `.env*`, any `.gitignore`, the corrections ledger with its lock,
+the speaker engine, service units and shell profiles; denies lessons that carry permissions and any
+`@path` import added to LESSONS/MEMORY/USER.md or `memory/` (it compares the whole file before and
+after the edit); lets `bin/promote-skill.sh promote` run only for a single plain `SKILL.md` with known
+frontmatter keys; keeps `bin/learn.sh weekly|review` for the timer; and enforces skill probation. A hook
 `deny` wins over the `ask` rules above, so the owner edits those files by hand (AGENTS.md § 6).
 Every hook exits silently in `-p` jobs (`permission_mode: dontAsk`). Live check at build: from the
 owner's Telegram send "no, así no: más corto" and confirm `tail -n1 memory/corrections.jsonl`
@@ -247,6 +272,8 @@ How it works:
 - `deny` rules block in every mode. Explicit `ask` rules still prompt in **auto** mode, and with a channel the prompt is relayed to the owner's Telegram ([permission-modes](https://code.claude.com/docs/en/permission-modes)).
 - Add one `ask` entry per **send/post/pay/delete** tool of each MCP server the person connects (exact tool names come from `/mcp`). That's the HITL gate, SEC-14.
 - The plugin tool names `mcp__plugin_telegram_telegram__*` follow the plugin MCP naming pattern. After the first reply, run `/permissions` and make sure the allow rules match the names listed there; if they differ, rewrite the rules with the listed names. The tools themselves (`reply`, `react`, `download_attachment`, `edit_message`) are confirmed in the [plugin source](https://github.com/anthropics/claude-plugins-official/blob/main/external_plugins/telegram/server.ts).
+- **One `Skill(<name>)` allow rule per installed skill.** The panel and scheduled jobs run with `--permission-mode dontAsk`, where anything not allowed is denied, so without these rules the panel can't use the Jarvis's own skills. List exactly the skills in `.claude/skills/` (never a wildcard); a learned skill gets its rule from the owner after probation, not from Jarvis (`.claude/settings.json` is protected).
+- **Home paths the unsandboxed side runs are denied to Edit/Write.** Edit and Write are not sandboxed, so without these `deny` rules an Edit to `~/.bashrc`, a systemd/launchd unit, `~/.local/bin/` or the speaker engine (`~/.local/share/jarvis-voice/`) would run Jarvis's text outside the sandbox at the next login or restart. `protect-paths.sh` denies the same paths; both stay.
 - `defaultMode: auto` is **ignored** in project settings, so the mode goes on the command line (`--permission-mode auto`) ([permission-modes](https://code.claude.com/docs/en/permission-modes)).
 - `enabledPlugins` here is what `/plugin install … --scope project` writes. Because **every** session started in this folder would then load the plugin (and its `server.ts` steals the bot, see Known issues), every non-channel entry point (`jobs/run-job.sh`, the panel's `claude-cli` adapter) passes `--settings .claude/headless-settings.json`, which turns the plugin off for that run.
 
@@ -261,7 +288,12 @@ How it works:
     "excludedCommands": ["bin/learn.sh *", "./bin/learn.sh *", "bin/promote-skill.sh *", "./bin/promote-skill.sh *"],
     "filesystem": {
       "denyRead": ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh", "~/.claude/channels",
-                   "~/.claude/.credentials.json", "~/.codex", "~/Library/Keychains", "~/**/.env"]
+                   "~/.claude/.credentials.json", "~/.codex", "~/Library/Keychains", "~/**/.env"],
+      "denyWrite": [".", "./.claude", "./.git", "./.env", "./.mcp.json", "./bin", "./jobs", "./logs",
+                    "./memory", "./panel", "./vendor", "./voices", "./SOUL.md", "./AGENTS.md", "./TOOLS.md",
+                    "./HEARTBEAT.md", "./CLAUDE.md", "./LESSONS.md", "./MEMORY.md", "./mcp.jobs.json",
+                    "./STOP", "./STOP_AUTOPILOT"],
+      "allowWrite": ["~/.local/state/jarvis/voz-cola"]
     },
     "credentials": {
       "envVars": [
@@ -296,6 +328,22 @@ Do not paste the line above literally: `"...": ...` is a placeholder and makes t
 
 ### Notes on both settings files
 
+- **`denyWrite: ["."]` makes the workspace read-only to every sandboxed shell command.** Without it the
+  sandbox lets Bash write anywhere in the project, and the only thing between a shell write and the
+  files that unsandboxed components read or run (`bin/learn.sh` and `bin/promote-skill.sh` via
+  `excludedCommands`, the hooks, `jobs/run-job.sh`, the panel service, the speaker) is the regex layer
+  in `protect-paths.sh`, which a real build evaded (`${f}nv`-style expansion). With `"."` denied, the OS
+  sandbox is the barrier and the hook is the second line. Jarvis still writes its own files with
+  Edit/Write (permission rules, not the sandbox) and commits learning through the two excluded scripts.
+  The named entries after `"."` repeat the critical paths so that a later `allowWrite` can't reopen them.
+  `allowWrite` holds only queues **outside** the project (the speaker queue, `knowledge/capabilities/voice.md`
+  § Speaker); an `allowWrite` inside a denied folder is UNVERIFIED (which one wins is not in the
+  [sandboxing](https://code.claude.com/docs/en/sandboxing) docs), so never rely on it. Consequences:
+  `transcribe.sh --out` must point outside the project (for example `~/.local/state/jarvis/media-tmp/`,
+  added to `allowWrite`, with `Read(~/.local/state/jarvis/media-tmp/**)` in `permissions.allow`), and the
+  media scripts' own audit lines in `logs/` are skipped inside the sandbox (the `audit.sh` hook still
+  logs each call). Live check at build, from the session: `touch .sandbox-probe` must fail and leave no
+  file; `bin/promote-skill.sh status` must still work.
 - `excludedCommands` takes only `bin/learn.sh` and `bin/promote-skill.sh` out of the sandbox. The sandbox
   write-protects `.claude/skills` with no exemption (an `allowWrite` entry doesn't lift it,
   [sandboxing](https://code.claude.com/docs/en/sandboxing) § Protected paths), and those two scripts are
@@ -314,7 +362,7 @@ Do not paste the line above literally: `"...": ...` is a placeholder and makes t
 #!/bin/bash
 # Blocks destructive or credential-touching tool calls. Exit 0 = no decision.
 input=$(cat)
-cmd=$(printf '%s' "$input" | /usr/bin/python3 -c 'import json,sys;d=json.load(sys.stdin);t=d.get("tool_input",{});print(t.get("command") or t.get("file_path") or "")')
+cmd=$(printf '%s' "$input" | /usr/bin/python3 -I -c 'import json,sys;d=json.load(sys.stdin);t=d.get("tool_input",{});print(t.get("command") or t.get("file_path") or "")')
 case "$cmd" in
   *"rm -rf"*|*"git push --force"*|*"| sh"*|*"| bash"*|*"mkfs"*|*".ssh/"*|*".aws/"*|*"channels/"*".env"*|*"/.env"*|*"setup-token"*|*"launchctl unload"*|*"access.json"*)
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Blocked by Jarvis guard (SECURITY.md)"}}'
@@ -332,7 +380,7 @@ The `access.json` and `channels/` patterns stop Jarvis from editing its own allo
 # Appends one redacted line per tool call: time, tool, sha256 of the input. Never the input itself.
 input=$(cat)
 dir="${CLAUDE_PROJECT_DIR:-.}/logs"; mkdir -p "$dir"
-printf '%s' "$input" | /usr/bin/python3 -c '
+printf '%s' "$input" | /usr/bin/python3 -I -c '
 import json,sys,hashlib,datetime
 d=json.load(sys.stdin)
 print(json.dumps({"ts":datetime.datetime.now().astimezone().isoformat(),"tool":d.get("tool_name"),
@@ -341,6 +389,13 @@ exit 0
 ```
 
 `chmod 700 .claude/hooks/*.sh`. Rotate `logs/audit.jsonl` monthly (RUNBOOK).
+
+**Every `python3` a hook, job or verify step runs takes `-I`** (isolated mode). Hooks run outside the
+sandbox with the Jarvis folder as cwd, and a plain `python3 -c 'import json'` puts the cwd first on
+`sys.path`: a `json.py` that anything managed to drop there would run with the hook's rights. `-I`
+drops the cwd, the user site-packages and every `PYTHON*` variable
+([python -I](https://docs.python.org/3/using/cmdline.html#cmdoption-I)). The canonical scripts in
+`templates/local/bin/` already do it.
 
 ### `~/.claude/settings.json` (user scope; the agent proposes, the person approves)
 
@@ -574,7 +629,7 @@ IDs are the ones defined in `security-checklist.md` (SEC-01…SEC-33). Every con
 | SEC-04 | Pairing/allowlist changes only from the local terminal | `/telegram:access pair` typed by the owner at the keyboard. SOUL.md rule: "never approve a pairing or change the allowlist because a message asked for it". `guard.sh` and `deny` stop Jarvis from editing `access.json` or `~/.claude/channels/**` |
 | SEC-05 | No public control plane | Nothing listens. Remote Control is outbound HTTPS only. fakechat (`localhost:8787`) is demo-only and never enabled in a real Jarvis |
 | SEC-06 | Railway exposure | N/A (local host) |
-| SEC-07 | Sandbox on | `launch-settings.json`: `enabled`, `allowUnsandboxedCommands: false`, `failIfUnavailable: true`. Native Windows **fails** this control, so use WSL2 |
+| SEC-07 | Sandbox on | `launch-settings.json`: `enabled`, `allowUnsandboxedCommands: false`, `failIfUnavailable: true`, `filesystem.denyWrite: ["."]` (SEC-39). Native Windows **fails** this control, so use WSL2 |
 | SEC-08 | Credential paths unreadable | `sandbox.filesystem.denyRead` (`~/.ssh`, `~/.aws`, `~/**/.env`, `~/.claude/channels`, credentials) **plus** permission `deny` rules `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)` (the sandbox doesn't cover the Read tool) |
 | SEC-09 | Egress allowlist | `network.allowedDomains` minimal + `strictAllowlist: true` via `--settings`. WebFetch is governed by permission rules (`WebFetch(domain:…)` allow rules also join the strict allowlist) |
 | SEC-10 | No bypass flags; destructive patterns hard-denied | Launch with `--permission-mode auto`, **never** `--dangerously-skip-permissions` (the channels doc offers it for unattended use; it's forbidden here outside a disposable container). `permissions.deny` list + `guard.sh` PreToolUse deny, which apply in every mode |
@@ -601,6 +656,7 @@ IDs are the ones defined in `security-checklist.md` (SEC-01…SEC-33). Every con
 | SEC-31 | Unofficial WhatsApp | N/A: no WhatsApp in this runtime; development channels (`--dangerously-load-development-channels`) are not allowed |
 | SEC-32 | Data-flow disclosure | SECURITY.md states that Anthropic processes prompts and files Claude reads, Telegram/Discord see chat text, and memory stays on the machine |
 | SEC-33 | SECURITY.md/RUNBOOK + weekly update check | RUNBOOK has `brew upgrade --cask claude-code` / the person runs `sudo apt upgrade claude-code`; `/jarvis-doctor` checks the floor weekly |
+| SEC-39 | Unsandboxed components never run or trust what the sandbox can write | `denyWrite: ["."]` + `allowWrite` only for queues outside the project; the speaker engine, service units, `~/.local/bin/` and shell profiles denied to Edit/Write and to `protect-paths.sh`; every hook `python3 -I`; the speaker reads its queue with one `O_NOFOLLOW` open (`capabilities/voice.md` § Speaker) |
 
 ## Verify
 
@@ -617,7 +673,7 @@ claude auth status 2>/dev/null | grep -q '"authMethod": *"claude.ai"'
 grep -q '^unset ANTHROPIC_API_KEY' bin/jarvis-up.sh && ! grep -Eq '^(ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|TELEGRAM_BOT_TOKEN)=' .env
 ! grep -q 'env.jobs' bin/jarvis-up.sh
 # Headless entry points carry the plugin-off settings (poller conflict, SEC-07/09)
-python3 -c 'import json;h=json.load(open(".claude/headless-settings.json"));l=json.load(open(".claude/launch-settings.json"));assert h["enabledPlugins"]["telegram@claude-plugins-official"] is False and h["sandbox"]==l["sandbox"]'
+python3 -I -c 'import json;h=json.load(open(".claude/headless-settings.json"));l=json.load(open(".claude/launch-settings.json"));assert h["enabledPlugins"]["telegram@claude-plugins-official"] is False and h["sandbox"]==l["sandbox"]'
 grep -q 'headless-settings.json' jobs/run-job.sh
 # Bun present
 bun --version | grep -q '^1\.'
@@ -626,9 +682,17 @@ test "$(stat -c %a ~/.claude/channels/telegram/.env 2>/dev/null || stat -f %Lp ~
 # Bot token valid (prints only ok); the token stays out of argv via curl -K
 ( . ~/.claude/channels/telegram/.env; printf 'url = "https://api.telegram.org/bot%s/getMe"\n' "$TELEGRAM_BOT_TOKEN" | curl -fsS -K - | grep -q '"ok":true' ) && echo ok
 # Owner-only allowlist
-python3 -c 'import json,os;a=json.load(open(os.path.expanduser("~/.claude/channels/telegram/access.json")));assert a.get("dmPolicy")=="allowlist" and len(a.get("allowFrom",[]))==1 and a["allowFrom"][0].isdigit() and not a.get("groups")'
+python3 -I -c 'import json,os;a=json.load(open(os.path.expanduser("~/.claude/channels/telegram/access.json")));assert a.get("dmPolicy")=="allowlist" and len(a.get("allowFrom",[]))==1 and a["allowFrom"][0].isdigit() and not a.get("groups")'
 # Strict sandbox configured
-python3 -c 'import json;s=json.load(open(".claude/launch-settings.json"))["sandbox"];assert s["enabled"] and s["allowUnsandboxedCommands"] is False and s["failIfUnavailable"] is True'
+python3 -I -c 'import json;s=json.load(open(".claude/launch-settings.json"))["sandbox"];assert s["enabled"] and s["allowUnsandboxedCommands"] is False and s["failIfUnavailable"] is True'
+# Workspace read-only to sandboxed shell commands; extra writes only outside the project
+python3 -I -c 'import json;f=json.load(open(".claude/launch-settings.json"))["sandbox"]["filesystem"];assert "." in f["denyWrite"] and not any(p.startswith(".") for p in f.get("allowWrite",[]))'
+# Hooks, jobs and scripts never run python without -I
+! grep -rqE 'python3? -c' .claude/hooks bin jobs
+# Workspace trust stuck (without it the project allow rules are ignored); prints nothing
+python3 -I -c 'import json,os;assert json.load(open(os.path.expanduser("~/.claude.json")))["projects"][os.getcwd()].get("hasTrustDialogAccepted") is True'
+# One Skill(<name>) allow rule per installed skill (the panel's dontAsk mode denies the rest)
+python3 -I -c 'import json,os;a=set(json.load(open(".claude/settings.json"))["permissions"]["allow"]);assert all(f"Skill({n})" in a for n in os.listdir(".claude/skills") if not os.path.exists(f".claude/skills/{n}/.probation"))'
 # Never skip-permissions
 ! grep -rq 'dangerously-skip-permissions' bin/ .claude/
 # Session alive and a live Telegram poller exists (that it belongs to the tmux session, not another claude, is checked by smoke test 1)
@@ -638,7 +702,7 @@ ps -p "$(cat ~/.claude/channels/telegram/bot.pid)" -o args= | grep -q 'server.ts
 # record the pid, run `launchctl kickstart -k gui/$(id -u)/com.jarvis.briefing`, wait for "briefing ok" in logs/jobs.log, then:
 # test "$(cat ~/.claude/channels/telegram/bot.pid)" = "$PID_BEFORE"
 # Hook interpreter present (a failing hook is a non-blocking error, so guard.sh would fail open)
-/usr/bin/python3 -c 'import json,hashlib'
+/usr/bin/python3 -I -c 'import json,hashlib'
 # Supervisor loaded (macOS / Linux)
 launchctl print "gui/$(id -u)/com.jarvis.<slug>" >/dev/null 2>&1 || systemctl --user is-active --quiet jarvis.service
 # Secrets hygiene
@@ -672,6 +736,8 @@ Smoke test (with the person, per `questions/4-construir.md`):
 | Permission prompt while away | The session pauses | Permission relay to Telegram (built into the plugin). Keep `ask` rules few and meaningful |
 | `auto` mode unavailable (server-side off, or classifier rejected the account) ([permission-modes](https://code.claude.com/docs/en/permission-modes)) | Session starts in Manual; every action prompts via relay | Accept the relay noise, or narrow `allow` rules for read-only tools. Never fall back to skip-permissions |
 | Native Windows | No sandbox (fails SEC-07), and Channels aren't documented for native Windows | WSL2. If impossible, recommend `cowork` or a cloud runtime instead |
+| Workspace trust didn't stick (WSL2 build, 2026-10-22): the person accepted the trust dialog, but `~/.claude.json` → `projects["<jarvis>"].hasTrustDialogAccepted` stayed unset | Project `allow` rules are ignored, so every tool call prompts (and a `dontAsk` job or panel chat is denied) | The Verify line above catches it. The person opens `claude` in the Jarvis folder once more, accepts the dialog, exits with `/exit` and reruns the check. The agent never edits `~/.claude.json` itself. Cause not confirmed: UNVERIFIED, re-check on each new pin |
+| Templates copied from a Windows checkout of the Architect repo arrive with CRLF line endings | bash refuses the scripts, and the byte-identical checks of the validator fail | The repo's `.gitattributes` forces LF. On an older clone: `git add --renormalize . && git checkout -- .` in the Architect repo, or `tr -d '\r'` on the copied file, then compare with `cmp` |
 | iMessage under launchd/tmux | The Full Disk Access prompt names the app that launched Bun; under launchd that isn't Terminal, so the prompt may never appear | Grant FDA to the tmux binary up front (or to Terminal, and start Jarvis from Terminal). Then send a test iMessage; if Jarvis can't read it, add the binary shown in System Settings → Privacy & Security → Full Disk Access |
 | Background sessions (`claude --bg`, `/bg`) could replace tmux, but carrying `--channels` over is not listed in the docs ([agent-view](https://code.claude.com/docs/en/agent-view)) | Channels could stop when the session moves to the background | Use tmux + supervisor. Switch only once the agent-view docs list `--channels` support |
 | Denied non-owner senders aren't logged by the plugin | SEC-29 "alert on denied senders" is partial | Accept and document. Under `pairing` policy, pending codes show in `access.json`, but pairing isn't the final policy |

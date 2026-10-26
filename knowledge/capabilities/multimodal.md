@@ -90,7 +90,7 @@ Token prices per model: `knowledge/models.json`. The Architect shows a worked ex
 
 | Runtime | Audio | Video | Images / PDF | Setup notes |
 |---|---|---|---|---|
-| `claude-code-local` | `transcribe` on the file from `download_attachment` (Telegram plugin passes `attachment_kind: voice` + `file_id`) | `watch-video` | Native (`Read`; the plugin puts photos at `image_path`) | `brew install ffmpeg whisper.cpp yt-dlp` typed by the owner; settings allow exactly the two skill scripts (below) |
+| `claude-code-local` | `transcribe` on the file from `download_attachment` (Telegram plugin passes `attachment_kind: voice` + `file_id`) | `watch-video` | Native (`Read`; the plugin puts photos at `image_path`) | macOS: `brew install ffmpeg whisper.cpp yt-dlp` typed by the owner. Linux / WSL2 without Homebrew: apt `ffmpeg` (check the apt floor) and whisper.cpp built from the pinned tag (`knowledge/runtimes/claude-code-local.md` Install § 5), because the distro package can sit below the pin. Settings allow exactly the two skill scripts (below). With `denyWrite: ["."]`, `--out` points outside the project (runtime file § Notes on both settings files) |
 | `claude-code-server` (Railway) | `transcribe.sh --engine cloud` with consent (no local model on a small service), or a container image that bakes whisper.cpp + the model | `watch-video` captions and frames; Whisper fallback only with the local-model image (`watch.py` has no cloud engine) | Native | Media tools in the Dockerfile `apt` layer, pinned by the image digest |
 | `claude-p-cron` | Attended sessions only (jobs have no Bash) | Same | `Read` | — |
 | `claude-agent-sdk` | Bridge: Telegram `getFile` → `transcribe.sh` | `watch.py` → image blocks | Native blocks; Files API for repeated PDFs | Allowlist the two scripts in the tool guard |
@@ -108,6 +108,8 @@ Token prices per model: `knowledge/models.json`. The Architect shows a worked ex
 ]
 ```
 Not `Bash(ffmpeg:*)` or `Bash(whisper-cli:*)` on their own: the scripts are the only entry points, so their checks can't be skipped.
+
+The binaries the scripts call run inside the sandbox, but they live where Jarvis can't write them: Homebrew's prefix, `/usr/bin`, or `vendor/whisper.cpp/` and the `~/.local/bin/whisper-cli` wrapper, both protected (`protect-paths.sh`, settings `deny`). A `whisper-cli` that Jarvis could replace would run with whatever the next unsandboxed caller has (SEC-39). Spoken replies on the PC are voice **out**: `knowledge/capabilities/voice.md` § Speaker.
 
 ## Channel limits
 
