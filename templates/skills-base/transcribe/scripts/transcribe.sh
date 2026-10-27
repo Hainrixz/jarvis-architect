@@ -75,6 +75,14 @@ printf '%s' "$SRC" | grep -Eq '^(owner|untrusted)/[a-z0-9._-]{1,40}$' || die 2 "
 case "$OUT" in -*|*..*) die 2 "--out inválido" ;; esac
 
 # --- 1. The input: a regular local file, never a URL, never an option-looking name -------------
+# adjunto:<nombre> = archivo del inbox de Telegram (jarvis-add 2026-10-27): así el comando nunca nombra
+# ~/.claude/channels, que protect-paths bloquea. Solo el nombre: sin carpetas ni "..".
+case "$IN" in
+  adjunto:*)
+    n=${IN#adjunto:}
+    case "$n" in ""|*/*|.*) die 2 "adjunto inválido: solo el nombre del archivo" ;; esac
+    IN="$HOME/.claude/channels/telegram/inbox/$n" ;;
+esac
 case "$IN" in
   -*) die 2 "nombre de archivo que empieza con '-': rechazado" ;;
   *://*) die 2 "solo archivos locales; para enlaces usa la skill watch-video" ;;

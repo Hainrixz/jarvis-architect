@@ -12,6 +12,7 @@ Run it with `python3 -I` (isolated mode: no imports from the current folder).
 
   python3 -I watch.py [--detail transcript|balanced|visual] [--start MM:SS] [--end MM:SS]
                       [--max-frames N] [--lang es] [--json] [--delete-input] -- SOURCE
+  SOURCE: a URL, a local file, or adjunto:<name> (a file in the Telegram plugin inbox)
   (--detail defaults to transcript: frames only when the question is visual)
   python3 -I watch.py --cleanup /tmp/jarvis-watch-XXXX
 
@@ -401,6 +402,13 @@ def main(argv):
         return 0
     if not a.source:
         fail(2, "falta la fuente (uso: watch.py [opciones] -- URL_o_archivo)")
+    # adjunto:<nombre> = file in the Telegram plugin inbox, so the command never names
+    # ~/.claude/channels (protect-paths denies it). Name only: no folders, no leading dot.
+    if a.source.startswith("adjunto:"):
+        name = a.source[len("adjunto:"):]
+        if not name or "/" in name or name.startswith("."):
+            fail(2, "adjunto inválido: solo el nombre del archivo")
+        a.source = os.path.join(os.path.expanduser("~/.claude/channels/telegram/inbox"), name)
     if not re.fullmatch(r"[a-z]{2}|auto", a.lang):
         fail(2, "--lang inválido")
     max_frames = max(1, min(MAX_FRAMES_CAP, a.max_frames))
