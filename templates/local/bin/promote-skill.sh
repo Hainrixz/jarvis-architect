@@ -248,6 +248,7 @@ case "$cmd" in
       audit learning.rejected_secret "$name" "" "$src"
       die "la propuesta $src trae algo que parece una llave, token o contraseña (gitleaks); nada cambió. Quítalo y vuelve a intentar" 7
     fi
+    was_live=0; exists_live "$name" && was_live=1
     paths=()
     for d in $(live_dirs); do
       mkdir -p "$d"
@@ -264,7 +265,13 @@ case "$cmd" in
     paths+=("proposals/applied/$name-$stamp" "$src")
     sha="$(git_commit "learning: promote skill $name" "${paths[@]}")"
     audit learning.promote "$name" "$sha" "probation;evidence=${ev:-none}"
-    echo "Skill nueva: $name (en prueba: los trabajos programados no la usan hasta que la uses una vez conmigo). Para quitarla: «deshaz» o bin/learn.sh undo $name" ;;
+    # undo reverts one learning commit: on a new skill that removes it, on an update it only brings
+    # back the previous version, so an update names retire as the way to remove it
+    if [ "$was_live" = 1 ]; then
+      echo "Skill actualizada: $name (en prueba: los trabajos programados no la usan hasta que la uses una vez conmigo). «deshaz» o bin/learn.sh undo $name vuelve a la versión anterior; para quitarla: bin/promote-skill.sh retire $name"
+    else
+      echo "Skill nueva: $name (en prueba: los trabajos programados no la usan hasta que la uses una vez conmigo). Para quitarla: «deshaz» o bin/learn.sh undo $name"
+    fi ;;
 
   used)
     valid_name "$name" || die "nombre inválido" 2

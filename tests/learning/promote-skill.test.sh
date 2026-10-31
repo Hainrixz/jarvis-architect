@@ -90,6 +90,7 @@ r="$(rc_of bin/promote-skill.sh promote informe-semanal)"
 git log -1 --format=%s | grep -q '^learning: promote skill informe-semanal$' && ok || bad "sin commit"
 grep '"event": "learning.promote"' logs/audit.jsonl | grep -q 'C-0001,C-0004' && ok || bad "sin auditoría learning.promote con evidencia"
 grep -q 'en prueba' "$T/out" && ok || bad "sin aviso al dueño"
+grep -q '^Skill nueva: informe-semanal' "$T/out" && ok || bad "una skill nueva debía avisar «Skill nueva»"
 # probation is enforced by protect-paths (unattended) and ends on the first attended use
 pp() { python3 -I -c 'import json,sys; print(json.dumps({"session_id":"s","cwd":sys.argv[1],"permission_mode":sys.argv[2],
   "tool_name":"Skill","tool_input":{"skill":"informe-semanal"}}))' "$J" "$1" | bin/hooks/protect-paths.sh; }
@@ -109,6 +110,9 @@ r="$(rc_of bin/promote-skill.sh promote agenda)"; [ "$r" = 4 ] && grep -q 'Agend
 rm -rf proposals/skills/agenda .claude/skills/agenda
 mkdir -p approvals/decided; printf '{"decision":"approve"}\n' > approvals/decided/promote-morning-briefing-1.json
 r="$(rc_of bin/promote-skill.sh promote morning-briefing)"; [ "$r" = 0 ] && ok || bad "con decisión del dueño debía entrar: $(cat "$T/out")"
+# replacing a live skill: undo only brings back the previous version, so the notice names retire
+grep -q '^Skill actualizada: morning-briefing' "$T/out" && grep -q 'promote-skill.sh retire morning-briefing' "$T/out" && ok \
+  || bad "una skill que ya existía debía avisar «Skill actualizada» y nombrar retire: $(cat "$T/out")"
 
 # --- rate limit: at most 3 promotions in 24 h ---------------------------------------------------
 draft tercera '' '1. x'; r="$(rc_of bin/promote-skill.sh promote tercera)"; [ "$r" = 0 ] && ok || bad "3.ª promoción: $(cat "$T/out")"

@@ -16,6 +16,12 @@ Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2
 
 ### Fixed
 
+- **The promotion notice said «deshaz» removes a skill even when it was an update.** `bin/learn.sh undo`
+  reverts one learning commit, so on a re-promoted skill it only brings back the previous version and
+  the skill stays live. `promote-skill.sh promote` now says «Skill actualizada» when the skill was
+  already live and names `bin/promote-skill.sh retire <name>` as the way to remove it; the `learn`
+  skill uses `retire` when the owner asks to remove a skill. New test in
+  `tests/learning/promote-skill.test.sh`. Found on a real build (a skill promoted three times in one day).
 - **Telegram pairing on `claude-code-local` could not work as documented.** The runtime file, the
   checklist and `channels.md` said to run `/telegram:access pair|policy` inside the Jarvis session,
   but the Jarvis's own `guard.sh` and `protect-paths.sh` deny every write to `access.json` (as they

@@ -63,6 +63,8 @@ Si la corrección llegó con un número `C-NNNN` (lo pone el gancho de captura e
 4. Si la skill que quieres mejorar la escribió {{owner_first_name}} o el Architect, el script la
    deja como propuesta: avisa "Te dejé una mejora de <nombre> en Aprendizajes para que la apliques".
 5. Avisa en una línea: "Skill nueva: <nombre>, en prueba hasta que la usemos juntos una vez. «deshaz» la quita."
+   Si ya existía (el script dice "Skill actualizada"): "Mejoré <nombre>, en prueba hasta que la usemos
+   juntos una vez. «deshaz» vuelve a la versión anterior; para quitarla del todo, pídeme que la retire."
 6. Cierra la corrección: `bin/learn.sh close <C-id> procedure skill <nombre>`.
 
 ## 4. Si me piden más permisos
@@ -76,6 +78,9 @@ Si la corrección llegó con un número `C-NNNN` (lo pone el gancho de captura e
 1. Sin más detalle: `bin/learn.sh undo` revierte el último aprendizaje (lección, hecho o skill).
 2. Si nombra uno ("deshaz la de tutear", "quita la skill del informe"): busca su `L-NNNN` o nombre
    y corre `bin/learn.sh undo <L-NNNN|nombre>`.
+   Si pide quitar una skill del todo ("quita la skill del informe", "retírala"): `bin/promote-skill.sh
+   retire <nombre>`. `undo` solo revierte la última versión: si la skill se mejoró después de entrar,
+   undo deja la versión anterior viva.
 3. Responde con la línea que devuelve el script: "Deshecho: …". Si no pudo, dilo y sugiere el panel
    (Aprendizajes).
 
