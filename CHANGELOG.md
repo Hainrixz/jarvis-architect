@@ -12,7 +12,7 @@ Pin refreshes from `/jarvis-refresh` go under *Changed* with their source URL.
 
 ## [Unreleased]
 
-Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2026-10-22.
+Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2026-10-22 to 2026-10-31.
 
 ### Fixed
 
@@ -49,6 +49,18 @@ Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2
   `learn.sh commit` reverts a flagged change (exit 7, `learning.rejected_secret`), `learn.sh review`
   leaves a flagged snapshot uncommitted, and `promote-skill.sh promote` scans the proposal before
   anything moves. New cases in `tests/learning/promote-skill.test.sh`.
+- **Telegram voice notes and videos never reached `transcribe` / `watch-video` on `claude-code-local`.**
+  The documented commands passed the attachment's path under `~/.claude/channels`, which
+  `protect-paths` blocks, plus `--delete-input`, which `guard.sh` blocks (any `--delete`). Both scripts
+  now take `adjunto:<name>` and resolve it inside the Telegram plugin inbox (a bare file name: no
+  folders, no leading dot); the skills drop `--delete-input` on Claude Code. Cases added to
+  `tests/media/run.sh`. Found live 2026-10-27.
+- **WSL could run the Jarvis in the wrong timezone.** WSL copies the Windows zone at every start
+  (`[time] useWindowsTimezone`, default `true`), and a Windows zone can map to a different IANA name
+  than the spec's. `deploy-local.md` §3 gains step 5: the person appends
+  `[time] useWindowsTimezone=false` to `/etc/wsl.conf` (never overwriting `[boot] systemd=true`) and
+  sets the zone with `timedatectl`, as a `user_action`. `/jarvis-doctor` gains a Clock row (timezone vs
+  spec, NTP sync, WSL drift against Windows, a per-message time stamp for long-lived sessions).
 
 ---
 

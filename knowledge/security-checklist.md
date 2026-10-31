@@ -2,7 +2,7 @@
 
 > The controls every generated Jarvis ships with (SEC-01…SEC-38), why each exists, how to implement it per runtime, and the exact check `jarvis-validator` runs.
 
-Last verified: 2026-10-06
+Last verified: 2026-10-22
 
 **How this file is used**
 

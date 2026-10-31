@@ -2,7 +2,7 @@
 
 > How to keep a Jarvis running on the person's own machine: one supervisor per OS (launchd, systemd, WSL2 + systemd, pm2 or Docker Compose), everything bound to 127.0.0.1, remote access and webhooks only through Tailscale, and secrets in a chmod 600 `.env` or the OS keychain.
 
-Last verified: 2026-10-06
+Last verified: 2026-10-31
 
 ## Decision rule
 
