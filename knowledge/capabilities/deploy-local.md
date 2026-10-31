@@ -45,7 +45,7 @@ Hard constraints the Architect checks before choosing local (see `knowledge/comp
 
 - **One entry point.** The supervisor runs `bin/run.sh` (or the runtime's own binary). `run.sh` loads secrets (§8), honours a `STOP` kill-switch file, trims logs, `cd`s into the folder and `exec`s the runtime, so signals reach it. Minimum shape and the rendering rules for every supervisor file: `templates/local/README.md`.
 - **Absolute paths only.** launchd and systemd don't read your shell profile. `PATH` must be set in the unit/plist and must contain the folder of every binary the job calls: run `dirname "$(command -v claude)"` (the native installer uses `~/.local/bin`, written as an absolute path), plus Homebrew (`/opt/homebrew/bin` on Apple silicon, `/usr/local/bin` on Intel).
-- **Never `sudo` from the agent** (rule 9). The few steps that need admin rights (`pmset`, `loginctl enable-linger`, `/etc/wsl.conf`, `pm2 startup`) are `user_action` tasks: the Architect shows the exact command and the person runs it with `! <command>`.
+- **Never `sudo` from the agent** (rule 9). The few steps that need admin rights (`pmset`, `loginctl enable-linger`, `/etc/wsl.conf`, `timedatectl set-timezone` on WSL, `pm2 startup`) are `user_action` tasks: the Architect shows the exact command and the person runs it with `! <command>`.
 - **One instance only.** Two copies of the same gateway on one data directory corrupt state (`CMP-11`). Before installing a supervisor, check nothing else (tmux, a runtime's own daemon, pm2) already runs it.
 
 ---
@@ -208,6 +208,12 @@ Claude Code on native Windows has **no sandbox**; WSL2 supports it, WSL1 does no
    Then `wsl.exe --shutdown` in PowerShell and reopen. Verify: `ps -p 1 -o comm=` prints `systemd`.
 3. Keep the Jarvis folder under `~` in Linux, **not** `/mnt/c` (much slower — [Hermes WSL2 quickstart](https://hermes-agent.nousresearch.com/docs/user-guide/windows-wsl-quickstart)).
 4. Follow §2 (user unit + linger).
+5. **Timezone (when the Windows zone maps to a different IANA name than the spec's).** WSL copies the Windows timezone at every start (`[time] useWindowsTimezone`, default `true` — [wsl-config](https://learn.microsoft.com/en-us/windows/wsl/wsl-config)); e.g. Windows "SA Western Standard Time" becomes `America/La_Paz`, not `America/Puerto_Rico`. Units should still set `Environment=TZ=<spec TZ>`. To fix the system zone, the person runs (`user_action`; **append** to `/etc/wsl.conf`, never overwrite it — `[boot] systemd=true` must stay):
+   ```bash
+   printf '\n[time]\nuseWindowsTimezone=false\n' | sudo tee -a /etc/wsl.conf
+   sudo timedatectl set-timezone <spec TZ>
+   ```
+   Then `wsl.exe --shutdown` in PowerShell and reopen. Verify: `timedatectl show -p Timezone --value` prints the spec TZ and `ps -p 1 -o comm=` still prints `systemd`.
 
 ### Keeping WSL alive (the trap)
 
@@ -421,7 +427,7 @@ Full control text and checks: `knowledge/security-checklist.md`.
 - loginctl enable-linger: https://man7.org/linux/man-pages/man1/loginctl.1.html
 - systemd.service / resource-control: https://www.freedesktop.org/software/systemd/man/latest/systemd.service.html · https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html
 - WSL systemd (does not keep WSL alive): https://learn.microsoft.com/en-us/windows/wsl/systemd (checked 2026-10-06)
-- WSL config (`instanceIdleTimeout`, `vmIdleTimeout`): https://learn.microsoft.com/en-us/windows/wsl/wsl-config (checked 2026-10-06)
+- WSL config (`instanceIdleTimeout`, `vmIdleTimeout`; `[time] useWindowsTimezone` checked 2026-10-31): https://learn.microsoft.com/en-us/windows/wsl/wsl-config (checked 2026-10-06)
 - schtasks: https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/schtasks-create
 - Claude Code sandboxing (no sandbox on native Windows): https://code.claude.com/docs/en/sandboxing
 - pm2 startup (init systems, sudo command, no Windows): https://pm2.keymetrics.io/docs/usage/startup/ (checked 2026-10-06)
