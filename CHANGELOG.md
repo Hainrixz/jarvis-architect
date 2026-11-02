@@ -16,6 +16,17 @@ Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2
 
 ### Fixed
 
+- **A downloaded voice note or video could not be read under the generated sandbox.** The
+  `claude-code-local` sandbox hides all of `~/.claude/channels` (`denyRead`), and the Telegram inbox
+  lives inside it, so `transcribe.sh adjunto:<name>` and `watch.py adjunto:<name>` never found the
+  file. The sandbox block now re-opens only `~/.claude/channels/telegram/inbox` with `allowRead`
+  (the token, `.env` and `access.json` stay hidden); `claude-code-server` gets the same exception
+  for `/data/claude/channels/telegram/inbox`. Both scripts resolve `adjunto:` under
+  `CLAUDE_CONFIG_DIR` (the server keeps its config in `/data/claude`). SEC-08 says so and flags an
+  `allowRead` wider than the inbox as MAJOR; the `claude-code-local` Verify block checks it. New test
+  `tests/channels/inbox-sandbox.test.sh` (in CI) checks the blocks, the alias, and reads a real
+  voice note and video through a bubblewrap namespace that emulates deny + allow, with a negative
+  control; it is an emulation, not the Claude Code sandbox itself.
 - **The promotion notice said «deshaz» removes a skill even when it was an update.** `bin/learn.sh undo`
   reverts one learning commit, so on a re-promoted skill it only brings back the previous version and
   the skill stays live. `promote-skill.sh promote` now says «Skill actualizada» when the skill was

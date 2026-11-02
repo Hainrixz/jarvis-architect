@@ -263,7 +263,8 @@ How it works:
     "excludedCommands": ["bin/learn.sh *", "./bin/learn.sh *", "bin/promote-skill.sh *", "./bin/promote-skill.sh *"],
     "filesystem": {
       "denyRead": ["~/.ssh", "~/.aws", "~/.gnupg", "~/.config/gh", "~/.claude/channels",
-                   "~/.claude/.credentials.json", "~/.codex", "~/Library/Keychains", "~/**/.env"]
+                   "~/.claude/.credentials.json", "~/.codex", "~/Library/Keychains", "~/**/.env"],
+      "allowRead": ["~/.claude/channels/telegram/inbox"]
     },
     "credentials": {
       "envVars": [
@@ -297,6 +298,13 @@ Do not paste the line above literally: `"...": ...` is a placeholder and makes t
 - This also puts panel chats and scheduled jobs under the sandbox and strict egress (SEC-07/SEC-09), which they would otherwise skip.
 
 ### Notes on both settings files
+
+- **`allowRead` is what lets the media skills read what the owner sends.** `denyRead` hides all of
+  `~/.claude/channels` (token, `access.json`, pairing state) from every sandboxed command, and the inbox is
+  inside it. Without the exception, `transcribe.sh adjunto:<name>` and `watch.py adjunto:<name>` cannot open a
+  downloaded voice note or video. `allowRead` re-opens only `~/.claude/channels/telegram/inbox` (the narrowest
+  path wins over `denyRead`, [sandboxing](https://code.claude.com/docs/en/sandboxing)); `.env`, `access.json` and
+  the rest stay unreadable. Discord: add `~/.claude/channels/discord/inbox` only if the Jarvis uses it (UNVERIFIED path).
 
 - `excludedCommands` takes only `bin/learn.sh` and `bin/promote-skill.sh` out of the sandbox. The sandbox
   write-protects `.claude/skills` with no exemption (an `allowWrite` entry doesn't lift it,
@@ -577,7 +585,7 @@ IDs are the ones defined in `security-checklist.md` (SEC-01…SEC-33). Every con
 | SEC-05 | No public control plane | Nothing listens. Remote Control is outbound HTTPS only. fakechat (`localhost:8787`) is demo-only and never enabled in a real Jarvis |
 | SEC-06 | Railway exposure | N/A (local host) |
 | SEC-07 | Sandbox on | `launch-settings.json`: `enabled`, `allowUnsandboxedCommands: false`, `failIfUnavailable: true`. Native Windows **fails** this control, so use WSL2 |
-| SEC-08 | Credential paths unreadable | `sandbox.filesystem.denyRead` (`~/.ssh`, `~/.aws`, `~/**/.env`, `~/.claude/channels`, credentials) **plus** permission `deny` rules `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)` (the sandbox doesn't cover the Read tool) |
+| SEC-08 | Credential paths unreadable | `sandbox.filesystem.denyRead` (`~/.ssh`, `~/.aws`, `~/**/.env`, `~/.claude/channels`, credentials) **plus** permission `deny` rules `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)` (the sandbox doesn't cover the Read tool). `allowRead` names only `~/.claude/channels/telegram/inbox`, so voice notes and videos can be read while the token and `access.json` stay hidden |
 | SEC-09 | Egress allowlist | `network.allowedDomains` minimal + `strictAllowlist: true` via `--settings`. WebFetch is governed by permission rules (`WebFetch(domain:…)` allow rules also join the strict allowlist) |
 | SEC-10 | No bypass flags; destructive patterns hard-denied | Launch with `--permission-mode auto`, **never** `--dangerously-skip-permissions` (the channels doc offers it for unattended use; it's forbidden here outside a disposable container). `permissions.disableBypassPermissionsMode: "disable"` makes Claude Code reject that flag outright ([settings-reference](https://code.claude.com/docs/en/settings-reference), checked 2026-10-22). `permissions.deny` list + `guard.sh` PreToolUse deny, which apply in every mode |
 | SEC-11 | Rule of Two classification | AGENTS.md and spec §5 classify each capability [A]/[B]/[C]. Any A+B+C flow (for example "read inbox → reply") ends in a draft plus an `ask`-gated send |
@@ -629,6 +637,8 @@ test "$(stat -c %a ~/.claude/channels/telegram/.env 2>/dev/null || stat -f %Lp ~
 ( . ~/.claude/channels/telegram/.env; printf 'url = "https://api.telegram.org/bot%s/getMe"\n' "$TELEGRAM_BOT_TOKEN" | curl -fsS -K - | grep -q '"ok":true' ) && echo ok
 # Owner-only allowlist
 python3 -c 'import json,os;a=json.load(open(os.path.expanduser("~/.claude/channels/telegram/access.json")));assert a.get("dmPolicy")=="allowlist" and len(a.get("allowFrom",[]))==1 and a["allowFrom"][0].isdigit() and not a.get("groups")'
+# Voice notes and videos in the inbox stay readable while the rest of channels/ is hidden
+python3 -c 'import json;f=json.load(open(".claude/launch-settings.json"))["sandbox"]["filesystem"];assert "~/.claude/channels" in f["denyRead"] and f["allowRead"]==["~/.claude/channels/telegram/inbox"]'
 # Strict sandbox configured
 python3 -c 'import json;s=json.load(open(".claude/launch-settings.json"))["sandbox"];assert s["enabled"] and s["allowUnsandboxedCommands"] is False and s["failIfUnavailable"] is True'
 # Never skip-permissions

@@ -408,7 +408,8 @@ def main(argv):
         name = a.source[len("adjunto:"):]
         if not name or "/" in name or name.startswith("."):
             fail(2, "adjunto inválido: solo el nombre del archivo")
-        a.source = os.path.join(os.path.expanduser("~/.claude/channels/telegram/inbox"), name)
+        cfg = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+        a.source = os.path.join(cfg, "channels", "telegram", "inbox", name)
     if not re.fullmatch(r"[a-z]{2}|auto", a.lang):
         fail(2, "--lang inválido")
     max_frames = max(1, min(MAX_FRAMES_CAP, a.max_frames))

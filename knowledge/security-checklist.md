@@ -274,10 +274,14 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
   - CC: `sandbox.filesystem.denyRead: ["~/.ssh", "~/.aws", "~/**/.env"]` **plus** permission
     `deny` rules `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)`. The sandbox does not
     cover the Read tool; permission rules do.
+  - CC: the only `allowRead` exception is the channel inbox (`~/.claude/channels/telegram/inbox`), so
+    the media skills can open attachments; the narrowest path wins over `denyRead`. Token, `.env` and
+    `access.json` stay hidden.
   - HER: these paths are protected writes by default. Also set `HERMES_WRITE_SAFE_ROOT`.
   - OC/SDK: do not mount `~/.ssh`, `~/.aws` or `~/.claude` into containers.
 - **Check:**
   - CC: `denyRead` missing any of `.ssh`, `.aws`, `.env` → MAJOR.
+  - CC: `allowRead` naming anything but the channel inbox (for example all of `~/.claude/channels`) → MAJOR.
   - Any compose or volume line mounting `~/.ssh`, `~/.aws`, `~/.claude` or `~/.codex` → BLOCKER
     (that is sweep 4 when it's `~/.claude`).
 - **Grade:** MAJOR (sweep 8).

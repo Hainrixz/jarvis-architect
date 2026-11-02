@@ -81,7 +81,7 @@ case "$IN" in
   adjunto:*)
     n=${IN#adjunto:}
     case "$n" in ""|*/*|.*) die 2 "adjunto inválido: solo el nombre del archivo" ;; esac
-    IN="$HOME/.claude/channels/telegram/inbox/$n" ;;
+    IN="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/channels/telegram/inbox/$n" ;;
 esac
 case "$IN" in
   -*) die 2 "nombre de archivo que empieza con '-': rechazado" ;;

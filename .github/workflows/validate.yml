@@ -304,8 +304,10 @@ jobs:
           bash tests/learning/protect-paths.test.sh
           bash tests/learning/promote-skill.test.sh
 
-      - name: Channels (owner-only Telegram access script)
-        run: bash tests/channels/telegram-access.test.sh
+      - name: Channels (owner-only Telegram access script, inbox readable under the sandbox)
+        run: |
+          bash tests/channels/telegram-access.test.sh
+          bash tests/channels/inbox-sandbox.test.sh
 
   media:
     name: Media pipeline (skips what the runner lacks)
