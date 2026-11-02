@@ -72,6 +72,15 @@ set +e; bash "$TRANSCRIBE" -- "$WORK/fake.ogg" >/dev/null 2>&1; rc=$?; set -e
 if [ "$rc" = 2 ]; then ok "transcribe.sh rejects a non-audio file by MIME"; else bad "transcribe.sh MIME rc=$rc"; fi
 set +e; JARVIS_SENSITIVE_PACK=1 JARVIS_STT_CLOUD=groq bash "$TRANSCRIBE" --engine cloud -- "$WORK/fake.ogg" >/dev/null 2>&1; rc=$?; set -e
 if [ "$rc" = 2 ]; then ok "transcribe.sh checks the file before any cloud call"; else bad "cloud guard rc=$rc"; fi
+# adjunto:<name> resolves inside the Telegram inbox only: no folders, no leading dot
+for a in "adjunto:../x.oga" "adjunto:a/b.oga" "adjunto:.hidden" "adjunto:"; do
+  set +e; out=$(bash "$TRANSCRIBE" -- "$a" 2>&1); rc=$?; set -e
+  if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q 'adjunto'; then ok "transcribe.sh refuses $a"; else bad "transcribe.sh $a (rc=$rc)"; fi
+  set +e; out=$(python3 -I "$WATCH" -- "$a" 2>&1); rc=$?; set -e
+  if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q 'adjunto'; then ok "watch.py refuses $a"; else bad "watch.py $a (rc=$rc)"; fi
+done
+set +e; out=$(bash "$TRANSCRIBE" -- "adjunto:no-such-$$.oga" 2>&1); rc=$?; set -e
+if [ "$rc" = 2 ] && printf '%s' "$out" | grep -q '.claude/channels/telegram/inbox/no-such'; then ok "transcribe.sh resolves adjunto: into the inbox"; else bad "transcribe.sh adjunto resolve (rc=$rc)"; fi
 
 # ---- media pipeline (needs ffmpeg + whisper-cli + model) -----------------------------------
 MODEL=${JARVIS_TEST_WHISPER_MODEL:-}

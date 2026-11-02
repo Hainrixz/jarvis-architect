@@ -204,7 +204,7 @@ DISABLE_AUTOUPDATER=1
     "allowUnsandboxedCommands": false,
     "failIfUnavailable": true,
     "excludedCommands": ["bin/learn.sh *", "./bin/learn.sh *", "bin/promote-skill.sh *", "./bin/promote-skill.sh *"],
-    "filesystem": { "denyRead": ["~/.ssh", "~/.aws", "~/**/.env", "//data/claude"] },
+    "filesystem": { "denyRead": ["~/.ssh", "~/.aws", "~/**/.env", "//data/claude"], "allowRead": ["//data/claude/channels/telegram/inbox"] },
     "network": { "allowedDomains": ["api.telegram.org"] }
   },
   "hooks": {

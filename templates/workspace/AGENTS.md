@@ -24,7 +24,8 @@ Variables:
   {{owner_first_name}}            Owner's first name.
   {{owner_channels}}              Channels where the owner may talk to Jarvis, e.g. "Telegram (DM)".
   {{allowlist_location}}          Where the allowlist lives, e.g. "TELEGRAM_ALLOWED_USERS en .env"
-                                  or "/telegram:access en la sesión local". Location only, never IDs.
+                                  or "`bin/telegram-access.sh` en una terminal fuera de Jarvis".
+                                  Location only, never IDs.
   {{pack_irreversible_additions}} Extra IRR rows from the profession/country pack, same table
                                   format, ids IRR-P1, IRR-P2…; if none, write a single row
                                   "| — | Ninguna adicional | — |".

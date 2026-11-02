@@ -93,6 +93,7 @@ r="$(rc_of bin/promote-skill.sh promote informe-semanal)"
 git log -1 --format=%s | grep -q '^learning: promote skill informe-semanal$' && ok || bad "sin commit"
 grep '"event": "learning.promote"' logs/audit.jsonl | grep -q 'C-0001,C-0004' && ok || bad "sin auditoría learning.promote con evidencia"
 grep -q 'en prueba' "$T/out" && ok || bad "sin aviso al dueño"
+grep -q '^Skill nueva: informe-semanal' "$T/out" && ok || bad "una skill nueva debía avisar «Skill nueva»"
 # probation is enforced by protect-paths (unattended) and ends on the first attended use
 pp() { python3 -I -c 'import json,sys; print(json.dumps({"session_id":"s","cwd":sys.argv[1],"permission_mode":sys.argv[2],
   "tool_name":"Skill","tool_input":{"skill":"informe-semanal"}}))' "$J" "$1" | bin/hooks/protect-paths.sh; }
@@ -112,6 +113,9 @@ r="$(rc_of bin/promote-skill.sh promote agenda)"; [ "$r" = 4 ] && grep -q 'Agend
 rm -rf proposals/skills/agenda .claude/skills/agenda
 mkdir -p approvals/decided; printf '{"decision":"approve"}\n' > approvals/decided/promote-morning-briefing-1.json
 r="$(rc_of bin/promote-skill.sh promote morning-briefing)"; [ "$r" = 0 ] && ok || bad "con decisión del dueño debía entrar: $(cat "$T/out")"
+# replacing a live skill: undo only brings back the previous version, so the notice names retire
+grep -q '^Skill actualizada: morning-briefing' "$T/out" && grep -q 'promote-skill.sh retire morning-briefing' "$T/out" && ok \
+  || bad "una skill que ya existía debía avisar «Skill actualizada» y nombrar retire: $(cat "$T/out")"
 
 # --- rate limit: at most 3 promotions in 24 h ---------------------------------------------------
 draft tercera '' '1. x'; r="$(rc_of bin/promote-skill.sh promote tercera)"; [ "$r" = 0 ] && ok || bad "3.ª promoción: $(cat "$T/out")"
@@ -167,6 +171,33 @@ PYEOF
 ls memory/weekly/learning-*.md >/dev/null 2>&1 && ok || bad "sin reporte semanal"
 git status --porcelain | grep -v '^??' | grep -q . && bad "review dejó cambios sin commit" || ok
 r="$(rc_of bin/learn.sh undo L-0004)"; [ "$r" = 0 ] && grep -q 'L-0004 · Usa viñetas · ámbito:general · \[src:owner/telegram\] \[2026-01-02\] \[ev:C-0010\] \[usos:0\]$' LESSONS.md && ok || bad "undo de la revisión: $(cat "$T/out")"
+
+# --- SEC-17: commits skip .git/hooks (--no-verify) but scan with gitleaks when it is installed ---
+# A stub gitleaks flags a marker word, so the test needs no real secret and no real gitleaks.
+mkdir -p "$T/fakebin"
+cat > "$T/fakebin/gitleaks" <<'STUB'
+#!/usr/bin/env bash
+case "$1" in
+  git) git diff --cached | grep -q 'MARCADOR-SECRETO' && exit 1; exit 0 ;;
+  dir) grep -rq 'MARCADOR-SECRETO' "$2" && exit 1; exit 0 ;;
+esac
+exit 0
+STUB
+chmod +x "$T/fakebin/gitleaks"
+printf '{"id":"C-0013","ts":"2026-10-06T10:20:00-06:00","session":"s","channel":"telegram","actor":"owner","trigger":"regex:correction","hint":"correction","quote":"firma así","class":null,"outcome":"pending","ref":null}\n' >> memory/corrections.jsonl
+git add -A && git commit -qm "pre-secret"
+add_lesson '- L-0006 · Firma con MARCADOR-SECRETO · ámbito:general · [src:owner/telegram] [2026-10-06] [ev:C-0013] [usos:0]'
+r="$(PATH="$T/fakebin:$PATH" rc_of bin/learn.sh commit lesson L-0006 C-0013)"; [ "$r" = 7 ] && ok || bad "lección con secreto debía rechazarse (rc=$r) $(cat "$T/out")"
+grep -q 'L-0006' LESSONS.md && bad "LESSONS.md no se restauró tras el secreto" || ok
+git log -1 --format=%s | grep -q 'L-0006' && bad "se hizo commit de un secreto" || ok
+git diff --cached --quiet && ok || bad "quedó algo en el índice tras el rechazo"
+grep -q '"event": "learning.rejected_secret"' logs/audit.jsonl && ok || bad "sin auditoría rejected_secret"
+grep -q '"id": "C-0013".*"outcome": "ignored"' memory/corrections.jsonl && ok || bad "C-0013 no quedó cerrada"
+add_lesson '- L-0007 · Firma con tu nombre · ámbito:general · [src:owner/telegram] [2026-10-06] [ev:C-0013] [usos:0]'
+r="$(PATH="$T/fakebin:$PATH" rc_of bin/learn.sh commit lesson L-0007)"; [ "$r" = 0 ] && ok || bad "lección limpia con gitleaks presente: $(cat "$T/out")"
+draft con-secreto '' '1. Usa MARCADOR-SECRETO en el encabezado.'
+r="$(JARVIS_MAX_PROMOTIONS_PER_DAY=99 PATH="$T/fakebin:$PATH" rc_of bin/promote-skill.sh promote con-secreto)"; [ "$r" = 7 ] && ok || bad "propuesta con secreto debía rechazarse (rc=$r) $(cat "$T/out")"
+[ -f proposals/skills/con-secreto/SKILL.md ] && [ ! -e skills/con-secreto ] && [ ! -e .claude/skills/con-secreto ] && ok || bad "la propuesta con secreto se movió a medias"
 
 echo "promote-skill.test.sh: $pass ok, $fail fallas"
 [ "$fail" = 0 ]

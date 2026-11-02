@@ -62,8 +62,12 @@ check fails at its grade. Byte-identical copies are checked by reading both file
    file → BLOCKER. Floating tags (`latest`, `main`) for a Docker image in a server deploy, or an
    MCP server / skill with no pinned version → MAJOR (SEC-24, SEC-25). Any command the agent or
    the person is told to run (in `tasks.json`, scripts, `RUNBOOK.md`) that pipes a download into a
-   shell (`curl … | sh`, `wget … | bash`, `irm … | iex`) or uses `sudo` → BLOCKER (SEC-26). A hit
-   inside a "never do this" warning is fine.
+   shell (`curl … | sh`, `wget … | bash`, `irm … | iex`) → BLOCKER. `sudo` in a command the agent
+   runs, or in a script or scheduled job → BLOCKER. `sudo` that the **person** types for an OS
+   package manager or system step a runtime or deploy file prescribes (`sudo apt install …`,
+   `sudo apt install --only-upgrade claude-code`, `sudo loginctl enable-linger`, `/etc/wsl.conf`)
+   is fine; any other person-typed `sudo` → MAJOR (SEC-26 § Check). A hit inside a "never do
+   this" warning is fine.
 7. **Exposure.** Any admin/gateway/dashboard bound to `0.0.0.0` or given a public Railway domain
    without auth → BLOCKER. Webhook endpoint without secret-token / signature check → MAJOR.
 8. **Sandbox.** Claude Code tracks: `--dangerously-skip-permissions` or `bypassPermissions`

@@ -23,11 +23,12 @@ Load the `jarvis-start` skill's rules (never read secrets; ask before any change
 | Runtime health | `claude doctor` · `hermes doctor` / `hermes --version` · `openclaw doctor` · `ollama list` |
 | Version ≥ security floor | compare installed version with the floor in the runtime file; floor broken = 🔴 |
 | Channel reachable | ask the owner to send "ping"; check the log line |
-| Allowlist intact | grep the channel config for wildcards / `open` policies (fail on any) |
+| Allowlist intact | grep the channel config for wildcards / `open` policies (fail on any). Claude Code, read-only, once per channel the spec lists (`telegram`, `discord`; `claude-code-server` reads `$CLAUDE_CONFIG_DIR`): `python3 -I -c 'import json,os,sys;b=os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude");[print(c,*(lambda a:(a.get("dmPolicy"),len(a.get("allowFrom",[])),len(a.get("pending",{})),len(a.get("groups",{}))))(json.load(open(b+"/channels/"+c+"/access.json")))) if os.path.isfile(b+"/channels/"+c+"/access.json") else print(c,"MISSING") for c in sys.argv[1:]]' telegram` must print `telegram allowlist 1 0 0`; `MISSING` for a configured channel is 🔴 (a Telegram file never vouches for a Discord bot, so a Discord-only install is checked with `discord`, never with the Telegram path) (`bin/telegram-access.sh` is `claude-code-local` only and refuses to run inside Claude Code, so never call it from here; changes are the owner's, outside the session); after a plugin update, re-check that the plugin's `skills/access/SKILL.md` § State shape still matches what the script writes (drift = 🟡, tell the owner to pair by hand until fixed) |
 | Secrets not in git | `git -C <dir> ls-files | grep -E '\.env$|auth\.json|credentials'` must be empty |
 | Recent errors | last 50 log lines, summarised in ≤3 lines (never paste raw logs) |
 | Scheduled jobs | last run time of each job |
 | Cost | remind where to look (provider dashboard, Railway usage); you can't see billing |
+| Clock (fecha y hora) | if the Jarvis has `bin/test-hora.sh`, run it (read-only; any FALLA = 🔴, any AVISO = 🟡). Otherwise: system timezone (`timedatectl show -p Timezone --value`, macOS `readlink /etc/localtime`) must equal the spec's timezone (other name, same offset = 🟡); `timedatectl show -p NTPSynchronized --value` must be `yes`; on WSL, `date +%s` within 60 s of `powershell.exe -NoProfile -Command '[DateTimeOffset]::UtcNow.ToUnixTimeSeconds()'`. A long-lived channel session needs a UserPromptSubmit hook that stamps the current time on every message; missing = 🟡. Fixing the timezone needs `sudo`: give the owner the exact commands in `knowledge/capabilities/deploy-local.md` §3 Setup step 5 (append-only), never run them |
 | Autopilot | last run, paused or not, today's cost against `JARVIS_AUTOPILOT_DAILY_USD`, blocked tasks, `TASKS.md` parse errors, rejects in the last 7 days (commands below). Paused is 🟡, never "fixed" by you: only the owner resumes |
 | Learning | the three hooks present (Claude tracks), captures still `pending` after 7 days, active lessons out of 60, skills on probation, learned skills failing the lint, last `learning.review` |
 | Media | `whisper-cli` and `ffmpeg` on PATH, the model file's SHA-256 equal to the runtime file's pin, `yt-dlp --version` no more than 30 days behind the latest release, no leftover `jarvis-watch-*` folders. Skip on `cowork` |
@@ -53,7 +54,7 @@ Load the `jarvis-start` skill's rules (never read secrets; ask before any change
    for d in skills/*/; do grep -q 'created-by: agent' "$d/SKILL.md" 2>/dev/null && { bin/promote-skill.sh lint "$d" >/dev/null || echo "lint fails: $d"; }; done
    grep '"learning.review"' logs/audit.jsonl | tail -1 | jq -r .ts
    # Media (knowledge/capabilities/multimodal.md)
-   command -v whisper-cli ffmpeg yt-dlp
+   for c in whisper-cli ffmpeg yt-dlp; do command -v "$c" >/dev/null || echo "missing $c"; done   # one name per call
    shasum -a 256 models/ggml-*.bin                               # compare with the runtime file's pin
    yt-dlp --version; gh api repos/yt-dlp/yt-dlp/releases/latest --jq .tag_name 2>/dev/null
    ls "${TMPDIR:-/tmp}" | grep -c '^jarvis-watch-'

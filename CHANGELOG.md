@@ -12,7 +12,73 @@ Pin refreshes from `/jarvis-refresh` go under *Changed* with their source URL.
 
 ## [Unreleased]
 
-Nothing yet.
+Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2026-10-22 to 2026-10-31.
+
+### Fixed
+
+- **A downloaded voice note or video could not be read under the generated sandbox.** The
+  `claude-code-local` sandbox hides all of `~/.claude/channels` (`denyRead`), and the Telegram inbox
+  lives inside it, so `transcribe.sh adjunto:<name>` and `watch.py adjunto:<name>` never found the
+  file. The sandbox block now re-opens only `~/.claude/channels/telegram/inbox` with `allowRead`
+  (the token, `.env` and `access.json` stay hidden); `claude-code-server` gets the same exception
+  for `/data/claude/channels/telegram/inbox`. Both scripts resolve `adjunto:` under
+  `CLAUDE_CONFIG_DIR` (the server keeps its config in `/data/claude`). SEC-08 says so and flags an
+  `allowRead` wider than the inbox as MAJOR; the `claude-code-local` Verify block checks it. New test
+  `tests/channels/inbox-sandbox.test.sh` (in CI) checks the blocks, the alias, and reads a real
+  voice note and video through a bubblewrap namespace that emulates deny + allow, with a negative
+  control; it is an emulation, not the Claude Code sandbox itself.
+- **The mandatory pairing step could not work on `claude-code-server`.** That runtime issues no
+  pairing codes (`TELEGRAM_ACCESS_MODE=static`, `access.json` written from `OWNER_TELEGRAM_ID`). Build
+  step 5 and SEC-01/SEC-04 now scope `bin/telegram-access.sh` to `claude-code-local`.
+- **`/jarvis-doctor` read only the Telegram allowlist.** On a Discord-only install the check raised
+  `FileNotFoundError`, and an unrelated Telegram file could pass without looking at the Discord bot.
+  The check now takes the channels from the spec, reads `$CLAUDE_CONFIG_DIR` (default `~/.claude`) and
+  prints `MISSING` (🔴) for a configured channel with no `access.json`.
+- **The promotion notice said «deshaz» removes a skill even when it was an update.** `bin/learn.sh undo`
+  reverts one learning commit, so on a re-promoted skill it only brings back the previous version and
+  the skill stays live. `promote-skill.sh promote` now says «Skill actualizada» when the skill was
+  already live and names `bin/promote-skill.sh retire <name>` as the way to remove it; the `learn`
+  skill uses `retire` when the owner asks to remove a skill. New test in
+  `tests/learning/promote-skill.test.sh`. Found on a real build (a skill promoted three times in one day).
+- **Telegram pairing on `claude-code-local` could not work as documented.** The runtime file, the
+  checklist and `channels.md` said to run `/telegram:access pair|policy` inside the Jarvis session,
+  but the Jarvis's own `guard.sh` and `protect-paths.sh` deny every write to `access.json` (as they
+  should: a Jarvis must not edit its own allowlist). New owner-only script
+  `templates/local/bin/telegram-access.sh` (`status`, `pair`, `remove`, `policy`) runs in a terminal
+  outside the session, refuses when `CLAUDECODE` is set, writes the plugin's `access.json` shape
+  atomically (mode 600) plus `approved/<id>`. Docs, the build steps, the `AGENTS.md` template and
+  `/jarvis-doctor` now point to it; `Bash(*telegram-access*)` joins the runtime's deny list.
+  Discord reuse is marked UNVERIFIED. Test: `tests/channels/telegram-access.test.sh` (in CI).
+- **`command -v a b c` hid missing tools.** It exits 0 when the last name exists, so the media
+  verify in `questions/4-construir.md` step 13 and `/jarvis-doctor` passed with `whisper-cli`
+  missing. Both now check one name per call.
+- **`permissions.disableBypassPermissionsMode` value.** `security-checklist.md` SEC-10 said `true`;
+  the settings reference (re-checked 2026-10-22) types it as the string `"disable"`. The checklist
+  now says `"disable"`, and the `claude-code-local` settings block sets it (with `rm -rf` and
+  `git push --force` deny rules, matching SEC-10).
+- **Validator sweep 6 contradicted SEC-26.** The sweep graded any `sudo` the person types as a
+  BLOCKER, while the runtime files prescribe `sudo apt …` and `sudo loginctl enable-linger` for the
+  person. Sweep 6 and the SEC-26 Check now agree: pipe-to-shell anywhere and `sudo` run by the
+  agent, a script or a job → BLOCKER; person-typed `sudo` for a prescribed package-manager or
+  system step → fine; other person-typed `sudo` → MAJOR.
+- **Learning commits skipped the secret scan.** `learn.sh` and `promote-skill.sh` commit with
+  `--no-verify`, so a gitleaks pre-commit hook never ran on lessons, facts or promoted skills. They
+  keep `--no-verify` (no arbitrary hooks) and now scan explicitly when `gitleaks` is installed:
+  `learn.sh commit` reverts a flagged change (exit 7, `learning.rejected_secret`), `learn.sh review`
+  leaves a flagged snapshot uncommitted, and `promote-skill.sh promote` scans the proposal before
+  anything moves. New cases in `tests/learning/promote-skill.test.sh`.
+- **Telegram voice notes and videos never reached `transcribe` / `watch-video` on `claude-code-local`.**
+  The documented commands passed the attachment's path under `~/.claude/channels`, which
+  `protect-paths` blocks, plus `--delete-input`, which `guard.sh` blocks (any `--delete`). Both scripts
+  now take `adjunto:<name>` and resolve it inside the Telegram plugin inbox (a bare file name: no
+  folders, no leading dot); the skills drop `--delete-input` on Claude Code. Cases added to
+  `tests/media/run.sh`. Found live 2026-10-27.
+- **WSL could run the Jarvis in the wrong timezone.** WSL copies the Windows zone at every start
+  (`[time] useWindowsTimezone`, default `true`), and a Windows zone can map to a different IANA name
+  than the spec's. `deploy-local.md` §3 gains step 5: the person appends
+  `[time] useWindowsTimezone=false` to `/etc/wsl.conf` (never overwriting `[boot] systemd=true`) and
+  sets the zone with `timedatectl`, as a `user_action`. `/jarvis-doctor` gains a Clock row (timezone vs
+  spec, NTP sync, WSL drift against Windows, a per-message time stamp for long-lived sessions).
 
 ---
 
