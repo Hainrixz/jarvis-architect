@@ -38,9 +38,12 @@ Write `.jarvis/tasks.json`:
      "Extra usage" off, postcondition `person-confirmed` (logged with date in spec §7). Skipped only
      for `ollama-local` with no cloud key (SEC-27 N/A, SEC-28 limits instead).
   5. Owner-only allowlist on every channel, proven by a rejection test (a done task whose verify
-     is that test: a second account gets no reply). Claude Code tracks pair with
+     is that test: a second account gets no reply). `claude-code-local` pairs with
      `bin/telegram-access.sh` (copied from `templates/local/bin/` before the pairing task) in a
      terminal **outside** the session; `/telegram:access pair|policy` fails inside it by design.
+     `claude-code-server` has no pairing step: its entrypoint writes a static `access.json` from
+     `OWNER_TELEGRAM_ID` (`TELEGRAM_ACCESS_MODE=static`, `knowledge/runtimes/claude-code-server.md`
+     § Channels); do not copy the script there, and the rejection test still applies.
   6. Human-approval gate for irreversible actions (send, pay, delete, post, stamp an invoice).
   7. Sandbox / permission profile for the runtime (see its *Security hardening* section).
   8. At least one scheduled job.

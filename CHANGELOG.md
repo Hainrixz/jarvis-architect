@@ -27,6 +27,9 @@ Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2
   `tests/channels/inbox-sandbox.test.sh` (in CI) checks the blocks, the alias, and reads a real
   voice note and video through a bubblewrap namespace that emulates deny + allow, with a negative
   control; it is an emulation, not the Claude Code sandbox itself.
+- **The mandatory pairing step could not work on `claude-code-server`.** That runtime issues no
+  pairing codes (`TELEGRAM_ACCESS_MODE=static`, `access.json` written from `OWNER_TELEGRAM_ID`). Build
+  step 5 and SEC-01/SEC-04 now scope `bin/telegram-access.sh` to `claude-code-local`.
 - **The promotion notice said «deshaz» removes a skill even when it was an update.** `bin/learn.sh undo`
   reverts one learning commit, so on a re-promoted skill it only brings back the previous version and
   the skill stays live. `promote-skill.sh promote` now says «Skill actualizada» when the skill was

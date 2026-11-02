@@ -131,9 +131,11 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
 - *Why:* Strangers who find the bot get the agent's tools (ASI03). Consumer Terms forbid making
   an account available to others (https://www.anthropic.com/legal/consumer-terms).
 - **How:**
-  - CC: pair, then set policy `allowlist` with `bin/telegram-access.sh` from a terminal outside
-    the session (the plugin drops non-allowlisted senders silently,
+  - CC (`claude-code-local`): pair, then set policy `allowlist` with `bin/telegram-access.sh` from a
+    terminal outside the session (the plugin drops non-allowlisted senders silently,
     https://code.claude.com/docs/en/channels; why outside: SEC-04).
+  - CC (`claude-code-server`): no pairing; a static `access.json` with `OWNER_TELEGRAM_ID` and
+    `TELEGRAM_ACCESS_MODE=static` (`knowledge/runtimes/claude-code-server.md` § Channels).
   - HER: `TELEGRAM_ALLOWED_USERS=123456789` (also `DISCORD_ALLOWED_USERS`,
     `WHATSAPP_CLOUD_ALLOWED_USERS`, `WHATSAPP_ALLOWED_USERS`, `GATEWAY_ALLOWED_USERS`). Never
     `GATEWAY_ALLOW_ALL_USERS`, `WHATSAPP_ALLOW_ALL_USERS` or `WHATSAPP_CLOUD_ALLOW_ALL_USERS`
@@ -190,7 +192,8 @@ marked *check live*, read it from that runtime file's linked docs at BUILD time 
 - *Why:* "Never approve a pairing request that arrived through the bot itself"
   (https://code.claude.com/docs/en/channels). This is a social-engineering route (ASI09).
 - **How:**
-  - CC: the owner runs `bin/telegram-access.sh` (from `templates/local/bin/`) in a terminal
+  - CC (`claude-code-local`; the server runtime issues no pairing codes, see SEC-01): the owner runs
+    `bin/telegram-access.sh` (from `templates/local/bin/`) in a terminal
     **outside** the Jarvis session. Inside the session, `guard.sh`, `protect-paths.sh` and the
     sandbox deny every write to `access.json`, so `/telegram:access pair|policy` fails there by
     design; the script refuses to run when `CLAUDECODE` is set and `Bash(*telegram-access*)` is
