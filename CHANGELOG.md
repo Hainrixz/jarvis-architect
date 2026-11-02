@@ -30,6 +30,10 @@ Findings from a real build on Windows 11 + WSL2 (claude-code-local, Telegram), 2
 - **The mandatory pairing step could not work on `claude-code-server`.** That runtime issues no
   pairing codes (`TELEGRAM_ACCESS_MODE=static`, `access.json` written from `OWNER_TELEGRAM_ID`). Build
   step 5 and SEC-01/SEC-04 now scope `bin/telegram-access.sh` to `claude-code-local`.
+- **`/jarvis-doctor` read only the Telegram allowlist.** On a Discord-only install the check raised
+  `FileNotFoundError`, and an unrelated Telegram file could pass without looking at the Discord bot.
+  The check now takes the channels from the spec, reads `$CLAUDE_CONFIG_DIR` (default `~/.claude`) and
+  prints `MISSING` (🔴) for a configured channel with no `access.json`.
 - **The promotion notice said «deshaz» removes a skill even when it was an update.** `bin/learn.sh undo`
   reverts one learning commit, so on a re-promoted skill it only brings back the previous version and
   the skill stays live. `promote-skill.sh promote` now says «Skill actualizada» when the skill was
