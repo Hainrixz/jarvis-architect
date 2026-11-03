@@ -14,6 +14,9 @@
 #   ~/.claude/settings*.json ~/.claude/channels/ ~/.hermes/config.yaml ~/.openclaw/openclaw.json ~/.codex/config.toml
 # Live skills change only through `bin/promote-skill.sh` (lint + probation + git) and every learning
 # change can be undone with `bin/learn.sh undo`; those two scripts are the only allowed shell entry.
+# Shell commands: a lone `&`, globs (expanded, capped) and `cd` targets are judged too; a command that
+# writes may not build paths with $vars, {a,b} lists, glued quotes or \-escapes; reads chained with
+# ; or && count as reads only if every segment is one; a leading `cd <this folder> &&` is accepted.
 # LESSONS.md / MEMORY.md writes that carry a permission ("sin preguntar", "allowlist", …) are denied.
 # Skill tool: a skill on probation is denied in unattended runs; its first attended use ends probation.
 # Output: hookSpecificOutput.permissionDecision "deny" + reason, or nothing (no decision).
@@ -131,6 +134,16 @@ if tool != "Bash":
 
 cmd = str(ti.get("command") or "")
 r = re.escape(ROOT)
+# a leading `cd <this folder> &&` is the same as running from it (the rest is still checked). Only
+# the literal path (or ~/… / $HOME/… for it) counts: `cd . &&` from a protected cwd stays there.
+roots = [r]
+if ROOT.startswith(HOME + os.sep):
+    rel_home = re.escape(os.path.relpath(ROOT, HOME))
+    roots += [r"~/" + rel_home, r"\$HOME/" + rel_home, r"\$\{HOME\}/" + rel_home]
+cdroot = re.match(r"""\s*cd\s+(["']?)(?:""" + "|".join(roots) + r""")/?\1\s*&&\s*""", cmd)
+if cdroot:
+    cmd = cmd[cdroot.end():]
+    cwd = ROOT
 # 1. the two learning entry points, alone, with plain arguments only. `promote-skill.sh used` is not
 #    one of them: probation ends only through a real attended Skill call (below) or the owner's panel.
 entry = re.fullmatch(r"\s*(?:\./|" + r + r"/)?bin/(promote-skill|learn)\.sh((?:\s+[A-Za-z0-9._:-]+)*)\s*", cmd)
@@ -163,31 +176,59 @@ for o in OUTSIDE:
     tail = o.replace(HOME, "~", 1).rstrip("/")
     if tail in cmd or o.rstrip("/") in cmd or tail.replace("~", "$HOME", 1) in cmd:
         mentions.append(tail)
-stop_only = re.search(B + r"(?:\./)?STOP(?:_AUTOPILOT)?\b", cmd)
-# every path-like token, resolved against the hook's cwd: catches bare `skills`, `bin`, `.claude`,
-# `memory/../skills/x`, `--file=AGENTS.md` and relative paths typed while cwd is inside a protected folder
-import shlex
-lessons_shell = False
+import glob, itertools, shlex
 try:
     toks = shlex.split(cmd, comments=False, posix=True)
 except ValueError:
     toks = cmd.split()
+# STOP checked on the raw text and on the unquoted words, so ST''OP_AUTOPILOT is still STOP_AUTOPILOT
+stop_only = re.search(B + r"(?:\./)?STOP(?:_AUTOPILOT)?\b", cmd) or any(
+    re.fullmatch(r"STOP(?:_AUTOPILOT)?", os.path.basename(t)) for t in toks)
+
+def resolve_from(p, base):
+    p = os.path.expanduser(p)
+    return os.path.realpath(p if os.path.isabs(p) else os.path.join(base, p))
+
+# every folder the command runs in: the hook's cwd plus each `cd`/`pushd` target in order, so
+# `cd .. && cd jarvis/bin && rm x` is judged from bin/ and a cd into a protected folder counts
+bases = [os.path.realpath(cwd)]
+for m in re.finditer(r"(?:^|[;&|(]\s*)(?:cd|pushd)\s+([^\s;&|()]+)", cmd):
+    t = m.group(1).strip("'\"")
+    if t != "-" and not re.search(r"[*?\[{$`]", t):
+        bases.append(resolve_from(t, bases[-1]))
+for b_ in bases:
+    if b_ != ROOT and classify(b_ + os.sep + "x") == "protected":
+        mentions.append("cwd " + (os.path.relpath(b_, ROOT) if b_.startswith(ROOT + os.sep) else b_))
+
+# every path-like token, resolved against each of those folders: catches bare `skills`, `bin`, `.claude`,
+# `memory/../skills/x`, `--file=AGENTS.md` and relative paths typed while cwd is inside a protected folder
+lessons_shell = False
 for tok in toks:
     for cand in [tok] + tok.split("=")[1:]:
         if not cand or cand.startswith("-") or re.search(r"[*?\[\]{}$`]", cand) and "/" not in cand:
             continue
-        k = classify(resolve(cand))
-        if k == "protected":
-            mentions.append(os.path.relpath(resolve(cand), ROOT) if resolve(cand).startswith(ROOT) else cand)
-        elif k == "lessons":
-            lessons_shell = True
-cwd_rel = classify(os.path.realpath(cwd) + os.sep + "x") if os.path.realpath(cwd) != ROOT else None
-if cwd_rel == "protected":
-    mentions.append("cwd " + os.path.relpath(os.path.realpath(cwd), ROOT))
+        for b_ in bases:
+            a_ = resolve_from(cand, b_)
+            k = classify(a_)
+            if k == "protected":
+                mentions.append(os.path.relpath(a_, ROOT) if a_.startswith(ROOT) else cand)
+            elif k == "lessons":
+                lessons_shell = True
 
 def read_only(c):
     c = re.sub(r"\s(?:\d?>\s*/dev/null|\d?>&\d)", " ", c)
-    if re.search(r"[;`>]|&&|\|\||\$\(|<\(|\n", c):
+    if re.search(r"[`>]|\|\||\$\(|<\(|\n", c):
+        return False
+    if re.search(r"(?<!&)&(?!&)", c):    # a lone & starts a second command in the background
+        return False
+    # reads chained with ; or && stay read-only only if every segment is one; a `cd` segment is
+    # allowed when its literal target is not a protected folder
+    segs = [x for x in re.split(r";|&&", c) if x.strip()]
+    if len(segs) > 1:
+        return all(read_only(x) or (re.fullmatch(r"\s*cd\s+[^\s;&|*?\[{$`'\"]+\s*", x) is not None
+                                    and classify(resolve(x.split()[1]) + os.sep + "x") != "protected")
+                   for x in segs)
+    if not segs:
         return False
     first_ok = {"cat", "head", "tail", "less", "more", "grep", "egrep", "rg", "wc", "ls", "diff", "stat",
                 "file", "shasum", "sha256sum", "md5", "jq", "test", "["}   # test/[: lock checks (AGENTS.md § 9)
@@ -211,16 +252,52 @@ def read_only(c):
             return False
     return True
 
-if lessons_shell and not mentions and not read_only(cmd):
+writes = not read_only(cmd)
+# shell expansion builds names this hook never sees (${f}ONS.md, $e for .env, {AGENTS,SOUL}.md,
+# quotes glued inside a word, \-escapes): a command that writes must spell every path out literally
+if writes and re.search(r"\$|\{[^}\s]*,|\w(?:''|\"\")|(?:''|\"\")\w|\\[A-Za-z]", cmd) and re.search(
+        r">|\b(?:mv|cp|rm|tee|touch|ln|install|dd|truncate|chmod|chown|rsync|unlink|rmdir|mkdir|patch)\b"
+        r"|\bsed\s+(?:-\w*\s+)*-\w*i|\bperl\s+-\w*i", cmd):
+    deny("un comando que escribe no puede armar rutas con variables, llaves, comillas pegadas ni escapes: "
+         "escribe cada ruta completa y literal.")
+# glob words (jo*/x.post, AGENT*.md) are expanded and every match is classified. Expansion is capped
+# so the hook cannot time out: only under this folder or HOME, at most 3 wildcard levels, 500 matches.
+GLOB_MAX = 500
+for tok in toks:
+    pat = tok.split("=")[-1]
+    if tok.startswith("-") or not re.search(r"[*?\[]", pat):
+        continue
+    for b_ in bases:
+        full = os.path.join(b_, os.path.expanduser(pat))     # an absolute pattern replaces b_
+        fixed = re.split(r"[*?\[]", full, maxsplit=1)[0]
+        fixed_dir = os.path.realpath(fixed if fixed.endswith(os.sep) else os.path.dirname(fixed) or os.sep)
+        if not (fixed_dir + os.sep).startswith((ROOT + os.sep, HOME + os.sep)) or \
+                sum(1 for part in full.split(os.sep) if re.search(r"[*?\[]", part)) > 3:
+            if writes:
+                deny("comodines demasiado amplios o fuera de la carpeta de Jarvis en un comando que escribe: "
+                     "usa rutas literales.")
+            continue
+        found = list(itertools.islice(itertools.chain(glob.iglob(full), glob.iglob(os.path.dirname(full))),
+                                      GLOB_MAX + 1))
+        if len(found) > GLOB_MAX and writes:
+            deny("el comodín abarca demasiados archivos: usa rutas literales.")
+        for m_ in found:
+            a_ = os.path.realpath(m_)
+            if classify(a_) == "protected" or classify(a_ + os.sep + "x") == "protected":
+                mentions.append("comodín " + pat)
+            elif classify(a_) == "lessons":
+                lessons_shell = True
+
+if lessons_shell and not mentions and writes:
     deny("LESSONS.md se cambia con Edit (así se revisa cada lección) y luego `bin/learn.sh commit`, no desde la terminal.")
 if mentions:
-    if not read_only(cmd):
+    if writes:
         deny(f"este comando modificaría {', '.join(sorted(set(mentions)))}: {WHY}.")
     sys.exit(0)
 if stop_only and re.search(r"\b(rm|mv|unlink|rmdir|git)\b", cmd):
     deny("el interruptor STOP / STOP_AUTOPILOT solo lo quita el dueño.")
-# git commands that rewrite workspace files or history, run in this folder
-if not re.search(r"(?:^|[;&|]\s*)cd\s|\s-C\s", cmd) and re.search(
+# git commands that rewrite workspace files or history, run in this folder (after any cd)
+if bases[-1] == ROOT and not re.search(r"\s-C\s", cmd) and re.search(
         r"(?:^|[;&|]\s*)git\s+(reset|checkout|restore|stash|clean|revert|rebase|filter-branch|filter-repo|"
         r"update-ref|am|apply|cherry-pick|commit\s+.*--amend|push\s+.*(-f\b|--force))", cmd):
     deny("git que reescribe archivos o historial del workspace: para deshacer un aprendizaje usa `bin/learn.sh undo`.")

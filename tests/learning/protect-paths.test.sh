@@ -6,7 +6,8 @@
 # files, live skills, settings, jobs, approvals and the learning scripts; lets learning write LESSONS.md,
 # MEMORY.md, memory/ and proposals/; blocks permission content in lessons; enforces skill probation.
 # Offline. Run: bash tests/learning/protect-paths.test.sh
-# shellcheck disable=SC2015,SC2010  # ok() always succeeds, so A && ok || bad is safe here
+# shellcheck disable=SC2015,SC2010,SC2016  # ok() always succeeds, so A && ok || bad is safe here;
+# single-quoted $ is on purpose: those commands must reach the hook unexpanded
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -108,6 +109,32 @@ want allow Bash "$(b 'bin/promote-skill.sh status')"
 want deny  Bash "$(b 'echo "- L-0009 · regla" >> LESSONS.md')"
 CWD="$J/skills/informe" want deny Bash "$(b 'rm SKILL.md')"
 CWD="$J/skills/informe" want allow Bash "$(b 'cat SKILL.md')"
+# second adversarial review (ported from a built Jarvis): lone &, globs, shell expansion, cd prefixes
+mkdir -p "$J/jobs" "$J/logs"; : > "$J/jobs/autopilot.post"
+want allow Bash "$(b "cd $J && bash .claude/skills/transcribe/scripts/transcribe.sh --kind note -- /tmp/nota.ogg")"
+want allow Bash "$(b "cd $J && bin/learn.sh close C-0004 not_a_correction ignored")"
+want deny  Bash "$(b "cd $J && echo hola > AGENTS.md")"
+CWD="$J/jobs" want deny Bash "$(b 'cd . && cp /tmp/x autopilot.post')"
+CWD="$J/jobs" want deny Bash "$(b 'cd . && bin/learn.sh undo')"
+want allow Bash "$(b "tail -n 12 $J/logs/audit.jsonl | cut -c1-400; ls $J/STOP_AUTOPILOT")"
+want allow Bash "$(b 'cat AGENTS.md && grep -n x TOOLS.md')"
+want deny  Bash "$(b 'cat AGENTS.md; rm SOUL.md')"
+want deny  Bash "$(b 'cd jobs && ls; cp /tmp/x jobs/autopilot.post')"
+want deny  Bash "$(b 'cd skills && cat informe/SKILL.md')"
+want deny  Bash "$(b 'cat /dev/null & cp /tmp/x jobs/autopilot.post')"
+want deny  Bash "$(b 'cp /tmp/x jo*/autopilot.post')"
+want deny  Bash "$(b 'sed -i s/a/b/ AGENT*.md')"
+want allow Bash "$(b 'ls AGENT*.md')"
+want allow Bash "$(b "sed -i '' s/a/b/ TASKS.md")"
+want deny  Bash "$(b 'f=LESS; printf x >> ${f}ONS.md')"
+want deny  Bash "$(b "mv ST''OP_AUTOPILOT /tmp/")"
+want deny  Bash "$(b 'e=.env; printf x >> $e')"
+want deny  Bash "$(b 'cp /tmp/x {AGENTS,SOUL}.md')"
+want deny  Bash "$(b 'cp /tmp/x /usr/*/*')"
+want deny  Bash "$(b 'rm memory/*/*/*/*/x')"
+want allow Bash "$(b 'ls /usr/*/python3')"
+want deny  Bash "$(b 'cd .. && cd jarvis/bin && rm learn.sh')"
+want deny  Bash "$(b 'cd .. && cd jarvis && git reset --hard')"
 # Skill probation
 printf 'since=x\n' > "$J/skills/informe/.probation"; printf 'since=x\n' > "$J/.claude/skills/informe/.probation"
 want deny  Skill '{"skill":"informe"}' dontAsk

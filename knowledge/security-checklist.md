@@ -718,7 +718,12 @@ Rules for the three built-in capabilities: `knowledge/capabilities/autonomy.md`,
     audit). No approval record is needed for a skill Jarvis created; replacing an owner or
     Architect skill needs an owner decision in `approvals/decided/`, which Jarvis cannot write.
   - `protect-paths.sh` denies writes to SOUL/AGENTS/TOOLS/HEARTBEAT, settings, `jobs/`,
-    `approvals/` and live skill folders; it resolves every shell path token against cwd, denies
+    `approvals/` and live skill folders; it resolves every shell path token against cwd and every
+    `cd` target, expands glob words (capped: only under the Jarvis folder or HOME, at most 3
+    wildcard levels and 500 matches) and classifies each match, denies a writing command that
+    builds paths with `$` variables, `{a,b}` lists, glued quotes or `\` escapes, counts a lone `&`
+    as a second command, treats `;`/`&&` chains as read-only only when every segment is a read,
+    accepts a leading `cd <Jarvis folder> &&` only for the literal path (never `cd .`), denies
     shell writes to `LESSONS.md`, and denies `promote-skill.sh used` to the agent.
   - HER `skills.guard_agent_created: true`; OC dreaming off; CDX memories off (or
     `disable_on_external_context`).
