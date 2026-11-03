@@ -221,9 +221,12 @@ keeps MCP/web chats out) ([Codex memories](https://learn.chatgpt.com/docs/custom
   `Bash(./bin/learn.sh *)`, `Bash(./bin/promote-skill.sh *)` (and the same without `./`), and the
   sandbox's `excludedCommands` lists both scripts, because the sandbox write-protects `.claude/skills`. The scripts reject anything but
   plain arguments, and `protect-paths` rejects them when chained with other commands, when run
-  from another folder by a relative path, and for `promote-skill.sh used`. It also resolves every
-  path in a shell command (bare `skills`, `memory/../skills`, a cwd inside a protected folder) and
-  denies shell writes to `LESSONS.md`, so every lesson goes through `Edit` and its content check.
+  from another folder by a relative path, and for `promote-skill.sh used` (a leading
+  `cd <Jarvis folder> &&` with the literal path counts as running from the folder). It also resolves
+  every path in a shell command (bare `skills`, `memory/../skills`, a cwd or `cd` target inside a
+  protected folder, glob words such as `jo*/x`), refuses writing commands that build paths from
+  shell expansion (SEC-36), and denies shell writes to `LESSONS.md`, so every lesson goes through
+  `Edit` and its content check.
 - **Agent SDK:** the same three scripts as callbacks in `guards.ts` (`UserPromptSubmit`, `Stop`,
   `PreToolUse`), passing the hook input as JSON on stdin and returning the parsed stdout.
 - `.env.example`: `JARVIS_LEARN_CHANNELS=telegram` (only the owner's channels) and, when the
