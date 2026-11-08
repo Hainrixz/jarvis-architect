@@ -12,7 +12,13 @@ Pin refreshes from `/jarvis-refresh` go under *Changed* with their source URL.
 
 ## [Unreleased]
 
-Nothing yet.
+### Security
+
+- `templates/local/bin/learn.sh`: the permission filter in `check_change` no longer drops an added
+  lesson line that starts with `+` (for example `++ b/…`); it now skips only the diff header. The
+  weekly `review` also runs `check_change` on `LESSONS.md`: if a line grants permissions, it leaves
+  `LESSONS.md` out of the commit for the owner to review and logs `learning.rejected_permission`.
+  Found by the Asta audit (T41/T45, 2026-11-08) and already fixed in that Jarvis.
 
 ---
 

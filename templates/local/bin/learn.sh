@@ -93,7 +93,7 @@ PYEOF
 
 check_change() {  # check_change <kind> <file>: exit 0 ok · 3 permission content · 4 format problem
   local added
-  added="$(git diff -U0 HEAD -- "$2" 2>/dev/null | grep -E '^\+[^+]' | cut -c2- || true)"
+  added="$(git diff -U0 HEAD -- "$2" 2>/dev/null | sed '1,/^+++ /d' | grep -E '^\+' | cut -c2- || true)"
   [ -n "$added" ] || added="$( [ -n "$(git ls-files -- "$2")" ] || cat "$2" )"
   LEARN_ADDED="$added" "$PY" -I - "$1" "$2" <<'PYEOF'
 import os, re, sys
@@ -315,6 +315,11 @@ PYEOF
     path="${report%%	*}"; retired="${report#*	}"
     sha=""
     snap=(LESSONS.md "$path"); [ -d skills-learned ] && snap+=(skills-learned)
+    set +e; check_change lesson LESSONS.md >/dev/null 2>&1; rc=$?; set -e
+    if [ "$rc" = 3 ]; then  # una línea que da permisos no se consolida: queda sin commit para el dueño
+      snap=("$path"); [ -d skills-learned ] && snap+=(skills-learned)
+      audit learning.rejected_permission review "" LESSONS.md
+    fi
     git add -A -- "${snap[@]}" 2>/dev/null || true
     if ! git diff --cached --quiet -- "${snap[@]}" 2>/dev/null; then
       msg="learning: weekly review $(basename "$path" .md)"; [ -n "$retired" ] && msg="$msg retire $retired"
